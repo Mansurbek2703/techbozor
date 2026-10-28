@@ -9,11 +9,11 @@ export async function POST(request: Request) {
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Iltimos, mahsulot haqida tavsif yozing' 
+        error: 'Iltimos, texnika haqida tavsif yozing' 
       }, { status: 400 });
     }
 
-    const analyzed = parseUserPrompt(prompt);
+    const analyzed = await parseUserPrompt(prompt);
 
     return NextResponse.json({
       success: true,

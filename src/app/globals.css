@@ -3,13 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 24, 24, 27;
-  --background-rgb: 250, 250, 250;
+  --foreground-rgb: 28, 25, 23;
+  --background-rgb: 251, 250, 248;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: #fbfbfa;
+  background: radial-gradient(circle at 15% 15%, rgba(251, 146, 60, 0.08), transparent 45%),
+              radial-gradient(circle at 85% 85%, rgba(234, 88, 12, 0.06), transparent 50%),
+              #fbfaf8;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -17,50 +19,98 @@ body {
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f4f4f5;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #fdba74;
+  background: #fed7aa;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #ea580c;
+  background: #f97316;
 }
 
-/* Glassmorphism & Copper Glow */
-.glass-copper {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(251, 146, 60, 0.25);
+/* 3D OYNA EFFEKTI (3D Glass Prism Effect) */
+.glass-3d {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.75) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.95);
+  border-left: 1.5px solid rgba(255, 255, 255, 0.95);
+  border-bottom: 1.5px solid rgba(234, 88, 12, 0.22);
+  border-right: 1.5px solid rgba(234, 88, 12, 0.22);
+  box-shadow: 
+    0 16px 36px -12px rgba(234, 88, 12, 0.12),
+    0 4px 12px 0 rgba(0, 0, 0, 0.03),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 4px 0 rgba(234, 88, 12, 0.06);
+}
+
+.glass-3d-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 250, 245, 0.85) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1.5px solid rgba(255, 255, 255, 1);
+  border-left: 1.5px solid rgba(255, 255, 255, 1);
+  border-bottom: 1.5px solid rgba(249, 115, 22, 0.25);
+  border-right: 1.5px solid rgba(249, 115, 22, 0.25);
+  box-shadow: 
+    0 10px 25px -8px rgba(234, 88, 12, 0.1),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.95);
+}
+
+.glass-3d-input {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(200, 200, 200, 0.5);
+  border-left: 1px solid rgba(200, 200, 200, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.9);
+  border-right: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.glass-3d-input:focus {
+  border-color: #ea580c;
+  box-shadow: 
+    0 0 0 3px rgba(234, 88, 12, 0.15),
+    inset 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .gradient-copper-header {
-  background: linear-gradient(135deg, #ea580c 0%, #f97316 45%, #d97706 100%);
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 50%, #d97706 100%);
 }
 
-.gradient-amber-dark {
-  background: linear-gradient(135deg, #431407 0%, #7c2d12 50%, #9a3412 100%);
+.glass-3d-button {
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 50%, #d97706 100%);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-left: 1.5px solid rgba(255, 255, 255, 0.5);
+  border-bottom: 1.5px solid rgba(154, 52, 18, 0.8);
+  border-right: 1.5px solid rgba(154, 52, 18, 0.8);
+  box-shadow: 
+    0 10px 20px -5px rgba(234, 88, 12, 0.35),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
 }
 
-.gradient-card-border {
-  background: linear-gradient(135deg, rgba(234, 88, 12, 0.3), rgba(245, 158, 11, 0.1));
+.glass-3d-button:hover {
+  filter: brightness(1.05);
+  box-shadow: 
+    0 14px 26px -6px rgba(234, 88, 12, 0.45),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.6);
 }
 
-/* Touch friendly for smartphones */
+/* Touch friendly */
 button, input, select, textarea, a {
   touch-action: manipulation;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.22s ease-out forwards;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
