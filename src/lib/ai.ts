@@ -187,49 +187,58 @@ QAT’IY TALABLAR:
 }`;
 
 /**
- * 1. Gemini API bilan tahlil (Kalitlar rotatsiyasi)
+ * 1. Gemini API bilan tahlil (Kalitlar rotatsiyasi va Model kaskadi)
  */
 async function analyzeWithGemini(prompt: string): Promise<ExtractedRequestData | null> {
   const keys = getGeminiApiKeys();
   if (keys.length === 0) return null;
 
+  const candidateModels = [
+    'gemini-3.5-flash-lite',
+    'gemini-3.8-flash',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
+  ];
+
   for (const key of keys) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-      const requestBody = {
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${SYSTEM_ECONOMIST_PROMPT}\n\nFOYDALANUVCHI SO‘ROVI: "${prompt}"` }]
+    for (const model of candidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const requestBody = {
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${SYSTEM_ECONOMIST_PROMPT}\n\nFOYDALANUVCHI SO‘ROVI: "${prompt}"` }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 1500,
           }
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 1500,
+        };
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!res.ok) {
+          console.warn(`Gemini (${model}) returned status ${res.status}, checking next...`);
+          continue;
         }
-      };
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+        const jsonRes = await res.json();
+        const candidateText = jsonRes.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!candidateText) continue;
 
-      if (!res.ok) {
-        console.warn(`Gemini key failed with status ${res.status}, trying next...`);
-        continue;
+        const cleanJson = candidateText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+
+        return sanitizeExtractedData(parsed, prompt);
+      } catch (err) {
+        console.warn(`Gemini attempt with ${model} error:`, err);
       }
-
-      const jsonRes = await res.json();
-      const candidateText = jsonRes.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!candidateText) continue;
-
-      const cleanJson = candidateText.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
-
-      return sanitizeExtractedData(parsed, prompt);
-    } catch (err) {
-      console.warn('Gemini attempt error:', err);
     }
   }
 
