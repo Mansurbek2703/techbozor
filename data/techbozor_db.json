@@ -1,0 +1,321 @@
+{
+  "requests": [
+    {
+      "id": "REQ-78219",
+      "buyerName": "Jamshid Oripov",
+      "buyerPhone": "+998909876543",
+      "category": "tv",
+      "description": "5 million so‘mgacha 50 yoki 55 dyuymli Smart televizor kerak. Tasvir sifati va ovozi yaxshi bo‘lsin.",
+      "budget": 5000000,
+      "region": "Toshkent shahri",
+      "district": "Yunusobod",
+      "specifications": {
+        "diagonal": "55\"",
+        "smartTv": "Mavjud (Android/Google TV/Tizen)",
+        "screenType": "LED / LCD"
+      },
+      "durationDays": 7,
+      "createdAt": "2026-10-28T01:36:13.841Z",
+      "expiresAt": "2026-11-03T05:36:13.841Z",
+      "status": "active",
+      "smsConsent": true,
+      "aiExtracted": {
+        "category": "tv",
+        "budget": 5000000,
+        "specs": {
+          "diagonal": "55\"",
+          "smart": true
+        }
+      }
+    },
+    {
+      "id": "REQ-45192",
+      "buyerName": "Farhod Nazarov",
+      "buyerPhone": "+998931112233",
+      "category": "fridge",
+      "description": "Samarqand shahriga 6-7 mln so‘m atrofida katta NoFrost sovutkich kerak. LG yoki Samsung ma’qul.",
+      "budget": 7000000,
+      "region": "Samarqand",
+      "district": "Samarqand sh.",
+      "specifications": {
+        "type": "No Frost (Muzlamas)",
+        "volume": "360-500 litr"
+      },
+      "durationDays": 3,
+      "createdAt": "2026-10-27T19:36:13.841Z",
+      "expiresAt": "2026-10-30T05:36:13.841Z",
+      "status": "active",
+      "smsConsent": true
+    }
+  ],
+  "offers": [
+    {
+      "id": "OFF-1092",
+      "requestId": "REQ-78219",
+      "sellerId": "SEL-001",
+      "sellerName": "Alisher Karimov",
+      "sellerShopName": "Texnomart Toshkent",
+      "sellerPhone": "+998901234567",
+      "sellerRegion": "Toshkent shahri",
+      "productName": "Samsung 55 Crystal 4K UHD Smart TV (CU7100)",
+      "brand": "Samsung",
+      "model": "UE55CU7100UXUZ",
+      "price": 4850000,
+      "condition": "new",
+      "description": "Yangi qutida, 1 yil rasmiy Samsung O‘zbekiston kafolati bor. Toshkent bo‘ylab bepul yetkazib beramiz!",
+      "imageUrl": "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&auto=format&fit=crop&q=80",
+      "status": "sent",
+      "createdAt": "2026-10-28T02:36:13.841Z"
+    },
+    {
+      "id": "OFF-1093",
+      "requestId": "REQ-78219",
+      "sellerId": "SEL-001",
+      "sellerName": "Alisher Karimov",
+      "sellerShopName": "Texnomart Toshkent",
+      "sellerPhone": "+998901234567",
+      "sellerRegion": "Toshkent shahri",
+      "productName": "Artel 55 Smart Android TV (55AU90G)",
+      "brand": "Artel",
+      "model": "55AU90G",
+      "price": 4150000,
+      "condition": "new",
+      "description": "3 yil kafolat, o‘zbek tilidagi ovozli boshqaruv pulti, Google Play dasturlari to‘liq o‘rnatilgan.",
+      "imageUrl": "https://images.unsplash.com/photo-1577975882846-431adc8c2009?w=600&auto=format&fit=crop&q=80",
+      "status": "viewed",
+      "createdAt": "2026-10-28T03:36:13.841Z"
+    },
+    {
+      "id": "OFF-1094",
+      "requestId": "REQ-45192",
+      "sellerId": "SEL-002",
+      "sellerName": "Sherzod Boboyev",
+      "sellerShopName": "SmartTex Samarqand",
+      "sellerPhone": "+998935552233",
+      "sellerRegion": "Samarqand",
+      "productName": "LG Smart Inverter NoFrost Sovutkich 360L",
+      "brand": "LG",
+      "model": "GC-B459SQCL",
+      "price": 6750000,
+      "condition": "new",
+      "description": "Samarqand do‘konimizda mavjud. 10 yil kompressor kafolati. Yetkazib berish va o‘rnatish tekin.",
+      "imageUrl": "https://images.unsplash.com/photo-1584992236310-6edddc08acff?w=600&auto=format&fit=crop&q=80",
+      "status": "sent",
+      "createdAt": "2026-10-27T21:36:13.841Z"
+    }
+  ],
+  "sellers": [
+    {
+      "id": "SEL-001",
+      "login": "texnomart_toshkent",
+      "password": "password123",
+      "shopName": "Texnomart Toshkent",
+      "ownerName": "Alisher Karimov",
+      "phone": "+998901234567",
+      "sellerType": "business",
+      "regions": [
+        "Toshkent shahri",
+        "Toshkent viloyati",
+        "Sirdaryo"
+      ],
+      "categories": [
+        "tv",
+        "fridge",
+        "washing",
+        "ac",
+        "vacuum",
+        "stove",
+        "microwave"
+      ],
+      "isVerified": true,
+      "isBlocked": false,
+      "rating": 4.9,
+      "createdAt": "2026-09-28T05:36:13.840Z"
+    },
+    {
+      "id": "SEL-002",
+      "login": "smart_samarqand",
+      "password": "password123",
+      "shopName": "SmartTex Samarqand",
+      "ownerName": "Sherzod Boboyev",
+      "phone": "+998935552233",
+      "sellerType": "business",
+      "regions": [
+        "Samarqand",
+        "Buxoro",
+        "Jizzax"
+      ],
+      "categories": [
+        "tv",
+        "fridge",
+        "washing",
+        "ac"
+      ],
+      "isVerified": true,
+      "isBlocked": false,
+      "rating": 4.8,
+      "createdAt": "2026-10-08T05:36:13.841Z"
+    },
+    {
+      "id": "SEL-003",
+      "login": "fergana_texnika",
+      "password": "password123",
+      "shopName": "Farg‘ona Texnika Markazi",
+      "ownerName": "Oybek Mirzayev",
+      "phone": "+998977112244",
+      "sellerType": "business",
+      "regions": [
+        "Farg‘ona",
+        "Andijon",
+        "Namangan"
+      ],
+      "categories": [
+        "tv",
+        "fridge",
+        "washing",
+        "ac",
+        "vacuum",
+        "stove",
+        "microwave"
+      ],
+      "isVerified": true,
+      "isBlocked": false,
+      "rating": 4.7,
+      "createdAt": "2026-10-13T05:36:13.841Z"
+    },
+    {
+      "id": "SEL-004",
+      "login": "xorazm_electron",
+      "password": "password123",
+      "shopName": "Xorazm Elektronika",
+      "ownerName": "Mansur Razzoqov",
+      "phone": "+998993456789",
+      "sellerType": "individual",
+      "regions": [
+        "Xorazm",
+        "Qoraqalpog‘iston"
+      ],
+      "categories": [
+        "tv",
+        "fridge",
+        "ac",
+        "washing"
+      ],
+      "isVerified": true,
+      "isBlocked": false,
+      "rating": 4.9,
+      "createdAt": "2026-10-18T05:36:13.841Z"
+    }
+  ],
+  "products": [
+    {
+      "id": "PRD-101",
+      "sellerId": "SEL-001",
+      "category": "tv",
+      "name": "Samsung 55 Crystal 4K UHD Smart TV (CU7100)",
+      "brand": "Samsung",
+      "model": "UE55CU7100UXUZ",
+      "price": 4950000,
+      "condition": "new",
+      "specifications": {
+        "Diagonal": "55\"",
+        "Aniqlik": "4K UHD (3840x2160)",
+        "Smart TV": "Tizen OS",
+        "Kafolat": "1 yil rasmiy"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&auto=format&fit=crop&q=80",
+      "region": "Toshkent shahri",
+      "inStock": true,
+      "createdAt": "2026-10-28T05:36:13.841Z"
+    },
+    {
+      "id": "PRD-102",
+      "sellerId": "SEL-001",
+      "category": "tv",
+      "name": "Artel 55 Smart Android TV (55AU90G)",
+      "brand": "Artel",
+      "model": "55AU90G",
+      "price": 4200000,
+      "condition": "new",
+      "specifications": {
+        "Diagonal": "55\"",
+        "Smart TV": "Android 11 Google TV",
+        "Aniqlik": "4K UHD HDR10",
+        "Kafolat": "3 yil to‘liq kafolat"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1577975882846-431adc8c2009?w=600&auto=format&fit=crop&q=80",
+      "region": "Toshkent shahri",
+      "inStock": true,
+      "createdAt": "2026-10-28T05:36:13.841Z"
+    },
+    {
+      "id": "PRD-103",
+      "sellerId": "SEL-002",
+      "category": "fridge",
+      "name": "LG Smart Inverter NoFrost Sovutkich 360L",
+      "brand": "LG",
+      "model": "GC-B459SQCL",
+      "price": 6800000,
+      "condition": "new",
+      "specifications": {
+        "Hajmi": "360 litr",
+        "Turi": "Total No Frost",
+        "Kompressor": "Smart Inverter (10 yil kafolat)",
+        "Energiya sinfi": "A++"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1584992236310-6edddc08acff?w=600&auto=format&fit=crop&q=80",
+      "region": "Samarqand",
+      "inStock": true,
+      "createdAt": "2026-10-28T05:36:13.841Z"
+    },
+    {
+      "id": "PRD-104",
+      "sellerId": "SEL-003",
+      "category": "washing",
+      "name": "Artel Avtomat Kir Yuvish Mashinasi 7kg",
+      "brand": "Artel",
+      "model": "Grand Inverter 70C121",
+      "price": 3600000,
+      "condition": "new",
+      "specifications": {
+        "Sig‘im": "7 kg",
+        "Siqish tezligi": "1200 ayl/daq",
+        "Dvigatel": "Inverter Direct Drive",
+        "Kafolat": "3 yil"
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=600&auto=format&fit=crop&q=80",
+      "region": "Farg‘ona",
+      "inStock": true,
+      "createdAt": "2026-10-28T05:36:13.841Z"
+    }
+  ],
+  "smsLogs": [
+    {
+      "id": "SMS-1",
+      "recipientPhone": "+998901234567",
+      "recipientType": "seller",
+      "recipientName": "Texnomart Toshkent",
+      "message": "Yangi talab: 5 mln so‘mgacha Smart TV kerak. Hudud: Toshkent shahri. Ko‘rish: https://savdo.mcode.uz/seller/dashboard",
+      "sentAt": "2026-10-28T01:36:13.841Z",
+      "status": "delivered",
+      "costSoM": 65,
+      "relatedRequestId": "REQ-78219"
+    },
+    {
+      "id": "SMS-2",
+      "recipientPhone": "+998909876543",
+      "recipientType": "buyer",
+      "recipientName": "Jamshid Oripov",
+      "message": "Sizning talabingizga yangi taklif: Samsung 55 Crystal 4K — 4 850 000 so‘m. Batafsil: https://savdo.mcode.uz/request/REQ-78219",
+      "sentAt": "2026-10-28T02:36:13.841Z",
+      "status": "delivered",
+      "costSoM": 65,
+      "relatedRequestId": "REQ-78219",
+      "relatedOfferId": "OFF-1092"
+    }
+  ],
+  "adminStats": {
+    "totalAiQueries": 142,
+    "totalSmsSpentSoM": 130
+  }
+}
