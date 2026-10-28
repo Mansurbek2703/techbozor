@@ -21,24 +21,45 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { sellerId, category, name, brand, model, price, condition, specifications, imageUrl, region } = body;
+    const { 
+      sellerId, 
+      category, 
+      categoryName,
+      name, 
+      brand, 
+      model, 
+      price, 
+      condition, 
+      specifications, 
+      customAttributes,
+      imageUrl, 
+      region,
+      warranty,
+      delivery,
+      description
+    } = body;
 
-    if (!sellerId || !name || !price || !category) {
-      return NextResponse.json({ success: false, error: 'Maydonlar to‘liq emas' }, { status: 400 });
+    if (!sellerId || !name || !price) {
+      return NextResponse.json({ success: false, error: 'Majburiy maydonlar to‘ldirilmadi' }, { status: 400 });
     }
 
     const newProduct = addProduct({
       sellerId,
-      category,
+      category: category || 'boshqa',
+      categoryName: categoryName || (category ? category.toString() : 'Boshqa tovarlar'),
       name,
       brand: brand || 'Boshqa',
       model: model || '',
       price: Number(price),
       condition: condition || 'new',
       specifications: specifications || {},
-      imageUrl: imageUrl || 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&auto=format&fit=crop&q=80',
+      customAttributes: customAttributes || {},
+      imageUrl: imageUrl || 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=600&auto=format&fit=crop&q=80',
       region: region || 'Toshkent shahri',
       inStock: true,
+      warranty: warranty || '',
+      delivery: delivery || 'Mavjud',
+      description: description || '',
     });
 
     return NextResponse.json({ success: true, data: newProduct, message: 'Mahsulot muvaffaqiyatli qo‘shildi' });

@@ -213,6 +213,184 @@ export const CATEGORIES: CategoryInfo[] = [
       },
     ],
   },
+  {
+    id: 'phone',
+    name: 'Smartfon & Gadjetlar',
+    iconName: 'Smartphone',
+    description: 'Smartfonlar, planshet va aksessuarlar',
+    filters: [
+      {
+        id: 'brand',
+        label: 'Brend',
+        type: 'select',
+        options: ['Hammasi', 'Apple iPhone', 'Samsung', 'Xiaomi / Redmi', 'Honor', 'Tecno', 'Infinix', 'Boshqa'],
+      },
+      {
+        id: 'storage',
+        label: 'Xotirasi',
+        type: 'select',
+        options: ['Hammasi', '64 GB', '128 GB', '256 GB', '512 GB', '1 TB'],
+      },
+      {
+        id: 'condition',
+        label: 'Holati',
+        type: 'select',
+        options: ['Hammasi', 'Yangi (Qadoqda)', 'Ideal holatda', 'Ishlatilgan (b/u)'],
+      },
+    ],
+  },
+  {
+    id: 'laptop',
+    name: 'Noutbuk & Kompyuter',
+    iconName: 'Laptop',
+    description: 'O‘qish, ish va o‘yin noutbuklari',
+    filters: [
+      {
+        id: 'brand',
+        label: 'Brend',
+        type: 'select',
+        options: ['Hammasi', 'Lenovo', 'HP', 'Asus', 'Acer', 'Apple MacBook', 'Dell'],
+      },
+      {
+        id: 'cpu',
+        label: 'Protsessor',
+        type: 'select',
+        options: ['Hammasi', 'Intel Core i3', 'Intel Core i5', 'Intel Core i7 / i9', 'AMD Ryzen 5', 'AMD Ryzen 7', 'Apple M-series'],
+      },
+      {
+        id: 'purpose',
+        label: 'Yo‘nalishi',
+        type: 'select',
+        options: ['Hammasi', 'Ofis & O‘qish', 'Gaming (Kuchli o‘yin)', 'Grafika & Dasturlash', 'Ultrabuk'],
+      },
+    ],
+  },
+  {
+    id: 'auto',
+    name: 'Avto ehtiyot qismlar',
+    iconName: 'Package',
+    description: 'Akkumulyator, moylar, shina va detallar',
+    filters: [
+      {
+        id: 'carModel',
+        label: 'Avtomobil',
+        type: 'select',
+        options: ['Hammasi', 'Cobalt', 'Gentra / Lacetti', 'Nexia 3', 'Tracker / Onix', 'Malibu', 'Damas / Labo', 'BYD / Chery', 'Boshqa'],
+      },
+      {
+        id: 'partType',
+        label: 'Qism turi',
+        type: 'select',
+        options: ['Hammasi', 'Akkumulyator', 'Moy & Filtrlar', 'Shinalar & Disklar', 'Tormoz tizimi', 'Xodovoy & Podveska', 'Elektronika'],
+      },
+      {
+        id: 'condition',
+        label: 'Holati',
+        type: 'select',
+        options: ['Hammasi', 'Yangi original', 'Yangi dublikat', 'Ideal ishlatilgan'],
+      },
+    ],
+  },
+  {
+    id: 'build',
+    name: 'Qurilish & Ta’mirlash',
+    iconName: 'Layers',
+    description: 'Santexnika, elektr, bo‘yoq va qoplama',
+    filters: [
+      {
+        id: 'subType',
+        label: 'Mahsulot turi',
+        type: 'select',
+        options: ['Hammasi', 'Santexnika & Quvurlar', 'Elektr & Kabellar', 'Kafel & Qoplamalar', 'Bo‘yoq & Suvoq', 'Tom va fasad', 'Metall prokat'],
+      },
+      {
+        id: 'origin',
+        label: 'Ishlab chiqaruvchi',
+        type: 'select',
+        options: ['Hammasi', 'Mahalliy (O‘zbekiston)', 'Rossiya', 'Turkiya', 'Xitoy', 'Yevropa'],
+      },
+    ],
+  },
+  {
+    id: 'furniture',
+    name: 'Mebel & Jihozlar',
+    iconName: 'Layers',
+    description: 'Oshxona, yotoqxona va ofis mebellari',
+    filters: [
+      {
+        id: 'category',
+        label: 'Turi',
+        type: 'select',
+        options: ['Hammasi', 'Yumshoq mebel (Divan-kreslo)', 'Oshxona garnituri', 'Yotoqxona mebeli', 'Stol & Stullar', 'Ofis mebeli'],
+      },
+      {
+        id: 'material',
+        label: 'Materiali',
+        type: 'select',
+        options: ['Hammasi', 'Laminat (DSP/MDF)', 'Tabiiy yog‘och', 'Metall karkas', 'Mato & Terisi'],
+      },
+    ],
+  },
+  {
+    id: 'clothes',
+    name: 'Kiyim & Poyabzal',
+    iconName: 'Shirt',
+    description: 'Erkaklar, ayollar va bolalar kiyimlari',
+    filters: [
+      {
+        id: 'target',
+        label: 'Kim uchun',
+        type: 'select',
+        options: ['Hammasi', 'Erkaklar uchun', 'Ayollar uchun', 'Bolalar uchun', 'Uniseks'],
+      },
+      {
+        id: 'season',
+        label: 'Mavsum',
+        type: 'select',
+        options: ['Hammasi', 'Bahor-Yoz', 'Kuz-Qish', 'Barcha mavsumiy'],
+      },
+    ],
+  },
+  {
+    id: 'tools',
+    name: 'Asbob-uskunalar',
+    iconName: 'Zap',
+    description: 'Drel, bolgarka, payvandlash, generator',
+    filters: [
+      {
+        id: 'toolType',
+        label: 'Asbob turi',
+        type: 'select',
+        options: ['Hammasi', 'Elektr asboblar (Drel, Perforator)', 'Akkumulyatorli asboblar', 'Payvandlash apparatlari (Svarka)', 'Generatorlar', 'Qo‘l asboblari'],
+      },
+      {
+        id: 'brand',
+        label: 'Brend',
+        type: 'select',
+        options: ['Hammasi', 'Bosch', 'DeWalt', 'Makita', 'Crown', 'Ingco', 'Total'],
+      },
+    ],
+  },
+  {
+    id: 'other',
+    name: 'Boshqa barcha tovarlar',
+    iconName: 'Package',
+    description: 'Istalgan turdagi tovar va mahsulotlar',
+    filters: [
+      {
+        id: 'condition',
+        label: 'Holati',
+        type: 'select',
+        options: ['Hammasi', 'Yangi', 'Ishlatilgan (Ideal)', 'Ishlatilgan (O‘rtacha)'],
+      },
+      {
+        id: 'delivery',
+        label: 'Yetkazib berish',
+        type: 'select',
+        options: ['Hammasi', 'Yetkazib berish mavjud', 'Olib ketish (Samovivoz)'],
+      },
+    ],
+  },
 ];
 
 export function getCategoryById(id: CategoryKey | string): CategoryInfo | undefined {

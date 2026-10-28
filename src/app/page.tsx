@@ -29,7 +29,12 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  Check
+  Check,
+  Package,
+  Car,
+  Hammer,
+  Sofa,
+  Wrench
 } from 'lucide-react';
 import { CATEGORIES as DEFAULT_CATEGORIES } from '@/lib/categories';
 import { CategoryKey, Region, UZBEKISTAN_REGIONS, AIRecommendation, CategoryInfo } from '@/types';
@@ -261,6 +266,12 @@ export default function HomePage() {
       case 'microwave': return <Utensils className="w-5 h-5" />;
       case 'laptop': return <Laptop className="w-5 h-5" />;
       case 'phone': return <Smartphone className="w-5 h-5" />;
+      case 'auto': return <Car className="w-5 h-5" />;
+      case 'build': return <Hammer className="w-5 h-5" />;
+      case 'furniture': return <Sofa className="w-5 h-5" />;
+      case 'clothes': return <Shirt className="w-5 h-5" />;
+      case 'tools': return <Wrench className="w-5 h-5" />;
+      case 'other': return <Package className="w-5 h-5" />;
       default: return <Layers className="w-5 h-5" />;
     }
   };
@@ -949,6 +960,85 @@ export default function HomePage() {
                 <Send className="w-4 h-4" />
                 <span>Ushbu model bo‘yicha talab qoldirish</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 4. TALAB MUVAFFAQIYATLI QABUL QILINGANLIGI OYNASI (MODAL) */}
+      {createdRequest && (
+        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto">
+          <div className="glass-3d bg-white/95 max-w-lg w-full rounded-3xl p-6 sm:p-7 space-y-5 shadow-2xl border-2 border-emerald-300 relative my-auto text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-xl font-black text-stone-900">
+                Talabingiz muvaffaqiyatli qabul qilindi!
+              </h3>
+              <p className="text-xs text-stone-600">
+                Talab raqami: <span className="font-extrabold text-brand-600">REQ-{createdRequest.data?.id}</span>
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-emerald-50/80 rounded-2xl border border-emerald-200/80 text-left text-xs text-stone-700 space-y-1">
+              <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                <span>Sotuvchilarga xabar yetkazildi</span>
+              </div>
+              <p className="text-[11px] text-stone-600">
+                {createdRequest.data?.region} viloyatidagi do‘kon va sotuvchilarga yangi talabingiz haqida bildirishnoma yo‘naltirildi. Sotuvchilar narx takliflarini kiritishi bilanoq sizga SMS xabar keladi.
+              </p>
+            </div>
+
+            {/* Kuzatish havolasi */}
+            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-stone-100 border border-stone-200 text-xs">
+              <input 
+                type="text" 
+                readOnly 
+                value={typeof window !== 'undefined' ? `${window.location.origin}/request/${createdRequest.data?.id}` : ''}
+                className="bg-transparent flex-1 text-stone-700 font-mono text-[11px] truncate outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    navigator.clipboard.writeText(`${window.location.origin}/request/${createdRequest.data?.id}`);
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 2000);
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 font-bold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer"
+              >
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedLink ? 'Nusxalandi' : 'Nusxalash'}</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatedRequest(null);
+                  setPromptText('');
+                  setBudgetInput('');
+                  setSelectedModel(null);
+                  setActiveFilters({});
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="w-full sm:flex-1 py-3 px-4 rounded-xl glass-3d-button text-white font-black text-xs sm:text-sm shadow-md active:scale-95 transition cursor-pointer"
+              >
+                + Yana yangi tovar talabi kiritish
+              </button>
+
+              <Link
+                href={`/request/${createdRequest.data?.id}`}
+                className="w-full sm:w-auto py-3 px-5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition"
+              >
+                <span>Takliflarni ko‘rish</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
         </div>

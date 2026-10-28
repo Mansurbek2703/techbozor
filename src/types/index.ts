@@ -38,7 +38,16 @@ export type CategoryKey =
   | 'ac'
   | 'vacuum'
   | 'stove'
-  | 'microwave';
+  | 'microwave'
+  | 'phone'
+  | 'laptop'
+  | 'auto'
+  | 'build'
+  | 'furniture'
+  | 'clothes'
+  | 'tools'
+  | 'other'
+  | (string & {});
 
 export interface CategoryInfo {
   id: CategoryKey;
@@ -115,16 +124,21 @@ export interface Seller {
 export interface ProductItem {
   id: string;
   sellerId: string;
-  category: CategoryKey;
+  category: CategoryKey | string;
+  categoryName?: string;
   name: string;
   brand: string;
   model: string;
   price: number;
-  condition: 'new' | 'ideal';
+  condition: 'new' | 'ideal' | 'used';
   specifications: Record<string, string>;
+  customAttributes?: Record<string, string>;
   imageUrl: string;
   region: Region;
   inStock: boolean;
+  warranty?: string;
+  delivery?: string;
+  description?: string;
   createdAt: string;
 }
 
