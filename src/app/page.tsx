@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Sparkles, 
@@ -25,7 +25,11 @@ import {
   ArrowRight,
   Laptop,
   Smartphone,
-  Layers
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  Check
 } from 'lucide-react';
 import { CATEGORIES as DEFAULT_CATEGORIES } from '@/lib/categories';
 import { CategoryKey, Region, UZBEKISTAN_REGIONS, AIRecommendation, CategoryInfo } from '@/types';
@@ -47,6 +51,9 @@ export default function HomePage() {
 
   // Dynamic category filters
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+
+  // Category search state
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
 
   // AI loading and result states (Dastlab NULL)
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -85,7 +92,19 @@ export default function HomePage() {
     '18 lik inverter konditsioner 50 m²',
   ];
 
-  const handleCategoryChange = (catId: string) => {
+  // Category select scroll ref
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollCategoryList = (direction: 'up' | 'down') => {
+    if (categoryScrollRef.current) {
+      categoryScrollRef.current.scrollBy({
+        top: direction === 'down' ? 100 : -100,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const handleCategorySelect = (catId: string) => {
     setSelectedCategoryId(catId);
     setActiveFilters({});
   };
@@ -188,25 +207,30 @@ export default function HomePage() {
 
   const getCategoryIcon = (key: string) => {
     switch (key) {
-      case 'tv': return <Tv className="w-4 h-4" />;
-      case 'fridge': return <Refrigerator className="w-4 h-4" />;
-      case 'washing': return <Shirt className="w-4 h-4" />;
-      case 'ac': return <Wind className="w-4 h-4" />;
-      case 'vacuum': return <Zap className="w-4 h-4" />;
-      case 'stove': return <Flame className="w-4 h-4" />;
-      case 'microwave': return <Utensils className="w-4 h-4" />;
-      case 'laptop': return <Laptop className="w-4 h-4" />;
-      case 'phone': return <Smartphone className="w-4 h-4" />;
-      default: return <Layers className="w-4 h-4" />;
+      case 'tv': return <Tv className="w-5 h-5" />;
+      case 'fridge': return <Refrigerator className="w-5 h-5" />;
+      case 'washing': return <Shirt className="w-5 h-5" />;
+      case 'ac': return <Wind className="w-5 h-5" />;
+      case 'vacuum': return <Zap className="w-5 h-5" />;
+      case 'stove': return <Flame className="w-5 h-5" />;
+      case 'microwave': return <Utensils className="w-5 h-5" />;
+      case 'laptop': return <Laptop className="w-5 h-5" />;
+      case 'phone': return <Smartphone className="w-5 h-5" />;
+      default: return <Layers className="w-5 h-5" />;
     }
   };
 
   const currentCategoryData = categories.find(c => c.id === selectedCategoryId) || categories[0];
 
+  const filteredCategories = categories.filter(c => 
+    c.name.toLowerCase().includes(categorySearchQuery.toLowerCase()) ||
+    c.id.toLowerCase().includes(categorySearchQuery.toLowerCase())
+  );
+
   return (
     <div className="max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col justify-between space-y-4">
 
-      {/* 🌟 1. AI DAN TAHLIL ENG YUQORIGA CHIQADI (FOYDALANUVCHI TALABI!) */}
+      {/* 🌟 1. AI DAN TAHLIL ENG YUQORIGA CHIQADI (FOYDALANUVCHI TALABI) */}
       {aiResult && (
         <div className="glass-3d rounded-3xl p-5 sm:p-6 space-y-3 animate-fade-in relative border border-orange-300/40">
           <div className="flex items-center justify-between border-b border-orange-200/50 pb-3">
@@ -331,50 +355,199 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 2. ASOSIY 2-USTUNLI 3D OYNA KO'RINISHI (SCROLLSIZ, KATTA VA TO'LIQ ISHLATILGAN MAYDON) */}
+      {/* 2. ASOSIY 2-USTUNLI 3D OYNA KO'RINISHI */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         
-        {/* CHAP BO'LIM (7 USTUN): QURILMA TANLASH + PARAMETRLAR + GEMINI AI QIDIRUV */}
+        {/* CHAP BO'LIM (7 USTUN): 
+            1-O'RINDA: ODDIY TILDA TAVSIF YOZISH (AI TAHLIL) 
+            2-O'RINDA: QURILMA TURINI TANLASH (SEARCH VA UP/DOWN SCROLL SELECT BILAN) */}
         <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
           
-          {/* Qurilma toifasini tanlash (Barcha texnikalar) */}
-          <div className="glass-3d rounded-3xl p-5 sm:p-6 space-y-3.5 flex-1 flex flex-col justify-between">
+          {/* 🔼 A. BIRINCHI O'RINDA: ODDIY TILDA TAVSIF YOZISH MAYDONI */}
+          <div className="glass-3d rounded-3xl p-5 sm:p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase font-extrabold tracking-wider text-brand-600 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-brand-500" />
+                Oddiy tilda tavsif yozing (Gemini AI tahlil qiladi):
+              </span>
+              <span className="text-[10px] text-stone-600 font-bold bg-orange-100/70 px-2 py-0.5 rounded-full">
+                AI maslahatchi ulangan
+              </span>
+            </div>
+
+            <div className="relative">
+              <textarea
+                value={promptText}
+                onChange={(e) => setPromptText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleRunAiAnalysis();
+                  }
+                }}
+                rows={3}
+                placeholder="Masalan: 5 million so‘mga 55 dyuymli Smart televizor kerak, ovozi va tasviri yaxshi bo‘lsin..."
+                className="w-full rounded-2xl glass-3d-input p-3.5 pr-32 text-xs sm:text-sm text-stone-900 placeholder:text-stone-500 focus:outline-none resize-none"
+              />
+              <button
+                type="button"
+                onClick={() => handleRunAiAnalysis()}
+                disabled={isAiLoading || !promptText.trim()}
+                className="absolute right-3 bottom-3 px-4 py-2.5 glass-3d-button disabled:opacity-40 text-white rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 transition"
+              >
+                {isAiLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>AI Tavsiya</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Tezkor namunalar */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span className="text-[10px] font-bold text-stone-600 uppercase">Namunalar:</span>
+              {samplePrompts.map((s, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setPromptText(s);
+                    handleRunAiAnalysis(s);
+                  }}
+                  className="text-left text-[11px] bg-white/70 hover:bg-orange-50 hover:text-brand-700 border border-stone-200/60 rounded-lg px-2.5 py-1 text-stone-600 transition"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 🔽 B. IKKINCHI O'RINDA: QURILMA TURINI TANLASH (SEARCH + UP/DOWN SCROLL SELECT + MAXSUS PARAMETRLAR) */}
+          <div className="glass-3d rounded-3xl p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between">
             <div className="space-y-3">
+              {/* Sarlovha va Tanlangan texnika indikatori */}
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase font-extrabold tracking-wider text-stone-600 flex items-center gap-1.5">
                   <SlidersHorizontal className="w-4 h-4 text-brand-600" />
                   Qurilma yoki texnika turini tanlang:
                 </span>
-                <span className="text-xs font-black text-brand-700 bg-orange-100 px-3 py-1 rounded-xl">
-                  {currentCategoryData?.name}
+                <span className="text-xs font-black text-brand-700 bg-orange-100/90 border border-orange-200 px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-xs">
+                  {getCategoryIcon(currentCategoryData.id)}
+                  <span>{currentCategoryData.name}</span>
                 </span>
               </div>
 
-              {/* Kategoriya 3D shisha tugmalari */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                {categories.map((cat) => {
-                  const isSelected = selectedCategoryId === cat.id;
-                  return (
+              {/* SEARCH VA UP/DOWN SCROLL SELECT QURILMALAR ORASIDA */}
+              <div className="glass-3d-card rounded-2xl p-3 border border-orange-200/80 space-y-2">
+                {/* Search va Scroll navigatsiya boshqaruvi */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={categorySearchQuery}
+                      onChange={(e) => setCategorySearchQuery(e.target.value)}
+                      placeholder="Qurilma turini qidiring (Televizor, Sovutkich, Kir yuvish, Noutbuk...)"
+                      className="w-full glass-3d-input rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none"
+                    />
+                    <Search className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                    {categorySearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setCategorySearchQuery('')}
+                        className="absolute right-2.5 top-2.5 text-stone-400 hover:text-stone-700"
+                        title="Tozalash"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Up va Down scroll tugmalari */}
+                  <div className="flex items-center gap-1 bg-stone-100/90 p-1 rounded-xl border border-stone-200/70 shrink-0">
                     <button
-                      key={cat.id}
                       type="button"
-                      onClick={() => handleCategoryChange(cat.id)}
-                      className={`flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-xs sm:text-sm whitespace-nowrap transition shrink-0 active:scale-95 ${
-                        isSelected
-                          ? 'glass-3d-button text-white shadow-lg'
-                          : 'bg-white/80 hover:bg-white text-stone-800 border-t border-l border-white border-b border-r border-orange-200/50 shadow-sm'
-                      }`}
+                      onClick={() => scrollCategoryList('up')}
+                      title="Yuqoriga aylantirish (Scroll Up)"
+                      className="p-1.5 rounded-lg bg-white hover:bg-orange-50 text-stone-700 hover:text-brand-600 shadow-xs active:scale-90 transition border border-stone-200/60"
                     >
-                      {getCategoryIcon(cat.id)}
-                      <span>{cat.name}</span>
+                      <ChevronUp className="w-4 h-4" />
                     </button>
-                  );
-                })}
+                    <button
+                      type="button"
+                      onClick={() => scrollCategoryList('down')}
+                      title="Pastga aylantirish (Scroll Down)"
+                      className="p-1.5 rounded-lg bg-white hover:bg-orange-50 text-stone-700 hover:text-brand-600 shadow-xs active:scale-90 transition border border-stone-200/60"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Qurilmalar orasida Up / Down scroll bo'ladigan select option ro'yxati */}
+                <div
+                  ref={categoryScrollRef}
+                  className="max-h-40 sm:max-h-44 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scroll-smooth"
+                >
+                  {filteredCategories.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-stone-500 font-medium">
+                      "{categorySearchQuery}" bo‘yicha texnika topilmadi
+                    </div>
+                  ) : (
+                    filteredCategories.map((cat) => {
+                      const isSelected = selectedCategoryId === cat.id;
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() => handleCategorySelect(cat.id)}
+                          className={`w-full p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition select-none ${
+                            isSelected
+                              ? 'gradient-copper-header text-white shadow-md shadow-brand-500/25 scale-[1.005]'
+                              : 'bg-white/85 hover:bg-orange-50/80 text-stone-800 border border-stone-200/60 hover:border-orange-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-orange-100 text-brand-700'
+                            }`}>
+                              {getCategoryIcon(cat.id)}
+                            </div>
+                            <div>
+                              <div className="text-xs sm:text-sm font-extrabold flex items-center gap-2">
+                                <span>{cat.name}</span>
+                                {isSelected && (
+                                  <span className="text-[10px] bg-white text-brand-700 font-black px-2 py-0.5 rounded-full shadow-xs">
+                                    Tanlangan
+                                  </span>
+                                )}
+                              </div>
+                              <div className={`text-[11px] truncate max-w-[240px] sm:max-w-md ${isSelected ? 'text-white/85' : 'text-stone-500'}`}>
+                                {cat.description || 'Barcha turlari va modellari'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 pl-2">
+                            {isSelected ? (
+                              <div className="w-6 h-6 rounded-full bg-white text-brand-700 flex items-center justify-center shadow-xs">
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              </div>
+                            ) : (
+                              <div className="w-5 h-5 rounded-full border-2 border-stone-300"></div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
-              {/* Tanlangan texnikaning maxsus parametrlari */}
+              {/* Tanlangan texnikaning maxsus parametrlari (Diagonali, Smart TV, Ekran, Brend...) */}
               {currentCategoryData && currentCategoryData.filters && currentCategoryData.filters.length > 0 && (
-                <div className="pt-3 border-t border-stone-200/60 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="pt-2.5 border-t border-stone-200/60 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   {currentCategoryData.filters.map((filter) => (
                     <div key={filter.id} className="space-y-1">
                       <label className="text-[11px] font-bold text-stone-600 truncate block">
@@ -386,7 +559,7 @@ export default function HomePage() {
                           const val = e.target.value;
                           setActiveFilters(prev => ({ ...prev, [filter.id]: val }));
                         }}
-                        className="w-full glass-3d-input rounded-xl px-3 py-2 text-xs font-semibold text-stone-900 focus:outline-none cursor-pointer"
+                        className="w-full glass-3d-input rounded-xl px-2.5 py-1.5 text-xs font-semibold text-stone-900 focus:outline-none cursor-pointer"
                       >
                         {filter.options?.map((opt, oIdx) => (
                           <option key={oIdx} value={opt}>
@@ -398,68 +571,6 @@ export default function HomePage() {
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Pastki qismi: Oddiy tilda matn yozish maydoni */}
-            <div className="pt-3 border-t border-stone-200/60 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold tracking-wider text-brand-600 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-brand-500" />
-                  Oddiy tilda tavsif yozing (Gemini AI tahlil qiladi):
-                </span>
-                <span className="text-[10px] text-stone-600 font-medium">
-                  AI maslahatchi ulangan
-                </span>
-              </div>
-
-              <div className="relative">
-                <textarea
-                  value={promptText}
-                  onChange={(e) => setPromptText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleRunAiAnalysis();
-                    }
-                  }}
-                  rows={2}
-                  placeholder="Masalan: 5 million so‘mga 55 dyuymli Smart televizor kerak, ovozi va tasviri yaxshi bo‘lsin..."
-                  className="w-full rounded-2xl glass-3d-input p-3.5 pr-32 text-xs sm:text-sm text-stone-900 placeholder:text-stone-500 focus:outline-none resize-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRunAiAnalysis()}
-                  disabled={isAiLoading || !promptText.trim()}
-                  className="absolute right-2.5 bottom-2.5 px-4 py-2 glass-3d-button disabled:opacity-40 text-white rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5 active:scale-95 transition"
-                >
-                  {isAiLoading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>AI Tavsiya</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Tezkor namunalar */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <span className="text-[10px] font-bold text-stone-600 uppercase">Namunalar:</span>
-                {samplePrompts.map((s, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setPromptText(s);
-                      handleRunAiAnalysis(s);
-                    }}
-                    className="text-left text-[11px] bg-white/70 hover:bg-orange-50 hover:text-brand-700 border border-stone-200/60 rounded-lg px-2.5 py-1 text-stone-600 transition"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         </div>
