@@ -145,6 +145,7 @@ export interface AIRecommendation {
   brand: string;
   model: string;
   category: string;
+  categoryKey?: CategoryKey | string;
   estimatedPrice: number;
   specs: string[];
   reason: string;
@@ -152,4 +153,10 @@ export interface AIRecommendation {
   isEstimated: boolean;
   alternativeModels?: string[];
   imageUrl?: string;
+  energyClass?: string;
+  warrantyYears?: number;
+  economicBenefit?: string;
+  officialSource?: string;
+  marketPriceRange?: string;
+  detailedSpecs?: Record<string, string>;
 }

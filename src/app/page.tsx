@@ -64,8 +64,13 @@ export default function HomePage() {
     extractedSpecs: Record<string, string>;
     qualityWishes: string[];
     marketCheckNote?: string;
+    economistSummary?: string;
     recommendations: AIRecommendation[];
   } | null>(null);
+
+  // Model preview modal va tanlangan model holati
+  const [selectedModelPreview, setSelectedModelPreview] = useState<AIRecommendation | null>(null);
+  const [selectedModel, setSelectedModel] = useState<AIRecommendation | null>(null);
 
   // Request submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,13 +90,6 @@ export default function HomePage() {
       .catch(console.error);
   }, []);
 
-  const samplePrompts = [
-    '5 mln so‘mga 55 talik Smart TV',
-    '7 mln gacha NoFrost katta sovutkich',
-    'Inverter avtomat kir yuvish 7-8 kg',
-    '18 lik inverter konditsioner 50 m²',
-  ];
-
   // Category select scroll ref
   const categoryScrollRef = useRef<HTMLDivElement>(null);
 
@@ -107,6 +105,53 @@ export default function HomePage() {
   const handleCategorySelect = (catId: string) => {
     setSelectedCategoryId(catId);
     setActiveFilters({});
+  };
+
+  // 🎯 TAVSIYAVIY QURILMANI TANLASH BOSILGANDA
+  const handleSelectModel = (rec: AIRecommendation) => {
+    setSelectedModel(rec);
+    setSelectedModelPreview(rec);
+
+    // 1. Kategoriyani aniqlash va o'rnatish
+    let targetCatId = rec.categoryKey || selectedCategoryId;
+    const directMatch = categories.find(c => c.id === targetCatId);
+    if (!directMatch) {
+      const nameMatch = categories.find(c => 
+        c.name.toLowerCase() === rec.category.toLowerCase() ||
+        c.id.toLowerCase() === rec.category.toLowerCase()
+      );
+      if (nameMatch) targetCatId = nameMatch.id;
+    }
+    setSelectedCategoryId(targetCatId);
+
+    // 2. Kategoriya parametrlarini (Diagonali, Smart TV, Ekran, Brend...) avtomatik to'ldirish
+    const newFilters: Record<string, string> = {};
+    const catObj = categories.find(c => c.id === targetCatId);
+    if (catObj && catObj.filters) {
+      catObj.filters.forEach(filter => {
+        // Brend bo'yicha moslash
+        if (filter.id.toLowerCase().includes('brand') || filter.label.toLowerCase().includes('brend')) {
+          const matchOpt = filter.options?.find(opt => opt.toLowerCase() === rec.brand.toLowerCase());
+          if (matchOpt) newFilters[filter.id] = matchOpt;
+        }
+
+        // Boshqa parametrlarni specs va model matnidan topish
+        const allText = `${rec.model} ${(rec.specs || []).join(' ')}`.toLowerCase();
+        filter.options?.forEach(opt => {
+          if (opt !== 'Hammasi') {
+            const cleanOpt = opt.toLowerCase().replace(/["”]/g, '').trim();
+            if (cleanOpt.length >= 2 && allText.includes(cleanOpt)) {
+              newFilters[filter.id] = opt;
+            }
+          }
+        });
+      });
+    }
+    setActiveFilters(newFilters);
+
+    // 3. Budjet va tavsif shaklga avtomatik kiritiladi
+    setBudgetInput(rec.estimatedPrice.toString());
+    setPromptText(`Menga ${rec.brand} ${rec.model} kerak. Bozor narxi: ${rec.estimatedPrice.toLocaleString('uz-UZ')} so‘m.`);
   };
 
   // AI tahlil chaqirish (FAQAT FOYDALANUVCHI SO'RAGANDA ISHLAYDI)
@@ -240,10 +285,10 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="font-black text-base sm:text-lg text-stone-900 leading-tight">
-                  Gemini AI Bozor Tahlili: {aiResult.categoryName} ({aiResult.budget.toLocaleString('uz-UZ')} so‘m)
+                  AI Iqtisodchi & Hisobchi Bozor Tahlili: {aiResult.categoryName} ({aiResult.budget.toLocaleString('uz-UZ')} so‘m)
                 </h3>
                 <span className="text-[11px] font-semibold text-brand-700">
-                  Budjetingizga mos O‘zbekiston bozoridagi tasdiqlangan modellar
+                  Mediapark.uz, Glotr.uz va rasmiy do‘konlar narxlari asosida tasdiqlangan
                 </span>
               </div>
             </div>
@@ -263,34 +308,61 @@ export default function HomePage() {
             </div>
           )}
 
+          {aiResult.economistSummary && (
+            <div className="p-3 bg-orange-50/80 border border-orange-200/90 rounded-2xl text-stone-800 text-xs flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-brand-600 shrink-0" />
+              <span><strong>Iqtisodiy xulosa:</strong> {aiResult.economistSummary}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {aiResult.recommendations.map((rec, rIdx) => (
               <div 
                 key={rIdx}
-                className="glass-3d-card rounded-2xl p-4 flex flex-col justify-between hover:scale-[1.01] transition-transform"
+                onClick={() => handleSelectModel(rec)}
+                className="glass-3d-card rounded-2xl p-4 flex flex-col justify-between hover:scale-[1.01] transition-transform cursor-pointer group border border-orange-200/70"
               >
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-brand-700 bg-orange-100/80 px-2 py-0.5 rounded-lg">
+                <div className="space-y-2">
+                  {/* Rasm va brend nishoni */}
+                  <div className="w-full h-32 rounded-xl overflow-hidden bg-stone-100 relative mb-1">
+                    <img 
+                      src={rec.imageUrl} 
+                      alt={rec.model} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300" 
+                    />
+                    <div className="absolute top-2 left-2 bg-brand-700 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
                       {rec.brand}
+                    </div>
+                    {rec.energyClass && (
+                      <div className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-xs">
+                        {rec.energyClass}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-stone-500 truncate">
+                      {rec.officialSource || 'Mediapark / Rasmiy'}
                     </span>
                     <span className="text-xs sm:text-sm font-black text-brand-600">
                       ~{rec.estimatedPrice.toLocaleString('uz-UZ')} so‘m
                     </span>
                   </div>
-                  <h4 className="font-extrabold text-sm text-stone-900 line-clamp-1">
+
+                  <h4 className="font-extrabold text-sm text-stone-900 line-clamp-1 group-hover:text-brand-700 transition">
                     {rec.brand} {rec.model}
                   </h4>
+
                   <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed">
-                    {rec.reason}
+                    {rec.economicBenefit || rec.reason}
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setPromptText(`Menga ${rec.brand} ${rec.model} kerak. Budjet: ${rec.estimatedPrice.toLocaleString('uz-UZ')} so‘m.`);
-                    setBudgetInput(rec.estimatedPrice.toString());
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectModel(rec);
                   }}
                   className="mt-3 w-full py-2 text-xs font-bold text-white gradient-copper-header rounded-xl shadow-sm hover:brightness-105 transition active:scale-95 flex items-center justify-center gap-1"
                 >
@@ -368,10 +440,10 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase font-extrabold tracking-wider text-brand-600 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-brand-500" />
-                Oddiy tilda tavsif yozing (Gemini AI tahlil qiladi):
+                Oddiy tilda tavsif yozing (AI Iqtisodchi & Hisobchi tahlil qiladi):
               </span>
-              <span className="text-[10px] text-stone-600 font-bold bg-orange-100/70 px-2 py-0.5 rounded-full">
-                AI maslahatchi ulangan
+              <span className="text-[10px] text-stone-600 font-bold bg-orange-100/80 px-2.5 py-0.5 rounded-full border border-orange-200">
+                Mediapark & Glotr ochiq bazasi
               </span>
             </div>
 
@@ -404,24 +476,6 @@ export default function HomePage() {
                   </>
                 )}
               </button>
-            </div>
-
-            {/* Tezkor namunalar */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <span className="text-[10px] font-bold text-stone-600 uppercase">Namunalar:</span>
-              {samplePrompts.map((s, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setPromptText(s);
-                    handleRunAiAnalysis(s);
-                  }}
-                  className="text-left text-[11px] bg-white/70 hover:bg-orange-50 hover:text-brand-700 border border-stone-200/60 rounded-lg px-2.5 py-1 text-stone-600 transition"
-                >
-                  {s}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -576,7 +630,7 @@ export default function HomePage() {
         </div>
 
         {/* O'NG BO'LIM (5 USTUN): TALAB JOYLASHTIRISH FORMASI (3D OYNA KARTASI) */}
-        <div className="lg:col-span-5 flex flex-col">
+        <div className="lg:col-span-5 flex flex-col" id="request-form-section">
           <form 
             onSubmit={handleSubmitRequest}
             className="glass-3d rounded-3xl p-6 sm:p-7 space-y-4 flex-1 flex flex-col justify-between"
@@ -600,6 +654,47 @@ export default function HomePage() {
               <div className="p-3 bg-red-50/90 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{submitError}</span>
+              </div>
+            )}
+
+            {/* Tanlangan tavsiyaviy model indikatori */}
+            {selectedModel && (
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-orange-100/90 to-amber-100/90 border border-brand-300 flex items-center justify-between shadow-xs animate-fade-in">
+                <div className="flex items-center gap-2.5">
+                  <img 
+                    src={selectedModel.imageUrl} 
+                    alt={selectedModel.model} 
+                    className="w-11 h-11 object-cover rounded-xl shadow-xs border border-orange-200" 
+                  />
+                  <div>
+                    <div className="text-xs font-black text-brand-900 flex items-center gap-1.5">
+                      <span>{selectedModel.brand} {selectedModel.model}</span>
+                      <span className="text-[9px] bg-brand-600 text-white font-extrabold px-1.5 py-0.5 rounded">Tanlangan</span>
+                    </div>
+                    <div className="text-[11px] font-bold text-brand-700">
+                      ~{selectedModel.estimatedPrice.toLocaleString('uz-UZ')} so‘m ({selectedModel.category})
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button 
+                    type="button"
+                    onClick={() => setSelectedModelPreview(selectedModel)}
+                    className="text-[11px] font-bold text-brand-700 hover:text-brand-900 bg-white/80 px-2.5 py-1 rounded-lg border border-brand-200 hover:bg-white transition flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Xususiyatlar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedModel(null)}
+                    className="p-1 text-stone-400 hover:text-stone-700"
+                    title="Modelni bekor qilish"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -723,6 +818,141 @@ export default function HomePage() {
           </form>
         </div>
       </div>
+
+      {/* 🌟 3. TAVSIYAVIY QURILMA RASMLARI VA XUSUSIYATLARI OYNASI (MODAL) */}
+      {selectedModelPreview && (
+        <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto">
+          <div className="glass-3d bg-white/95 max-w-3xl w-full rounded-3xl p-5 sm:p-7 space-y-5 shadow-2xl border-2 border-orange-300 relative my-auto">
+            {/* Oyna sarlovhasi va Yopish */}
+            <div className="flex items-start justify-between border-b border-orange-200/60 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl gradient-copper-header text-white flex items-center justify-center shadow-lg shadow-brand-500/30">
+                  {getCategoryIcon(selectedModelPreview.categoryKey || selectedCategoryId)}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-white bg-brand-700 px-2.5 py-0.5 rounded-lg uppercase">
+                      {selectedModelPreview.brand}
+                    </span>
+                    <span className="text-[11px] font-bold text-brand-700 bg-orange-100/90 px-2.5 py-0.5 rounded-lg border border-orange-200">
+                      {selectedModelPreview.officialSource || 'Mediapark.uz / Rasmiy diler'}
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-stone-900 mt-0.5">
+                    {selectedModelPreview.brand} {selectedModelPreview.model}
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedModelPreview(null)}
+                className="p-2 rounded-xl text-stone-400 hover:text-stone-800 hover:bg-orange-100/60 transition"
+                title="Yopish"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Asosiy ma'lumotlar: Rasm va Iqtisodiy Tahlil */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+              {/* Mahsulotning fototasviri (5 ustun) */}
+              <div className="md:col-span-5 flex flex-col items-center">
+                <div className="w-full aspect-square rounded-2xl overflow-hidden glass-3d-card p-2 border-2 border-orange-200/80 shadow-md relative group bg-stone-100">
+                  <img
+                    src={selectedModelPreview.imageUrl}
+                    alt={`${selectedModelPreview.brand} ${selectedModelPreview.model}`}
+                    className="w-full h-full object-cover rounded-xl transition duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute top-4 left-4 bg-stone-900/80 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                    Real foto
+                  </div>
+                  {selectedModelPreview.energyClass && (
+                    <div className="absolute bottom-4 right-4 bg-emerald-600/95 backdrop-blur-sm text-white text-[11px] font-black px-2.5 py-1 rounded-lg shadow-sm">
+                      Sinf: {selectedModelPreview.energyClass}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 text-center text-[11px] text-stone-500 font-semibold">
+                  {selectedModelPreview.warrantyYears ? `${selectedModelPreview.warrantyYears} yil rasmiy servis kafolati` : 'Rasmiy diler kafolati'}
+                </div>
+              </div>
+
+              {/* Iqtisodiy va Texnik pasport (7 ustun) */}
+              <div className="md:col-span-7 space-y-3.5">
+                {/* Narx va Bozor oralig'i */}
+                <div className="p-3.5 rounded-2xl bg-orange-50/90 border border-orange-200/80 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-stone-500 block">Mediapark & Glotr narxi:</span>
+                    <span className="text-xl sm:text-2xl font-black text-brand-700">
+                      ~{selectedModelPreview.estimatedPrice.toLocaleString('uz-UZ')} so‘m
+                    </span>
+                  </div>
+                  {selectedModelPreview.marketPriceRange && (
+                    <div className="text-right">
+                      <span className="text-[10px] font-semibold text-stone-500 block">Bozor oralig‘i:</span>
+                      <span className="text-xs font-black text-stone-700">{selectedModelPreview.marketPriceRange}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Hisobchi-iqtisodchi xulosasi */}
+                <div className="p-3 rounded-2xl bg-amber-50/90 border border-amber-300 text-stone-800 space-y-1">
+                  <div className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Iqtisodchi xulosasi va tejamkorlik:</span>
+                  </div>
+                  <p className="text-xs text-stone-700 leading-relaxed">
+                    {selectedModelPreview.economicBenefit || selectedModelPreview.reason}
+                  </p>
+                </div>
+
+                {/* Texnik xususiyatlar ro'yxati */}
+                <div className="space-y-1.5">
+                  <span className="text-xs font-black uppercase text-stone-700 tracking-wider">
+                    Asosiy texnik ko‘rsatkichlari:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                    {selectedModelPreview.specs?.map((spec, sIdx) => (
+                      <span 
+                        key={sIdx}
+                        className="px-2.5 py-1 rounded-xl bg-white border border-stone-200 text-stone-800 text-xs font-bold shadow-xs flex items-center gap-1"
+                      >
+                        <Check className="w-3 h-3 text-brand-600 stroke-[3]" />
+                        <span>{spec}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Oynadagi Harakatlar */}
+            <div className="border-t border-orange-200/60 pt-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedModelPreview(null)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 font-bold text-xs hover:bg-stone-50 transition"
+              >
+                Yopish
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedModelPreview(null);
+                  const formEl = document.getElementById('request-form-section');
+                  if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full sm:w-auto px-7 py-3 glass-3d-button text-white font-black text-xs sm:text-sm rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition"
+              >
+                <Send className="w-4 h-4" />
+                <span>Ushbu model bo‘yicha talab qoldirish</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
