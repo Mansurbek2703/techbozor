@@ -84,7 +84,7 @@ def main():
     if pm2_status != 0:
         run_command(ssh, "systemctl restart techbozor", sudo=True)
 
-    print("\n✅ Deploy muvaffaqiyatli yakunlandi!")
+    print("\n[SUCCESS] Deploy muvaffaqiyatli yakunlandi!")
     ssh.close()
 
 if __name__ == '__main__':
