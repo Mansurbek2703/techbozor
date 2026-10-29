@@ -1,14 +1,27 @@
-import { searchLocalProducts, validateAndFilterProducts, SerpProductItem } from './serpapi';
+import { 
+  searchLocalProducts, 
+  fetchAndEnrichStores,
+  validateAndFilterProducts, 
+  SerpProductItem 
+} from './serpapi';
 
 export interface ChatMessage {
   role: 'user' | 'model';
   content: string;
 }
 
-export interface DynamicFilterFacet {
+export interface UiFormData {
+  regions: string[];
+  budget_ranges: string[];
+  features: string[];
+}
+
+export interface ComparisonItem {
   id: string;
-  label: string;
-  options: string[];
+  model: string;
+  price: string;
+  store: string;
+  keySpec: string;
 }
 
 export interface ExtractedFilters {
@@ -18,27 +31,48 @@ export interface ExtractedFilters {
   brand?: string | null;
 }
 
-export interface CoreAdaptiveAgentResult {
-  user_intent: string;
-  category: string | null;
-  is_ready_for_search: boolean;
-  ai_response_text: string;
-  dynamic_chips: string[];
-  extracted_filters: ExtractedFilters;
-  serpapi_query: string | null;
+export interface DynamicFilterFacet {
+  id: string;
+  label: string;
+  options: string[];
 }
 
-export interface AgentV4Response {
-  step: 'clarification' | 'recommendation';
-  is_ready_for_search: boolean;
-  user_intent: string;
+export interface AgentV5Response {
+  step: 'ready' | 'needs_params';
+  is_ready_to_search: boolean;
+  normalized_query: string;
   category: string | null;
-  ai_response_text: string;
-  dynamic_chips: string[];
+  short_advice_uz: string;
+  ui_form_data: UiFormData;
   extracted_filters: ExtractedFilters;
-  serpapi_query: string | null;
+  expanded_serpapi_query: string | null;
   products: SerpProductItem[];
+  comparison_table: ComparisonItem[];
   dynamic_facets: DynamicFilterFacet[];
+}
+
+/**
+ * ✂️ Qat'iy Cheklov: AI matnini maximum 4 ta gap va 60 ta so'zga qisqartirish
+ */
+export function enforceMaxWordsAndSentences(text: string, maxWords: number = 60, maxSentences: number = 4): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+
+  // Gaplarni ajratish (. ! ?)
+  const sentenceMatches = trimmed.match(/[^.!?]+(?:[.!?]+|$)/g);
+  let result = trimmed;
+
+  if (sentenceMatches && sentenceMatches.length > 0) {
+    result = sentenceMatches.slice(0, maxSentences).join(' ').trim();
+  }
+
+  // So'zlar sonini cheklash (max 60 ta so'z)
+  const words = result.split(/\s+/);
+  if (words.length > maxWords) {
+    result = words.slice(0, maxWords).join(' ') + '...';
+  }
+
+  return result;
 }
 
 function getGeminiApiKeys(): string[] {
@@ -54,44 +88,37 @@ function getOpenAIApiKey(): string {
 }
 
 /**
- * 🎭 1-ROL: "Core Adaptive Agent" (v4.0 System Prompt)
+ * 🎭 1-ROL: "Form & Query Generator Agent" (v5.0 System Prompt)
  */
-const SYSTEM_PROMPT_CORE_AGENT_V4 = `You are the core AI E-Commerce Assistant for an Uzbek platform. Your job is to understand user intent, correct typos/slang, and gather missing parameters dynamically.
+const SYSTEM_PROMPT_FORM_BUILDER_V5 = `You are the Core Search Form & Query Generator for Uzbekistan E-Commerce v5.0.
 
-Tasks:
-1. Typo & Slang Correction: Correct typos, slang, and dialect terms in Uzbek/Russian (e.g., "svitkichi", "sovutkich", "xolodinnik", "mzlatkich", "kholodinnik" -> "Muzlatgich"; "12 lik", "kondisaner", "kanditsaner" -> "12000 BTU inverter konditsioner"; "55 lik smart" -> "55 dyuym 4K Smart TV"; "stiralka", "kir mashin" -> "Kir yuvish mashinasi").
-2. Slot-Filling: Extract category, budget_max, specific_feature (inverter, no frost, 4K), and region (e.g. Xorazm, Toshkent, Samarqand, Buxoro, Farg'ona).
-3. Region & Readiness Logic (CRITICAL):
-   - If the user has NOT provided their destination region, set is_ready_for_search: false, ask which region/city to deliver to in ai_response_text, and put top region names in dynamic_chips (e.g., ["Toshkent shahri", "Xorazm", "Samarqand", "Buxoro", "Farg'ona"]).
-   - If region is known but the product request is too vague (e.g. "menga texnika kerak"), set is_ready_for_search: false and ask clarifying questions with category chips.
-   - If region is known AND category/product is identified, set is_ready_for_search: true, and generate an enriched serpapi_query targeting Uzbek e-commerce stores (e.g., "12000 BTU inverter konditsioner narxi site:uzum.uz OR site:olcha.uz OR site:texnomart.uz OR site:mediapark.uz").
+Rules:
+1. Correct typos and dialect words (e.g., "monoblok", "svitkichi", "mzlatkich" -> "muzlatgich"; "12 lik" -> "12000 BTU inverter konditsioner"; "55 lik smart" -> "55 dyuym 4K Smart TV").
+2. Maximize search coverage across all Uzbek stores using query expansion: (site:asaxiy.uz OR site:mediapark.uz OR site:texnomart.uz OR site:idea.uz OR site:tezz.uz OR site:olcha.uz OR site:uzum.uz OR site:glotr.uz OR site:zoodmall.com OR site:openshop.uz).
+3. Generate relevant UI Form options:
+   - regions: default to top Uzbek regions (Toshkent, Xorazm, Samarqand, Buxoro, Farg'ona, Andijon)
+   - budget_ranges: relevant budget buckets in mln so'm
+   - features: 3-4 specific features for this category (e.g. Gaming, Ofis, Inverter, No Frost, 4K)
+4. STRICT LENGTH LIMIT: short_advice_uz MUST NOT exceed 60 words and MAXIMUM 4 sentences!
 
 Return ONLY a valid JSON object matching this schema:
 {
-  "user_intent": "normalized search intent in Uzbek (e.g. 12000 BTU Inverter Konditsioner Xorazm)",
-  "category": "Konditsioner | Muzlatgich | Kir yuvish mashinasi | Televizor | null",
-  "is_ready_for_search": true | false,
-  "ai_response_text": "Friendly response or clarifying question in Uzbek",
-  "dynamic_chips": ["Option 1", "Option 2", "Option 3"],
+  "normalized_query": "gaming monoblok MSI",
+  "category": "Monoblok | Konditsioner | Muzlatgich | Kir yuvish mashinasi | Televizor | Noutbuk | null",
+  "is_ready_to_search": true,
+  "short_advice_uz": "Xorazm uchun MSI gaming monobloklari: kam joy egallaydi, o'yin va grafik dizayn uchun yuqori unumdorlikka ega.",
+  "ui_form_data": {
+    "regions": ["Toshkent", "Xorazm", "Samarqand", "Buxoro", "Farg'ona", "Andijon"],
+    "budget_ranges": ["5 mln so'mgacha", "5 - 10 mln so'm", "10 mln so'mdan yuqori"],
+    "features": ["O'yin uchun (Gaming)", "Ofis uchun", "Grafika / Montaj uchun"]
+  },
   "extracted_filters": {
     "budget_max": number | null,
-    "region": "Xorazm | Toshkent | null",
-    "specific_feature": "inverter | null"
+    "region": "Xorazm | null",
+    "specific_feature": "Gaming | null"
   },
-  "serpapi_query": "optimized query string for local stores if ready, else null"
+  "expanded_serpapi_query": "gaming monoblok MSI (site:asaxiy.uz OR site:mediapark.uz OR site:texnomart.uz OR site:idea.uz OR site:tezz.uz OR site:olcha.uz OR site:uzum.uz OR site:glotr.uz OR site:zoodmall.com)"
 }`;
-
-/**
- * 🎭 2-ROL: "Local E-Commerce & Facet Generator" (v4.0 System Prompt)
- */
-const SYSTEM_PROMPT_FACET_ADVISOR_V4 = `Sen O'zbekiston bozoriga ixtisoslashgan professional AI Sotuvchi-Konsultantsan.
-
-Vazifalaring:
-1. Topilgan O'zbekiston do'konlari mahsulotlarini tahlil qilib, xaridorga samimiy va professional tavsiya bering.
-2. Har bir mahsulot uchun nima sababdan ushbu xaridorga va hudud iqlimiga mosligini qisqa ayting.
-3. Foydalanuvchi uchun keyingi bosqichda bosishi mumkin bo'lgan 3-4 ta tezkor variant tugmalarini (dynamic_chips) bering.
-
-Javobni toza, samimiy va chiroyli o'zbek tilida bering.`;
 
 async function callGemini(systemPrompt: string, userPrompt: string, jsonMode: boolean = false): Promise<string | null> {
   const keys = getGeminiApiKeys();
@@ -119,27 +146,27 @@ async function callGemini(systemPrompt: string, userPrompt: string, jsonMode: bo
             contents: [
               {
                 role: 'user',
-                parts: [{ text: `${systemPrompt}\n\nUSER INPUT:\n${userPrompt}` }],
-              },
+                parts: [
+                  { text: `${systemPrompt}\n\nUSER PROMPT:\n${userPrompt}` }
+                ]
+              }
             ],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 2500,
-              responseMimeType: jsonMode ? 'application/json' : undefined,
-            },
-          }),
+              responseMimeType: jsonMode ? 'application/json' : 'text/plain',
+              maxOutputTokens: 600,
+            }
+          })
         });
         clearTimeout(timeoutId);
 
-        if (!res.ok) continue;
-
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text && text.trim().length > 0) {
-          return text.trim();
+        if (res.ok) {
+          const data = await res.json();
+          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (candidate) return candidate.trim();
         }
       } catch (err) {
-        // try next candidate
+        // Continue to fallback model
       }
     }
   }
@@ -152,262 +179,246 @@ async function callOpenAI(systemPrompt: string, userPrompt: string, jsonMode: bo
   if (!key) return null;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000);
-
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`,
+        'Authorization': `Bearer ${key}`
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: 'user', content: userPrompt }
         ],
         temperature: 0.1,
-        response_format: jsonMode ? { type: 'json_object' } : undefined,
-      }),
+        max_tokens: 500,
+        response_format: jsonMode ? { type: 'json_object' } : undefined
+      })
     });
-    clearTimeout(timeoutId);
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() || null;
-  } catch {
-    return null;
-  }
+    if (res.ok) {
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content?.trim() || null;
+    }
+  } catch {}
+
+  return null;
 }
 
 /**
- * Topilgan mahsulotlar asosida Dinamik Filtrlar (Adaptive Facets) yaratish
+ * 1-BOSQICH: Form & Query Generator Agentni chaqirish
+ */
+export async function executeFormAndQueryAgent(
+  userMessage: string,
+  history: ChatMessage[] = [],
+  selectedRegion?: string,
+  selectedBudget?: string,
+  selectedFeature?: string
+) {
+  const contextHistory = history
+    .slice(-4)
+    .map(h => `${h.role === 'user' ? 'Xaridor' : 'AI'}: ${h.content}`)
+    .join('\n');
+
+  const userPrompt = `AVVALGI SUHBAT:
+${contextHistory || 'Boshlang‘ich so‘rov'}
+
+FOYDALANUVCHINING ANIQ SO‘ROVI:
+"${userMessage}"
+${selectedRegion ? `Tanlangan Hudud: ${selectedRegion}` : ''}
+${selectedBudget ? `Tanlangan Byudjet: ${selectedBudget}` : ''}
+${selectedFeature ? `Tanlangan Xususiyat: ${selectedFeature}` : ''}
+
+Iltimos, JSON qaytaring. Qisqa maslahat 60 so'zdan va 4 ta gapdan oshmasin!`;
+
+  let rawJson = await callGemini(SYSTEM_PROMPT_FORM_BUILDER_V5, userPrompt, true);
+  if (!rawJson) {
+    rawJson = await callOpenAI(SYSTEM_PROMPT_FORM_BUILDER_V5, userPrompt, true);
+  }
+
+  if (rawJson) {
+    try {
+      const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+
+      return {
+        normalized_query: parsed.normalized_query || userMessage,
+        category: parsed.category || null,
+        is_ready_to_search: true, // v5.0 da har doim qidiruvga yo'l ochiladi
+        short_advice_uz: enforceMaxWordsAndSentences(parsed.short_advice_uz || 'Siz uchun eng yaxshi variantlarni saralab oldik.'),
+        ui_form_data: {
+          regions: parsed.ui_form_data?.regions || ["Toshkent", "Xorazm", "Samarqand", "Buxoro", "Farg'ona", "Andijon"],
+          budget_ranges: parsed.ui_form_data?.budget_ranges || ["5 mln gacha", "5 - 10 mln so'm", "10 mln so'mdan yuqori"],
+          features: parsed.ui_form_data?.features || ["O'yin uchun", "Ofis uchun", "Grafika / Montaj"],
+        },
+        extracted_filters: {
+          budget_max: parsed.extracted_filters?.budget_max || null,
+          region: selectedRegion || parsed.extracted_filters?.region || null,
+          specific_feature: selectedFeature || parsed.extracted_filters?.specific_feature || null,
+        },
+        expanded_serpapi_query: parsed.expanded_serpapi_query || null,
+      };
+    } catch {}
+  }
+
+  // Lokal evristika (Fallback)
+  const fullText = `${userMessage} ${selectedRegion || ''} ${selectedFeature || ''}`.toLowerCase();
+  let normalized = userMessage.trim();
+  let cat = 'Texnika';
+  let defaultFeatures = ["Optimum variant", "Rasmiy kafolat", "Energiya tejamkor"];
+
+  if (/monoblok|all-in-one|aio/i.test(fullText)) {
+    cat = 'Monoblok';
+    normalized = normalized.replace(/monoblok/gi, 'Monoblok PC');
+    defaultFeatures = ["O‘yin uchun (Gaming)", "Ofis va o‘qish uchun", "Grafika va dizayn"];
+  } else if (/kondits|kandits|12\s*lik|split/i.test(fullText)) {
+    cat = 'Konditsioner';
+    normalized = normalized.replace(/12\s*lik/gi, '12000 BTU Inverter Konditsioner');
+    defaultFeatures = ["Inverter A+++", "Tez sovutish", "Wifi boshqaruv"];
+  } else if (/muzlat|sovut|xolod/i.test(fullText)) {
+    cat = 'Muzlatgich';
+    normalized = normalized.replace(/svitkichi|xolodinnik|mzlatkich/gi, 'Muzlatgich No Frost');
+    defaultFeatures = ["No Frost tizimi", "Katta sig‘im (300L+)", "Inverter motor"];
+  } else if (/kir\s*mash|stiralk/i.test(fullText)) {
+    cat = 'Kir yuvish mashinasi';
+    normalized = normalized.replace(/stiralka|kir\s*mashin/gi, 'Kir yuvish mashinasi avtomat');
+    defaultFeatures = ["Bug‘ funksiyasi", "6-7 kg sig‘im", "Inverter Direct Drive"];
+  } else if (/tv|televiz/i.test(fullText)) {
+    cat = 'Televizor';
+    defaultFeatures = ["4K UltraHD", "Smart TV Android", "Katta diagonal (50\"+)"];
+  }
+
+  const regionName = selectedRegion || 'O‘zbekiston';
+  const shortAdvice = enforceMaxWordsAndSentences(
+    `${regionName} uchun ${normalized} bo‘yicha rasmiy O‘zbekiston do‘konlari variantlari tayyorlandi. Narxlar va kafolat shartlarini quyidagi kassetada taqqoslashingiz mumkin.`
+  );
+
+  return {
+    normalized_query: normalized,
+    category: cat,
+    is_ready_to_search: true,
+    short_advice_uz: shortAdvice,
+    ui_form_data: {
+      regions: ["Toshkent", "Xorazm", "Samarqand", "Buxoro", "Farg'ona", "Andijon"],
+      budget_ranges: ["5 mln gacha", "5 - 10 mln so'm", "10 mln so'mdan yuqori"],
+      features: defaultFeatures,
+    },
+    extracted_filters: {
+      budget_max: null,
+      region: selectedRegion || null,
+      specific_feature: selectedFeature || null,
+    },
+    expanded_serpapi_query: `${normalized} (site:asaxiy.uz OR site:mediapark.uz OR site:texnomart.uz OR site:idea.uz OR site:tezz.uz OR site:olcha.uz OR site:uzum.uz OR site:glotr.uz OR site:zoodmall.com)`,
+  };
+}
+
+/**
+ * 2-BOSQICH: Comparison Table yaratish
+ */
+export function buildComparisonTable(products: SerpProductItem[]): ComparisonItem[] {
+  return products.slice(0, 5).map(p => ({
+    id: p.id,
+    model: p.title.length > 36 ? p.title.substring(0, 36) + '...' : p.title,
+    price: p.price,
+    store: p.source,
+    keySpec: p.keySpecs?.[0] || 'Rasmiy kafolat',
+  }));
+}
+
+/**
+ * Dinamik Facets
  */
 export function generateAdaptiveFacets(products: SerpProductItem[], category?: string | null): DynamicFilterFacet[] {
-  const facets: DynamicFilterFacet[] = [];
-  const catLower = (category || '').toLowerCase();
+  if (!products || products.length === 0) return [];
 
-  // 1. Brendlar bo'yicha dinamik filtr
-  const brandsSet = new Set<string>();
-  const knownBrands = ['Samsung', 'LG', 'Artel', 'Shivaki', 'Midea', 'Gree', 'TCL', 'Bosch', 'Xiaomi', 'Aux', 'Haier'];
-  
+  const facets: DynamicFilterFacet[] = [];
+
+  // 1. Do'konlar
+  const stores = Array.from(new Set(products.map(p => p.source))).filter(Boolean);
+  if (stores.length > 1) {
+    facets.push({
+      id: 'store',
+      label: 'Do‘kon',
+      options: ['Hammasi', ...stores],
+    });
+  }
+
+  // 2. Brendlar
+  const knownBrands = ['Samsung', 'LG', 'Artel', 'MSI', 'HP', 'Lenovo', 'Midea', 'Gree', 'Bosch', 'Xiaomi', 'TCL', 'Sony', 'Asus', 'Apple'];
+  const matchedBrands = new Set<string>();
   products.forEach(p => {
-    const title = p.title.toLowerCase();
+    const text = p.title.toLowerCase();
     knownBrands.forEach(b => {
-      if (title.includes(b.toLowerCase())) {
-        brandsSet.add(b);
-      }
+      if (text.includes(b.toLowerCase())) matchedBrands.add(b);
     });
   });
-
-  if (brandsSet.size > 0) {
+  if (matchedBrands.size > 0) {
     facets.push({
       id: 'brand',
       label: 'Brend',
-      options: ['Hammasi', ...Array.from(brandsSet)],
+      options: ['Hammasi', ...Array.from(matchedBrands)],
     });
   }
-
-  // 2. Kategoriya bo'yicha maxsus xususiyatlar filtri
-  if (catLower.includes('konditsioner')) {
-    facets.push({
-      id: 'feature',
-      label: 'Xususiyat',
-      options: ['Hammasi', 'Inverter', 'On/Off', '12000 BTU', '18000 BTU', 'Wi-Fi'],
-    });
-    facets.push({
-      id: 'area',
-      label: 'Maydon',
-      options: ['Hammasi', '35 m² gacha', '50 m² gacha', '70 m² gacha'],
-    });
-  } else if (catLower.includes('muzlat') || catLower.includes('sovut')) {
-    facets.push({
-      id: 'feature',
-      label: 'Tizim',
-      options: ['Hammasi', 'Total No Frost', 'Inverter kompressor', 'De Frost'],
-    });
-  } else if (catLower.includes('kir')) {
-    facets.push({
-      id: 'capacity',
-      label: 'Sig‘im',
-      options: ['Hammasi', '6 kg', '7 kg', '8 kg', '10 kg'],
-    });
-    facets.push({
-      id: 'feature',
-      label: 'Motor turi',
-      options: ['Hammasi', 'Inverter Direct Drive', 'Bug‘da yuvish (Steam)'],
-    });
-  } else if (catLower.includes('tv') || catLower.includes('televizor')) {
-    facets.push({
-      id: 'size',
-      label: 'Ekran diagonali',
-      options: ['Hammasi', '43 dyuym', '50 dyuym', '55 dyuym', '65 dyuym'],
-    });
-    facets.push({
-      id: 'feature',
-      label: 'Ruxsat',
-      options: ['Hammasi', '4K Ultra HD', 'Full HD', 'Smart TV'],
-    });
-  }
-
-  // 3. Narx filtri
-  facets.push({
-    id: 'price_range',
-    label: 'Narx oralig‘i',
-    options: ['Hammasi', '3 mln so‘mgacha', '3 - 5 mln so‘m', '5 mln so‘mdan yuqori'],
-  });
 
   return facets;
 }
 
 /**
- * 1-BOSQICH: CORE ADAPTIVE AGENT EXECUTION
+ * 🚀 SMART UNIVERSAL AI AGGREGATOR v5.0 ASOSIY WORKFLOW
  */
-export async function executeCoreAdaptiveAgent(
+export async function runEcommerceAgentV5(
   userMessage: string,
-  history: ChatMessage[] = []
-): Promise<CoreAdaptiveAgentResult> {
-  let contextText = '';
-  if (history.length > 0) {
-    contextText = 'Oldingi suhbat:\n' + history
-      .map(m => `${m.role === 'user' ? 'Xaridor' : 'AI'}: ${m.content}`)
-      .join('\n') + '\n\n';
+  history: ChatMessage[] = [],
+  params?: {
+    region?: string;
+    budget?: string;
+    feature?: string;
   }
-  contextText += `Foydalanuvchi so'rovi: "${userMessage}"`;
+): Promise<AgentV5Response> {
+  // 1-Qadam: Form & Query Generator Agent
+  const formQueryResult = await executeFormAndQueryAgent(
+    userMessage, 
+    history, 
+    params?.region, 
+    params?.budget, 
+    params?.feature
+  );
 
-  let rawJson = await callGemini(SYSTEM_PROMPT_CORE_AGENT_V4, contextText, true);
-  if (!rawJson) {
-    rawJson = await callOpenAI(SYSTEM_PROMPT_CORE_AGENT_V4, contextText, true);
-  }
+  // 2-Qadam: 12+ do'konlar bo'ylab keng qidiruv
+  const queryToSearch = formQueryResult.expanded_serpapi_query || formQueryResult.normalized_query;
+  const targetRegion = params?.region || formQueryResult.extracted_filters.region || 'O‘zbekiston';
 
-  if (rawJson) {
-    try {
-      const clean = rawJson.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      return {
-        user_intent: parsed.user_intent || userMessage,
-        category: parsed.category || null,
-        is_ready_for_search: Boolean(parsed.is_ready_for_search),
-        ai_response_text: parsed.ai_response_text || 'Qaysi viloyatga yetkazib berish kerak?',
-        dynamic_chips: Array.isArray(parsed.dynamic_chips) ? parsed.dynamic_chips : ['Toshkent shahri', 'Xorazm', 'Samarqand', 'Farg‘ona'],
-        extracted_filters: {
-          budget_max: parsed.extracted_filters?.budget_max ?? null,
-          region: parsed.extracted_filters?.region ?? null,
-          specific_feature: parsed.extracted_filters?.specific_feature ?? null,
-          brand: parsed.extracted_filters?.brand ?? null,
-        },
-        serpapi_query: parsed.serpapi_query || null,
-      };
-    } catch {}
-  }
-
-  // Aqlli Lokal Evristika (Fallback)
-  const full = (contextText + ' ' + userMessage).toLowerCase();
-  const REGIONS = ['toshkent', 'xorazm', 'samarqand', 'buxoro', 'farg‘ona', 'fargona', 'andijon', 'namangan', 'qashqadaryo', 'surxondaryo', 'navoiy', 'jizzax', 'sirdaryo', 'nukus', 'qoraqalpog‘iston'];
-  let foundRegion: string | null = null;
-  for (const r of REGIONS) {
-    if (full.includes(r)) {
-      foundRegion = r.charAt(0).toUpperCase() + r.slice(1);
-      break;
-    }
-  }
-
-  let cat = 'Texnika';
-  let normalized = userMessage.trim();
-  if (/kondits|kandits|12\s*lik|18\s*lik|split/i.test(full)) {
-    cat = 'Konditsioner';
-    normalized = normalized.replace(/12\s*lik/gi, '12000 BTU Inverter Konditsioner');
-  } else if (/muzlat|sovut|xolod|kholod/i.test(full)) {
-    cat = 'Muzlatgich';
-    normalized = normalized.replace(/svitkichi|xolodinnik|mzlatkich|kholodinnik/gi, 'Muzlatgich No Frost');
-  } else if (/kir\s*mash|stiralk/i.test(full)) {
-    cat = 'Kir yuvish mashinasi';
-    normalized = normalized.replace(/kir\s*mashin|stiralka/gi, 'Kir yuvish mashinasi avtomat');
-  } else if (/tv|televiz|smart/i.test(full)) {
-    cat = 'Televizor';
-  }
-
-  if (!foundRegion) {
-    return {
-      user_intent: normalized,
-      category: cat,
-      is_ready_for_search: false,
-      ai_response_text: `Yetkazib berish qaysi viloyat yoki shaharga kerak? Hududingizga mos narx va servis kafolatini aniqlab beraman:`,
-      dynamic_chips: ['Toshkent shahri', 'Xorazm', 'Samarqand', 'Buxoro', 'Farg‘ona'],
-      extracted_filters: { budget_max: null, region: null, specific_feature: null },
-      serpapi_query: null,
-    };
-  }
-
-  return {
-    user_intent: `${normalized} ${foundRegion}`,
-    category: cat,
-    is_ready_for_search: true,
-    ai_response_text: `${foundRegion} hududi uchun eng maqbul ${cat.toLowerCase()} modellarini O‘zbekiston rasmiy do‘konlaridan topdim:`,
-    dynamic_chips: ['Faqat Inverter', 'Arzonroq variantlar', 'Nasiya hisoblash'],
-    extracted_filters: { budget_max: null, region: foundRegion, specific_feature: null },
-    serpapi_query: `${cat} ${normalized} narxi site:uzum.uz OR site:olcha.uz OR site:texnomart.uz`,
-  };
-}
-
-/**
- * 🚀 UNIFIED AI E-COMMERCE ENGINE v4.0 ASOSIY WORKFLOW
- */
-export async function runEcommerceAgentV4(
-  userMessage: string,
-  history: ChatMessage[] = []
-): Promise<AgentV4Response> {
-  // 1-BOSQICH: Core Adaptive Agent
-  const coreResult = await executeCoreAdaptiveAgent(userMessage, history);
-
-  // Agar qidiruvga tayyor bo'lmasa -> Clarification
-  if (!coreResult.is_ready_for_search || !coreResult.serpapi_query) {
-    return {
-      step: 'clarification',
-      is_ready_for_search: false,
-      user_intent: coreResult.user_intent,
-      category: coreResult.category,
-      ai_response_text: coreResult.ai_response_text,
-      dynamic_chips: coreResult.dynamic_chips,
-      extracted_filters: coreResult.extracted_filters,
-      serpapi_query: null,
-      products: [],
-      dynamic_facets: [],
-    };
-  }
-
-  // 2-BOSQICH: Qidiruv va Natijalarni Tozalash
-  const targetRegion = coreResult.extracted_filters.region || 'O‘zbekiston';
   const products = await searchLocalProducts(
-    coreResult.serpapi_query,
-    coreResult.category || undefined,
+    queryToSearch,
+    formQueryResult.category || undefined,
     targetRegion
   );
 
-  // Dinamik filtrlar (Adaptive Facets) faqat topilgan natijalarga qarab hosil qilinadi
-  const facets = generateAdaptiveFacets(products, coreResult.category);
+  // 3-Qadam: Comparison View jadvali va dinamik filtrlar
+  const comparisonTable = buildComparisonTable(products);
+  const facets = generateAdaptiveFacets(products, formQueryResult.category);
 
   return {
-    step: 'recommendation',
-    is_ready_for_search: true,
-    user_intent: coreResult.user_intent,
-    category: coreResult.category,
-    ai_response_text: coreResult.ai_response_text,
-    dynamic_chips: coreResult.dynamic_chips,
-    extracted_filters: coreResult.extracted_filters,
-    serpapi_query: coreResult.serpapi_query,
-    products: products,
+    step: 'ready',
+    is_ready_to_search: true,
+    normalized_query: formQueryResult.normalized_query,
+    category: formQueryResult.category,
+    short_advice_uz: formQueryResult.short_advice_uz,
+    ui_form_data: formQueryResult.ui_form_data,
+    extracted_filters: formQueryResult.extracted_filters,
+    expanded_serpapi_query: queryToSearch,
+    products,
+    comparison_table: comparisonTable,
     dynamic_facets: facets,
   };
 }
 
-// Barcha qadimgi chaqiruvlar uchun yagona eksport
-export async function runEcommerceAgent(userMessage: string, history: ChatMessage[] = []) {
-  return runEcommerceAgentV4(userMessage, history);
-}
-
-export async function runEcommerceAgentV3(userMessage: string, history: ChatMessage[] = []) {
-  return runEcommerceAgentV4(userMessage, history);
+// Barcha orqaga mos chaqiruvlar
+export async function runEcommerceAgent(
+  userMessage: string, 
+  history: ChatMessage[] = [],
+  params?: { region?: string; budget?: string; feature?: string }
+) {
+  return runEcommerceAgentV5(userMessage, history, params);
 }

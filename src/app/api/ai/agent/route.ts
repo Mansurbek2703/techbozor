@@ -6,6 +6,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const message = body.message || body.prompt;
     const history = body.history || [];
+    const region = body.region || undefined;
+    const budget = body.budget || undefined;
+    const feature = body.feature || undefined;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json({
@@ -14,7 +17,11 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const agentResult = await runEcommerceAgent(message, history);
+    const agentResult = await runEcommerceAgent(message, history, {
+      region,
+      budget,
+      feature,
+    });
 
     return NextResponse.json({
       success: true,
