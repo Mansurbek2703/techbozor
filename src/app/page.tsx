@@ -38,6 +38,8 @@ import {
 } from 'lucide-react';
 import { CATEGORIES as DEFAULT_CATEGORIES } from '@/lib/categories';
 import { CategoryKey, Region, UZBEKISTAN_REGIONS, AIRecommendation, CategoryInfo } from '@/types';
+import EcommerceAgentChat from '@/components/EcommerceAgentChat';
+import { SerpProductItem } from '@/lib/serpapi';
 
 export default function HomePage() {
   // Categories from dynamic API
@@ -157,6 +159,37 @@ export default function HomePage() {
     // 3. Budjet va tavsif shaklga avtomatik kiritiladi
     setBudgetInput(rec.estimatedPrice.toString());
     setPromptText(`Menga ${rec.brand} ${rec.model} kerak. Bozor narxi: ${rec.estimatedPrice.toLocaleString('uz-UZ')} so‘m.`);
+  };
+
+  // 🤖 SerpAPI orqali topilgan mahsulot xaridor tomonidan tanlanganda
+  const handleSelectSerpProduct = (prod: SerpProductItem) => {
+    setPromptText(prod.title);
+
+    // Narxni ajratib olish (agar $ bo'lsa yoki so'm bo'lsa)
+    const priceText = prod.price || '';
+    if (priceText.includes('$')) {
+      const match = priceText.match(/\$?(\d+[\.,]?\d*)/);
+      if (match) {
+        const usd = parseFloat(match[1].replace(/,/g, ''));
+        const somVal = Math.round(usd * 12800);
+        setBudgetInput(somVal.toString());
+      }
+    } else {
+      const numMatch = priceText.match(/\d[\d\s.,]*/);
+      if (numMatch) {
+        const clean = parseInt(numMatch[0].replace(/[^\d]/g, ''), 10);
+        if (clean > 0) setBudgetInput(clean.toString());
+      }
+    }
+
+    // Kategoriyani aniqlash
+    const lower = prod.title.toLowerCase();
+    for (const cat of categories) {
+      if (lower.includes(cat.name.toLowerCase()) || lower.includes(cat.id.toLowerCase())) {
+        setSelectedCategoryId(cat.id);
+        break;
+      }
+    }
   };
 
   // AI tahlil chaqirish (FAQAT FOYDALANUVCHI SO'RAGANDA ISHLAYDI)
@@ -437,6 +470,9 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* 🌟 AI SOTUVCHI-KONSULTANT (GEMINI + SERPAPI) */}
+      <EcommerceAgentChat onSelectProduct={handleSelectSerpProduct} />
 
       {/* 2. ASOSIY 2-USTUNLI 3D OYNA KO'RINISHI */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
