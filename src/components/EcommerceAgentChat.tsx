@@ -12,10 +12,11 @@ import {
   Store, 
   Search, 
   ArrowRight, 
-  MessageSquare, 
-  Info,
+  MapPin,
+  CheckCheck,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Tag
 } from 'lucide-react';
 import { SerpProductItem } from '@/lib/serpapi';
 
@@ -26,6 +27,9 @@ export interface ChatMessage {
   step?: 'clarification' | 'recommendation';
   products?: SerpProductItem[];
   searchQuery?: string;
+  normalizedInput?: string;
+  category?: string;
+  quickChips?: string[];
   timestamp: string;
 }
 
@@ -38,7 +42,8 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
     {
       id: 'welcome',
       role: 'model',
-      content: 'Assalomu alaykum! Men sizning shaxsiy **AI Sotuvchi-Konsultantingizman** 🤖.\n\nQanday maishiy texnika yoki elektronika qidiryapsiz? Masalan, "50 duymli Smart TV", "Inverter sovutkich" yoki "Kir yuvish mashinasi".',
+      content: 'Assalomu alaykum! Men sizning **O‘zbekiston bozori bo‘yicha AI Sotuvchi-Konsultantingizman** 🤖.\n\nSheva yoki qisqartmalarda yozsangiz ham tushunaman (masalan, *"12 lik konditsioner"*, *"svitkichi"* yoki *"50 duymli Smart TV"*). O‘zbekiston rasmiy do‘konlaridan (Uzum, Olcha, Texnomart) real narx va variantlarni topib beraman.',
+      quickChips: ['12 lik konditsioner', 'Muzlatgich No Frost', 'Smart TV 50 duym', 'Kir yuvish 7kg'],
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
   ]);
@@ -74,9 +79,8 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
     setMessages(newMessages);
     setInputText('');
     setIsLoading(true);
-    setLoadingStage('🧠 Gemini AI so‘rovingizni tahlil qilmoqda...');
+    setLoadingStage('🧠 1-Bosqich: Imlo tuzatilmoqda va so‘rov normallashtirilmoqda...');
 
-    // Suhbat tarixini backendga yuborish uchun tayyorlash
     const historyPayload = newMessages
       .filter(m => m.id !== 'welcome')
       .map(m => ({
@@ -85,28 +89,31 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
       }));
 
     try {
-      // 2 soniyadan so'ng stage o'zgaradi
-      const stageTimer = setTimeout(() => {
-        setLoadingStage('🔍 SerpAPI orqali internetdan eng yaxshi narx va variantlar qidirilmoqda...');
-      }, 1500);
+      const stageTimer1 = setTimeout(() => {
+        setLoadingStage('🔍 2-Bosqich: O‘zbekiston do‘konlaridan (Uzum, Olcha, Texnomart) qidirilmoqda...');
+      }, 1200);
+
+      const stageTimer2 = setTimeout(() => {
+        setLoadingStage('🛡️ 3-Bosqich: Kategoriya nazorati va mahsulotlar saralanmoqda...');
+      }, 2500);
 
       const res = await fetch('/api/ai/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMsg.content,
-          history: historyPayload.slice(0, -1), // so'nggi xabardan oldingi tarix
+          history: historyPayload.slice(0, -1),
         }),
       });
 
-      clearTimeout(stageTimer);
+      clearTimeout(stageTimer1);
+      clearTimeout(stageTimer2);
       const data = await res.json();
 
       if (data.success && data.data) {
         const agentData = data.data;
 
         if (agentData.step === 'clarification') {
-          // Ssenariy A: Aniqlashtirish
           setMessages(prev => [
             ...prev,
             {
@@ -114,11 +121,13 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
               role: 'model',
               content: agentData.clarifying_question || 'So‘rovingizga aniqlik kirita olasizmi?',
               step: 'clarification',
+              normalizedInput: agentData.normalized_input,
+              category: agentData.category,
+              quickChips: agentData.quick_chips || ['Byudjet variant', 'Inverter motor', 'Rasmiy kafolat'],
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             }
           ]);
         } else {
-          // Ssenariy B: Qidiruv va Tahlil
           setMessages(prev => [
             ...prev,
             {
@@ -128,6 +137,9 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
               step: 'recommendation',
               products: agentData.products || [],
               searchQuery: agentData.search_query,
+              normalizedInput: agentData.normalized_input,
+              category: agentData.category,
+              quickChips: agentData.quick_chips || ['Arzonroq variantlar', 'Faqat Inverter modellar', 'Nasiya narxini hisoblash'],
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             }
           ]);
@@ -164,36 +176,106 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
       {
         id: 'welcome',
         role: 'model',
-        content: 'Assalomu alaykum! Men sizning shaxsiy **AI Sotuvchi-Konsultantingizman** 🤖.\n\nQanday maishiy texnika yoki elektronika qidiryapsiz? Masalan, "50 duymli Smart TV", "Inverter sovutkich" yoki "Kir yuvish mashinasi".',
+        content: 'Assalomu alaykum! Men sizning **O‘zbekiston bozori bo‘yicha AI Sotuvchi-Konsultantingizman** 🤖.\n\nSheva yoki qisqartmalarda yozsangiz ham tushunaman (masalan, *"12 lik konditsioner"*, *"svitkichi"* yoki *"50 duymli Smart TV"*). O‘zbekiston rasmiy do‘konlaridan (Uzum, Olcha, Texnomart) real narx va variantlarni topib beraman.',
+        quickChips: ['12 lik konditsioner', 'Muzlatgich No Frost', 'Smart TV 50 duym', 'Kir yuvish 7kg'],
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }
     ]);
   };
 
-  // Oddiy Markdown matnini chiroyli render qiluvchi funksiya
+  /**
+   * Markdown Jadval va Matnni Rendering Qilish
+   */
   const renderFormattedText = (text: string) => {
-    // Rasm teglarini markdown dan tozalash (chunki rasmlar pastda chiroyli Card larda ko'rinadi)
-    const cleanedText = text.replace(/!\[.*?\]\(.*?\)/g, '').trim();
+    const cleaned = text.replace(/!\[.*?\]\(.*?\)/g, '').trim();
+    const lines = cleaned.split('\n');
+    const elements: React.ReactNode[] = [];
+    let tableRows: string[][] = [];
+    let inTable = false;
 
-    return cleanedText.split('\n').map((line, idx) => {
-      let trimmed = line.trim();
-      if (!trimmed) return <div key={idx} className="h-2" />;
+    const flushTable = (keyPrefix: string) => {
+      if (tableRows.length > 0) {
+        const header = tableRows[0];
+        const bodyRows = tableRows.slice(1).filter(r => !r.every(c => /^[-:\s]+$/.test(c)));
+
+        elements.push(
+          <div key={`${keyPrefix}-table`} className="overflow-x-auto my-3 rounded-xl border border-stone-200 shadow-xs">
+            <table className="min-w-full text-[11px] text-left border-collapse">
+              <thead className="bg-orange-50/80 border-b border-orange-200 text-stone-900 font-extrabold">
+                <tr>
+                  {header.map((col, cIdx) => (
+                    <th key={cIdx} className="py-2 px-2.5 border-r border-orange-200/60 last:border-r-0">
+                      {col.trim()}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100 bg-white">
+                {bodyRows.map((r, rIdx) => (
+                  <tr key={rIdx} className="hover:bg-stone-50 transition">
+                    {r.map((col, cIdx) => (
+                      <td key={cIdx} className="py-1.5 px-2.5 text-stone-700 border-r border-stone-100 last:border-r-0 font-medium">
+                        {col.trim()}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        tableRows = [];
+      }
+      inTable = false;
+    };
+
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+
+      // Jadval qatorlarini aniqlash
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        inTable = true;
+        const cols = trimmed.slice(1, -1).split('|');
+        tableRows.push(cols);
+        return;
+      } else if (inTable) {
+        flushTable(`flush-${idx}`);
+      }
+
+      if (!trimmed) {
+        elements.push(<div key={`sp-${idx}`} className="h-1.5" />);
+        return;
+      }
 
       // Sarlavhalar
       if (trimmed.startsWith('### ')) {
-        return <h4 key={idx} className="text-sm font-black text-stone-900 mt-2 mb-1">{trimmed.replace('### ', '')}</h4>;
-      }
-      if (trimmed.startsWith('#### ')) {
-        return <h5 key={idx} className="text-xs font-extrabold text-stone-800 mt-2 mb-1">{trimmed.replace('#### ', '')}</h5>;
-      }
-      if (trimmed.startsWith('---')) {
-        return <hr key={idx} className="my-2 border-stone-200" />;
+        elements.push(
+          <h4 key={`h3-${idx}`} className="text-xs font-black text-stone-900 mt-2 mb-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-3 bg-brand-600 rounded-full inline-block" />
+            {trimmed.replace('### ', '')}
+          </h4>
+        );
+        return;
       }
 
-      // Bold matnlarni ajratish
+      if (trimmed.startsWith('#### ')) {
+        elements.push(
+          <h5 key={`h4-${idx}`} className="text-xs font-bold text-brand-800 mt-2 mb-0.5">
+            {trimmed.replace('#### ', '')}
+          </h5>
+        );
+        return;
+      }
+
+      if (trimmed.startsWith('---')) {
+        elements.push(<hr key={`hr-${idx}`} className="my-2 border-stone-200" />);
+        return;
+      }
+
+      // Bold va havola matnlar
       const parts = trimmed.split(/(\*\*.*?\*\*)/g);
-      return (
-        <p key={idx} className="text-xs leading-relaxed text-stone-700 my-0.5">
+      elements.push(
+        <p key={`p-${idx}`} className="text-xs leading-relaxed text-stone-700 my-0.5">
           {parts.map((part, pIdx) => {
             if (part.startsWith('**') && part.endsWith('**')) {
               return <strong key={pIdx} className="font-bold text-stone-900">{part.slice(2, -2)}</strong>;
@@ -203,6 +285,12 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
         </p>
       );
     });
+
+    if (inTable) {
+      flushTable('flush-end');
+    }
+
+    return elements;
   };
 
   return (
@@ -219,15 +307,15 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm sm:text-base font-black text-stone-900">
-                AI Sotuvchi-Konsultant
+                AI E-Commerce Sotuvchi-Konsultant v2.0
               </h3>
-              <span className="bg-brand-100 text-brand-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-brand-600" />
-                Gemini + SerpAPI
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-300">
+                <MapPin className="w-2.5 h-2.5 text-emerald-600" />
+                Faqat O‘zbekiston Do‘konlari
               </span>
             </div>
             <p className="text-[11px] text-stone-500">
-              Talabingizni aniqlab, Google & internetdan real narx va variantlarni topadi
+              Uzum, Olcha, Texnomart, Mediapark bo‘yicha imlo tuzatish va qat’iy kategoriya nazorati
             </p>
           </div>
         </div>
@@ -253,7 +341,7 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
       {isOpen && (
         <div className="mt-3 space-y-3">
           {/* Xabarlar ro'yxati konteyneri */}
-          <div className="max-h-[460px] overflow-y-auto space-y-3.5 pr-1 scrollbar-thin">
+          <div className="max-h-[500px] overflow-y-auto space-y-3.5 pr-1 scrollbar-thin">
             {messages.map((msg) => (
               <div 
                 key={msg.id} 
@@ -266,12 +354,20 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
                 )}
 
                 <div 
-                  className={`max-w-[85%] rounded-2xl p-3 text-xs shadow-sm ${
+                  className={`max-w-[90%] rounded-2xl p-3 text-xs shadow-sm ${
                     msg.role === 'user' 
                       ? 'bg-gradient-to-r from-brand-600 to-orange-600 text-white rounded-tr-xs' 
                       : 'bg-white/95 border border-stone-200 text-stone-800 rounded-tl-xs'
                   }`}
                 >
+                  {/* Imlo tuzatilganlik bildirishnomasi */}
+                  {msg.normalizedInput && msg.normalizedInput !== msg.content && (
+                    <div className="mb-2 p-1.5 bg-brand-50 border border-brand-200 rounded-lg text-[10px] text-brand-900 flex items-center gap-1.5 font-medium">
+                      <CheckCheck className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+                      <span><strong>Tuzatilgan so‘rov:</strong> {msg.normalizedInput}</span>
+                    </div>
+                  )}
+
                   {/* Matn mazmuni */}
                   {msg.role === 'user' ? (
                     <p className="leading-relaxed font-medium">{msg.content}</p>
@@ -283,42 +379,31 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
                       {msg.products && msg.products.length > 0 && (
                         <div className="mt-3 pt-2 border-t border-stone-100">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px] font-bold text-stone-600 flex items-center gap-1">
+                            <span className="text-[11px] font-bold text-stone-700 flex items-center gap-1">
                               <ShoppingBag className="w-3.5 h-3.5 text-brand-600" />
-                              Internetdan topilgan real variantlar ({msg.products.length}):
+                              O‘zbekiston do‘konlaridan saralangan variantlar ({msg.products.length}):
                             </span>
-                            {msg.searchQuery && (
-                              <span className="text-[10px] text-stone-400 font-mono truncate max-w-[150px]">
-                                🔍 {msg.searchQuery}
-                              </span>
-                            )}
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                             {msg.products.map((prod, pIdx) => (
                               <div 
                                 key={pIdx} 
-                                className="bg-stone-50/90 hover:bg-white border border-stone-200/80 rounded-xl p-2.5 flex flex-col justify-between transition-all duration-200 hover:shadow-md group"
+                                className="bg-stone-50/90 hover:bg-white border border-stone-200 rounded-xl p-2.5 flex flex-col justify-between transition-all duration-200 hover:shadow-md group"
                               >
                                 <div>
                                   {/* Mahsulot rasmi */}
-                                  {prod.thumbnail ? (
-                                    <div className="w-full h-28 rounded-lg overflow-hidden bg-white mb-2 relative flex items-center justify-center">
-                                      <img 
-                                        src={prod.thumbnail} 
-                                        alt={prod.title} 
-                                        className="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200"
-                                      />
-                                      <span className="absolute top-1 left-1 bg-stone-900/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                                        <Store className="w-2.5 h-2.5" />
-                                        {prod.source}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <div className="w-full h-20 rounded-lg bg-stone-200/50 mb-2 flex items-center justify-center text-stone-400 text-[10px]">
-                                      Rasm mavjud emas
-                                    </div>
-                                  )}
+                                  <div className="w-full h-28 rounded-lg overflow-hidden bg-white mb-2 relative flex items-center justify-center border border-stone-100">
+                                    <img 
+                                      src={prod.thumbnail} 
+                                      alt={prod.title} 
+                                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200"
+                                    />
+                                    <span className="absolute top-1 left-1 bg-emerald-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
+                                      <Store className="w-2.5 h-2.5" />
+                                      {prod.source}
+                                    </span>
+                                  </div>
 
                                   {/* Sarlavha va narx */}
                                   <h6 className="font-bold text-stone-900 line-clamp-2 text-[11px] mb-1 group-hover:text-brand-600 transition">
@@ -343,9 +428,9 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
                                       href={prod.link}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="flex-1 py-1.5 px-2 bg-stone-200/80 hover:bg-stone-300 text-stone-800 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition"
+                                      className="flex-1 py-1.5 px-2 bg-stone-200 hover:bg-stone-300 text-stone-800 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition"
                                     >
-                                      <span>Do‘konga o‘tish</span>
+                                      <span>Do‘konga</span>
                                       <ExternalLink className="w-3 h-3 text-stone-500" />
                                     </a>
                                   )}
@@ -366,6 +451,23 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
                           </div>
                         </div>
                       )}
+
+                      {/* 🎯 Interactive Quick Chips */}
+                      {msg.quickChips && msg.quickChips.length > 0 && (
+                        <div className="mt-2.5 pt-2 border-t border-stone-100 flex flex-wrap gap-1.5">
+                          {msg.quickChips.map((chip, cIdx) => (
+                            <button
+                              key={cIdx}
+                              type="button"
+                              onClick={() => handleSend(chip)}
+                              className="px-2.5 py-1 bg-orange-50 hover:bg-brand-100 text-brand-800 border border-brand-200/80 rounded-lg text-[10px] font-semibold transition active:scale-95 flex items-center gap-1"
+                            >
+                              <Tag className="w-2.5 h-2.5 text-brand-600" />
+                              <span>{chip}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -384,47 +486,12 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
                 </div>
                 <div className="bg-white/90 border border-brand-200 rounded-2xl p-3 text-xs text-stone-700 shadow-sm flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-brand-600 animate-ping" />
-                  <span className="font-semibold text-brand-900">{loadingStage || 'AI javob tayyorlamoqda...'}</span>
+                  <span className="font-semibold text-brand-900">{loadingStage || 'AI tahlil qilmoqda...'}</span>
                 </div>
               </div>
             )}
 
             <div ref={messagesEndRef} />
-          </div>
-
-          {/* Tezkor takliflar (Quick suggestions) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none text-[11px]">
-            <span className="text-stone-400 font-medium shrink-0 flex items-center gap-1">
-              <Search className="w-3 h-3" /> Namunalar:
-            </span>
-            <button
-              type="button"
-              onClick={() => handleSend("50 duymli Smart TV 400$ gacha")}
-              className="px-2.5 py-1 bg-stone-100 hover:bg-orange-100 text-stone-700 hover:text-brand-800 rounded-lg whitespace-nowrap transition border border-stone-200"
-            >
-              📺 50 duym Smart TV 400$
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSend("Muzlatkich No Frost 5 mln so'm")}
-              className="px-2.5 py-1 bg-stone-100 hover:bg-orange-100 text-stone-700 hover:text-brand-800 rounded-lg whitespace-nowrap transition border border-stone-200"
-            >
-              ❄️ Sovutkich No Frost
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSend("Artel 7kg kir yuvish mashinasi")}
-              className="px-2.5 py-1 bg-stone-100 hover:bg-orange-100 text-stone-700 hover:text-brand-800 rounded-lg whitespace-nowrap transition border border-stone-200"
-            >
-              🧺 Artel 7kg kir yuvish
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSend("Inverter konditsioner 35 m2")}
-              className="px-2.5 py-1 bg-stone-100 hover:bg-orange-100 text-stone-700 hover:text-brand-800 rounded-lg whitespace-nowrap transition border border-stone-200"
-            >
-              ❄️ Inverter konditsioner
-            </button>
           </div>
 
           {/* Xabar yozish maydoni (Input) */}
@@ -439,7 +506,7 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Masalan: menga televizor kerak yoki 50 duymli Smart TV..."
+              placeholder="Masalan: 12 lik konditsioner Xorazmga, svitkichi yoki 50 duym Smart TV..."
               disabled={isLoading}
               className="flex-1 bg-white border border-stone-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 rounded-xl px-3.5 py-2.5 text-xs text-stone-900 placeholder-stone-400 outline-none transition"
             />
