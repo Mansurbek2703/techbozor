@@ -332,16 +332,16 @@ function sanitizeExtractedData(parsed: any, prompt: string): ExtractedRequestDat
 export async function parseUserPrompt(text: string): Promise<ExtractedRequestData> {
   incrementAiCount();
 
-  // 1. Birinchi navbatda Gemini kalitlari rotatsiyasi
-  const geminiResult = await analyzeWithGemini(text);
-  if (geminiResult && geminiResult.recommendations?.length > 0) {
-    return geminiResult;
-  }
-
-  // 2. Agar Gemini ishlamasa, OpenAI API orqali
+  // 1. Birinchi navbatda pullik ChatGPT (OpenAI) API dan foydalanish
   const openAiResult = await analyzeWithOpenAI(text);
   if (openAiResult && openAiResult.recommendations?.length > 0) {
     return openAiResult;
+  }
+
+  // 2. Agar OpenAI javob bermasa, Gemini kalitlari rotatsiyasi
+  const geminiResult = await analyzeWithGemini(text);
+  if (geminiResult && geminiResult.recommendations?.length > 0) {
+    return geminiResult;
   }
 
   // 3. Internet yoki API vaqtinchalik javob bermasa: Mediapark & Glotr tasdiqlangan bazasi

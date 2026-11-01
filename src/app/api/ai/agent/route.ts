@@ -9,6 +9,8 @@ export async function POST(request: Request) {
     const region = body.region || undefined;
     const budget = body.budget || undefined;
     const feature = body.feature || undefined;
+    const turn_count = typeof body.turn_count === 'number' ? body.turn_count : 1;
+    const clarification_payload = body.clarification_payload || undefined;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json({
@@ -21,10 +23,15 @@ export async function POST(request: Request) {
       region,
       budget,
       feature,
+      turn_count,
+      clarification_payload,
     });
 
     return NextResponse.json({
       success: true,
+      ui_mode: agentResult.ui_mode,
+      ai_reply: agentResult.ai_reply,
+      products: agentResult.products,
       data: agentResult,
     });
   } catch (error: any) {

@@ -24,10 +24,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="uz">
-      <body className="min-h-screen flex flex-col bg-[#fbfaf8] text-stone-900 antialiased selection:bg-brand-500 selection:text-white">
+      <body className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900 antialiased selection:bg-[#FF6B00] selection:text-white">
         
         {/* Asosiy Navbar - Faqat Logo va Sotuvchilar kabineti */}
-        <header className="sticky top-0 z-50 bg-white/75 backdrop-blur-xl border-b border-orange-200/40 shadow-sm">
+        <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-xl border-b border-slate-200/80 shadow-xs">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">

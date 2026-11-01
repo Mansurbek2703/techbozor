@@ -19,6 +19,7 @@ import {
   Tag
 } from 'lucide-react';
 import { SerpProductItem } from '@/lib/serpapi';
+import { getStoreBrandConfig, StoreLogoFallback } from '@/lib/store-logos';
 
 export interface ChatMessage {
   id: string;
@@ -37,13 +38,30 @@ interface EcommerceAgentChatProps {
   onSelectProduct?: (product: SerpProductItem) => void;
 }
 
+function ChatProductImage({ thumbnail, title, storeName, category }: { thumbnail?: string; title: string; storeName?: string; category?: string }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (!thumbnail || hasError || thumbnail.length < 8) {
+    return <StoreLogoFallback storeName={storeName} category={category} />;
+  }
+
+  return (
+    <img 
+      src={thumbnail} 
+      alt={title} 
+      onError={() => setHasError(true)}
+      className="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200"
+    />
+  );
+}
+
 export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'model',
-      content: 'Assalomu alaykum! Men sizning **O‘zbekiston bozori bo‘yicha AI Sotuvchi-Konsultantingizman** 🤖.\n\nSheva yoki qisqartmalarda yozsangiz ham tushunaman (masalan, *"12 lik konditsioner"*, *"svitkichi"* yoki *"50 duymli Smart TV"*). O‘zbekiston rasmiy do‘konlaridan (Uzum, Olcha, Texnomart) real narx va variantlarni topib beraman.',
-      quickChips: ['12 lik konditsioner', 'Muzlatgich No Frost', 'Smart TV 50 duym', 'Kir yuvish 7kg'],
+      content: 'Assalomu alaykum! O‘zbekiston rasmiy do‘konlari (Uzum, Asaxiy, Olcha, Texnomart) bo‘yicha AI Sotuvchi-Konsultant xizmatingizda. Kerakli mahsulot yoki idish-tovoqni yozing, eng ma’qul narx va variantlarni topib beraman.',
+      quickChips: ['Keramik chashka serviz', '12 lik konditsioner', 'Muzlatgich No Frost', 'Smart TV 50 duym'],
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
   ]);
@@ -385,69 +403,81 @@ export default function EcommerceAgentChat({ onSelectProduct }: EcommerceAgentCh
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                            {msg.products.map((prod, pIdx) => (
-                              <div 
-                                key={pIdx} 
-                                className="bg-stone-50/90 hover:bg-white border border-stone-200 rounded-xl p-2.5 flex flex-col justify-between transition-all duration-200 hover:shadow-md group"
-                              >
-                                <div>
-                                  {/* Mahsulot rasmi */}
-                                  <div className="w-full h-28 rounded-lg overflow-hidden bg-white mb-2 relative flex items-center justify-center border border-stone-100">
-                                    <img 
-                                      src={prod.thumbnail} 
-                                      alt={prod.title} 
-                                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200"
-                                    />
-                                    <span className="absolute top-1 left-1 bg-emerald-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
-                                      <Store className="w-2.5 h-2.5" />
-                                      {prod.source}
-                                    </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {msg.products.map((prod, pIdx) => {
+                              const brand = getStoreBrandConfig(prod.source);
+
+                              return (
+                                <div 
+                                  key={pIdx} 
+                                  className="bg-white rounded-2xl border border-slate-100 shadow-md hover:shadow-xl hover:border-orange-300 transition-all p-3 flex flex-col justify-between group"
+                                >
+                                  <div>
+                                    {/* 1. [Aniq Rasm] (Haqiqiy rasm yoki do'kon logo fallback) */}
+                                    <div className="w-full h-32 rounded-xl overflow-hidden bg-slate-50 mb-2 relative flex items-center justify-center border border-slate-100 p-1.5">
+                                      <ChatProductImage 
+                                        thumbnail={prod.thumbnail} 
+                                        title={prod.title} 
+                                        storeName={prod.source}
+                                        category={msg.category}
+                                      />
+                                    </div>
+
+                                    {/* 2. [Mahsulot Nomi] */}
+                                    <h6 className="font-extrabold text-slate-900 line-clamp-2 text-xs mb-1.5 group-hover:text-[#FF6B00] transition">
+                                      {prod.title}
+                                    </h6>
+
+                                    {/* 3. [Aniq Narx (so'm)] (Olovrang va yirik) */}
+                                    <div className="mb-1.5">
+                                      {prod.price && prod.price !== 'Narxni do‘kondan tekshiring' ? (
+                                        <div className="text-[#FF6B00] font-black text-xs sm:text-sm">
+                                          {prod.price}
+                                        </div>
+                                      ) : (
+                                        <div className="text-slate-500 font-semibold text-[11px]">
+                                          Narxni do‘kondan tekshiring
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* 4. [Do'kon Logotipi] */}
+                                    <div className="flex items-center gap-1 mb-2">
+                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black border ${brand.bgClass} ${brand.textClass} ${brand.borderClass}`}>
+                                        <span className="w-2.5 h-2.5 flex items-center justify-center shrink-0">{brand.logoSvg}</span>
+                                        <span>{brand.name}</span>
+                                      </span>
+                                    </div>
                                   </div>
 
-                                  {/* Sarlavha va narx */}
-                                  <h6 className="font-bold text-stone-900 line-clamp-2 text-[11px] mb-1 group-hover:text-brand-600 transition">
-                                    {prod.title}
-                                  </h6>
+                                  {/* 5. [Platformada Ko'rish / Tanlash Tugmasi] */}
+                                  <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-1.5">
+                                    {prod.link && prod.link !== '#' && (
+                                      <a
+                                        href={prod.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition"
+                                      >
+                                        <span>Do‘konga</span>
+                                        <ExternalLink className="w-3 h-3 text-slate-500" />
+                                      </a>
+                                    )}
 
-                                  <div className="text-brand-700 font-black text-xs mb-1">
-                                    💰 {prod.price}
+                                    {onSelectProduct && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onSelectProduct(prod)}
+                                        className="flex-1 py-1.5 px-2 bg-slate-900 hover:bg-[#FF6B00] text-white text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition shadow-xs"
+                                      >
+                                        <Check className="w-3 h-3" />
+                                        <span>Tanlash</span>
+                                      </button>
+                                    )}
                                   </div>
-
-                                  {prod.snippet && (
-                                    <p className="text-[10px] text-stone-500 line-clamp-2 leading-tight">
-                                      {prod.snippet}
-                                    </p>
-                                  )}
                                 </div>
-
-                                {/* Tugmalar: Do'konga o'tish va Tanlash */}
-                                <div className="mt-2.5 pt-2 border-t border-stone-200/60 flex items-center gap-1.5">
-                                  {prod.link && prod.link !== '#' && (
-                                    <a
-                                      href={prod.link}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex-1 py-1.5 px-2 bg-stone-200 hover:bg-stone-300 text-stone-800 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition"
-                                    >
-                                      <span>Do‘konga</span>
-                                      <ExternalLink className="w-3 h-3 text-stone-500" />
-                                    </a>
-                                  )}
-
-                                  {onSelectProduct && (
-                                    <button
-                                      type="button"
-                                      onClick={() => onSelectProduct(prod)}
-                                      className="flex-1 py-1.5 px-2 bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition shadow-xs"
-                                    >
-                                      <Check className="w-3 h-3" />
-                                      <span>Tanlash</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
