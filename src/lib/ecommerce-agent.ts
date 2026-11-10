@@ -133,38 +133,42 @@ function getOpenAIApiKey(): string {
 }
 
 /**
- * 🤖 1-QATLAM: "Aqlli Hamroh" va Niyatni Marshrutlash (The Intent Router & Controller - V12.0)
+ * 🤖 1-QATLAM: "Aqlli Hamroh" va Niyatni Marshrutlash (The Ultimate Commerce Controller - V13.0)
  */
-const SYSTEM_PROMPT_INTENT_ROUTER = `Siz O'zbekistonning eng malakali biznes, xarid va elektron savdo bo'yicha Controllerisiz (The Ultimate Commerce Controller - V12.0).
-Mijozning yozgan har qanday xom, shevadagi, orfografik xatoli yoki ikkilantiruvchi so'rovini chuqur tahlil qiling va qat'iy JSON qaytaring.
+const SYSTEM_PROMPT_INTENT_ROUTER = `Siz O'zbekiston e-tijorat bozorining o'ta aqlli, professional biznes maslahatchisisiz (The Ultimate Conversational Commerce Controller - V13.0).
+Sizning vazifangiz foydalanuvchining ehtiyojini eng chuqur darajada tushunish. Hech qachon yodlangan yoki statik gaplarni ishlatmang!
 
-HAR QANDAY SO'ROVNI 2 TA ASOSIY TURGA (TYPE) VA 3 TA HOLATGA (STATE) AJRATING:
-
-1. TYPE: "CHAT" (Muloqot, Salomlashish yoki Aniqlashtirish):
-- Qachon: 
-  a) Salomlashish, tanishuv ("salom", "assalomu alaykum", "sen kimsan?", "nima qila olasan?");
-  b) Umumiy maslahat so'rash ("dasturchiga qanday noutbuk yaxshi?", "sovutgich tanlashda nima muhim?");
-  c) Mantiqiy ziddiyat yoki xatolik ("manga likopcha kere smarfunksiyali", "inverter choynak").
-- HARAKAT: HECH QANDAY QIDIRUV QILINMAYDI! (searchQuery va cleanQuery BO'SH STRING bo'lsin).
-- message: Foydalanuvchiga 1-2 ta jumlada samimiy, lo'nda javob bering (masalan: "Assalomu alaykum! Men Aqlli Bozor xarid yordamchisiman. O‘zbekiston rasmiy do‘konlaridan narxlar va iqtisodiy tahlillarni taqdim etaman. Qanday tovar qidiryapsiz?").
-
-2. TYPE: "SEARCH" (100% Aniq Mahsulot Qidiruvi):
-- Qachon: Faqatgina mijozning aynan qaysi toifadagi qanday mahsulotni xohlayotganiga 100% ISHONCHINGIZ KOMIL BO'LSA (masalan: "12 lik konditsioner Toshkentga", "chinni likopcha to'plami", "1.7L elektr choynak").
-- HARAKAT: Aniq tozalangan qidiruv kalit so'zini (searchQuery / cleanQuery) va toifani (categoryKey) aniqlab bering.
+QOIDALAR:
+1. KONTEKSTNI ANGLASH: Foydalanuvchi qaysi toifadagi mahsulot (telefon, noutbuk, konditsioner, chinni idishlar, elektr choynak, televizor, muzlatgich, kir yuvish va h.k.) so'rayotganini to'liq suhbat tarixi (context history) orqali aniq tushuning.
+   - Agar mavzu "Noutbuk" bo'lsa: Xona maydoni yoki inverter haqida aslo gapirmang! Dasturlash, 3D dizayn yoki o'yinlar haqida so'rang.
+   - Agar mavzu "Telefon" bo'lsa: Kamera, batareya quvvati, xotira yoki byudjet haqida so'rang.
+   - Agar mavzu "Konditsioner" bo'lsa: Xona maydoni yoki inverter turi haqida so'rang.
+   - Agar mavzu "Chinni/Idish" bo'lsa: To'plam turi, kishilar soni yoki material haqida so'rang.
+2. DINAMIK ANIQLASHTIRISH (CLARIFICATION): Foydalanuvchining ehtiyojini toraytirish uchun faqatgina SHU MAHSULOTGA XOS bo'lgan professional savol bering (Maksimal 2 ta qisqa jumla).
+3. SMART CHIPS: Siz taklif qiladigan 3 ta chip (tugma) yuzaki emas, balki aynan shu mahsulotning texnik va iqtisodiy variantlariga asoslangan bo'lsin.
+4. SO'ROVNI 2 TA ASOSIY TURGA (TYPE) VA 3 TA HOLATGA (STATE) AJRATING:
+   - TYPE "CHAT" (State: CONVERSATION yoki NEED_CLARIFICATION):
+     * Qachon: Salomlashish, umumiy maslahat yoki mahsulot parametrlari hali noaniq bo'lib, aniqlashtirish zarur bo'lganda (masalan, "noutbuk olmoqchiman", "telefon kerak", "idishlar bormi").
+     * HARAKAT: Hech qanday qidiruv qilinmaydi! searchQuery va cleanQuery BO'SH STRING bo'ladi. status="NEED_CLARIFICATION".
+   - TYPE "SEARCH" (State: PRODUCT_SEARCH):
+     * Qachon: Faqatgina mijozning aynan qaysi model yoki parametrli mahsulotni xohlayotganiga 100% ishonch bo'lganda (masalan: "noutbuk rtx 4060 o'yinlar uchun", "samsung galaxy a55", "12 lik inverter konditsioner").
+     * HARAKAT: Tozalangan qidiruv kalit so'zi (searchQuery / cleanQuery) va toifasi (categoryKey) aniqlanadi. status="READY_TO_SEARCH".
 
 QAT'IY QOIDALAR:
-- categoryKey: Aniq toifani tanlang: "konditsioner" (konditsioner, inverter, split), "chinni_idishlar" (idish, likopcha, tarelka, chashka, serviz, piyola), "elektr_choynak" (choynak, kettle), "televizor" (televizor, tv), "muzlatgich", "kir_yuvish", "boshqa". Idish-tovoqda smart funksiya yoki elektr bo'lmaydi!
-- smartChips: Doimo 3 ta aniq variant (emoji bilan).
+- categoryKey: Aniq toifani tanlang: "noutbuk", "telefon", "konditsioner", "chinni_idishlar", "elektr_choynak", "televizor", "muzlatgich", "kir_yuvish", "boshqa". Idish-tovoqda elektr/inverter yoki smart bo'lmaydi!
+- smartChips: Doimo 3 ta aniq, kontekstga mos variant (emoji bilan).
 
 CHIQISH FORMATI (Faqat toza JSON):
 {
   "type": "CHAT | SEARCH",
   "state": "CONVERSATION | NEED_CLARIFICATION | PRODUCT_SEARCH",
-  "categoryKey": "konditsioner | chinni_idishlar | elektr_choynak | televizor | muzlatgich | kir_yuvish | boshqa",
-  "searchQuery": "faqat SEARCH bo'lsa qidiruv so'zi, CHAT bo'lsa bo'sh",
-  "cleanQuery": "faqat SEARCH bo'lsa qidiruv so'zi, CHAT bo'lsa bo'sh",
-  "message": "Mijozga 1-2 jumlada maslahat yoki javob",
-  "replyMessage": "Mijozga 1-2 jumlada maslahat yoki javob",
+  "status": "NEED_CLARIFICATION | READY_TO_SEARCH",
+  "categoryKey": "noutbuk | telefon | konditsioner | chinni_idishlar | elektr_choynak | televizor | muzlatgich | kir_yuvish | boshqa",
+  "searchQuery": "faqat SEARCH bo'lsa toza qidiruv so'zi, CHAT bo'lsa bo'sh",
+  "cleanQuery": "faqat SEARCH bo'lsa toza qidiruv so'zi, CHAT bo'lsa bo'sh",
+  "ai_reply": "Mijoz tanlagan mahsulotga 100% moslashtirilgan, mantiqiy va professional savol/maslahat (Maks 2 gap).",
+  "replyMessage": "Mijoz tanlagan mahsulotga 100% moslashtirilgan, mantiqiy va professional savol/maslahat (Maks 2 gap).",
+  "message": "Mijoz tanlagan mahsulotga 100% moslashtirilgan, mantiqiy va professional savol/maslahat (Maks 2 gap).",
   "smartChips": [
      {"label": "Chip 1 nomi (emoji bilan)", "payload": "Qo'shimcha qidiruv filtri"},
      {"label": "Chip 2 nomi", "payload": "..." },
@@ -179,9 +183,10 @@ const SYSTEM_PROMPT_LEAD_ECONOMIST = `Siz — O'zbekiston bozorining Bosh Iqtiso
 
 QOIDALAR:
 1. Qisqalik prinsipi: Kirish qismida maksimal 2 ta jumla bilan tanlovning iqtisodiy mantiqini ayting.
-2. Qat'iyan taqiqlanadi: "Bozor narxida", "kelishilgan", "arzon va sifatli", "A+++ energiya" (idish-tovoqlarga energiya sinfini yozish QAT'IYAN TAQIQLANADI).
+2. Qat'iyan taqiqlanadi: "Bozor narxida", "kelishilgan", "arzon va sifatli", "A+++ energiya" (idish-tovoqlarga, noutbuklarga yoki telefonlarga noo'rin energiya sinfini yozish QAT'IYAN TAQIQLANADI).
 3. Chinni va oshxona idishlarida elektr hisobi 0 kVt qilib ko'rsatilsin, uning o'rniga oziq-ovqat xavfsizligi, zarbalarga chidamlilik va uzoq xizmat muddati tahlil qilinsin.
-4. Maishiy texnikada amaliy elektr sarfi O'zbekistonning joriy 450 so'm/kVt bazaviy tarifi bo'yicha hisoblanadi.
+4. Noutbuk va telefonlarda: protsessor unumdorligi, sovutish tizimi, batareya quvvati va rasmiy IMEI/servis kafolati tahlil qilinsin.
+5. Maishiy texnikada amaliy elektr sarfi O'zbekistonning joriy 450 so'm/kVt bazaviy tarifi bo'yicha hisoblanadi.
 
 CHIQISH FORMATI (Faqat toza JSON):
 {
@@ -189,11 +194,16 @@ CHIQISH FORMATI (Faqat toza JSON):
   "monthly_kwh": 0,
   "monthly_cost_uzs": 0,
   "tariff_rate": 450,
-  "regional_compatibility": "Oziq-ovqat xavfsizligi sertifikatiga ega, mikroto'lqinli pech va idish yuvish mashinasiga to'liq mos.",
-  "roi_summary": "Sifatli chinni idishlar emal qoplamasi tufayli darz ketmaydi va uzoq yillar xizmat qiladi."
+  "regional_compatibility": "Hududiy sharoitga moslik va xizmat ko'rsatish.",
+  "roi_summary": "Sarmoyaning oqlanishi va uzoq muddatli foyda."
 }`;
 
-async function callGemini(systemPrompt: string, userPrompt: string, jsonMode: boolean = false): Promise<string | null> {
+async function callGemini(
+  systemPrompt: string, 
+  userPrompt: string, 
+  history: ChatMessage[] = [],
+  jsonMode: boolean = false
+): Promise<string | null> {
   const keys = getGeminiApiKeys();
   if (keys.length === 0) return null;
 
@@ -203,6 +213,23 @@ async function callGemini(systemPrompt: string, userPrompt: string, jsonMode: bo
     'gemini-3.5-flash',
     'gemini-flash-latest',
   ];
+
+  const contents: any[] = [];
+  if (history && history.length > 0) {
+    for (const msg of history) {
+      if (!msg.content || msg.content.trim() === '') continue;
+      const role = (msg.role === 'model' || (msg.role as any) === 'assistant') ? 'model' : 'user';
+      contents.push({
+        role,
+        parts: [{ text: msg.content }]
+      });
+    }
+  }
+
+  contents.push({
+    role: 'user',
+    parts: [{ text: `${systemPrompt}\n\nUSER PROMPT:\n${userPrompt}` }]
+  });
 
   for (const key of keys) {
     for (const model of candidateModels) {
@@ -216,14 +243,7 @@ async function callGemini(systemPrompt: string, userPrompt: string, jsonMode: bo
           signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { text: `${systemPrompt}\n\nUSER PROMPT:\n${userPrompt}` }
-                ]
-              }
-            ],
+            contents,
             generationConfig: {
               temperature: 0.1,
               responseMimeType: jsonMode ? 'application/json' : 'text/plain',
@@ -247,11 +267,31 @@ async function callGemini(systemPrompt: string, userPrompt: string, jsonMode: bo
   return null;
 }
 
-async function callOpenAI(systemPrompt: string, userPrompt: string, jsonMode: boolean = false): Promise<string | null> {
+async function callOpenAI(
+  systemPrompt: string, 
+  userPrompt: string, 
+  history: ChatMessage[] = [],
+  jsonMode: boolean = false
+): Promise<string | null> {
   const key = getOpenAIApiKey();
   if (!key) return null;
 
   try {
+    // 🧠 Kognitiv Xotirani shakllantirish (V13.0 - Full Context Injection)
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: systemPrompt },
+    ];
+
+    if (history && history.length > 0) {
+      for (const msg of history) {
+        if (!msg.content || msg.content.trim() === '') continue;
+        const role = (msg.role === 'model' || (msg.role as any) === 'assistant') ? 'assistant' : 'user';
+        messages.push({ role, content: msg.content });
+      }
+    }
+
+    messages.push({ role: 'user', content: userPrompt });
+
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -260,12 +300,9 @@ async function callOpenAI(systemPrompt: string, userPrompt: string, jsonMode: bo
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
+        messages,
         temperature: 0.1,
-        max_tokens: 500,
+        max_tokens: 600,
         response_format: jsonMode ? { type: 'json_object' } : undefined
       })
     });
@@ -282,17 +319,22 @@ async function callOpenAI(systemPrompt: string, userPrompt: string, jsonMode: bo
 /**
  * Deterministik Intent tahlili va Clarification FSM (Fallback mexanizmi)
  */
+/**
+ * Deterministik Intent tahlili va Clarification FSM (Fallback mexanizmi - V13.0)
+ */
 function evaluateIntentDeterministic(
   query: string,
   turnCount: number,
   selectedRegion?: string,
-  selectedPayload?: Record<string, any>
+  selectedPayload?: Record<string, any>,
+  history: ChatMessage[] = []
 ) {
-  const text = `${query} ${selectedRegion || ''} ${JSON.stringify(selectedPayload || {})}`.toLowerCase();
+  const historyText = (history || []).map(m => m.content).join(' ');
+  const text = `${historyText} ${query} ${selectedRegion || ''} ${JSON.stringify(selectedPayload || {})}`.toLowerCase();
   const region = selectedRegion || (text.includes('xorazm') ? 'Xorazm' : text.includes('samarqand') ? 'Samarqand' : 'Toshkent');
 
   // 1. STATE: CONVERSATION (Salomlashish, tanishuv yoki umumiy maslahat)
-  if (/^(salom|assalom|qalaysiz|nima qila olasan|sen kimsan|nima bu|yordam ber|tanishaylik)/i.test(query.trim()) || /dasturchiga qanday|qanday tanlash|nima muhim/i.test(query.trim())) {
+  if (turnCount === 1 && (/^(salom|assalom|qalaysiz|nima qila olasan|sen kimsan|nima bu|yordam ber|tanishaylik)/i.test(query.trim()))) {
     return {
       state: 'CONVERSATION' as const,
       status: 'NEED_CLARIFICATION' as const,
@@ -301,26 +343,27 @@ function evaluateIntentDeterministic(
       category_key: 'boshqa',
       replyMessage: "Assalomu alaykum! Men \"Aqlli Bozor\" xarid maslahatchisiman. O‘zbekiston rasmiy do‘konlaridagi narxlar, mahsulot sifati va energiya tejamkorligini tahlil qilib beraman. Qanday tovar qidiryapsiz?",
       smartChips: [
-        { label: "❄️ 12 lik Inverter konditsioner", payload: "12 lik inverter konditsioner" },
-        { label: "🍽 Chinni likopchalar to'plami", payload: "chinni likopcha to'plami" },
-        { label: "🫖 1.7L Elektr choynak", payload: "1.7L elektr choynak" }
+        { label: "💻 Kuchli noutbuklar", payload: "kuchli noutbuk" },
+        { label: "📱 Zamonaviy smartfonlar", payload: "zamonaviy smartfon" },
+        { label: "🍽 Chinni likopchalar", payload: "chinni likopcha to'plami" },
+        { label: "❄️ 12 lik Inverter konditsioner", payload: "12 lik inverter konditsioner" }
       ],
       cleanQuery: '',
       normalized_params: { region }
     };
   }
 
-  // 2. STATE: NEED_CLARIFICATION (Mantiqiy ziddiyat: Likopchada smart funksiya yo'q!)
+  // 2. STATE: NEED_CLARIFICATION (Mantiqiy ziddiyat: Likopchada smart yoki elektr bo'lmaydi!)
   const isDish = /chinni|likop|tarelka|tovoq|chashka|serviz|piyola/i.test(text);
-  const hasSmartTech = /smart|inverter|pult|bluetooth|wi-fi|wifi|hd|4k|kompressor/i.test(text);
-  if (isDish && hasSmartTech) {
+  const hasSmartTech = /smart|inverter|pult|bluetooth|wi-fi|wifi|hd|4k|kompressor/i.test(query);
+  if (isDish && hasSmartTech && !/noutbuk|telefon|televizor/i.test(query)) {
     return {
       state: 'NEED_CLARIFICATION' as const,
       status: 'NEED_CLARIFICATION' as const,
       turn_count: turnCount,
       category: 'chinni_idishlar',
       category_key: 'chinni_idishlar',
-      replyMessage: "Likopchalarda smart funksiya bo'lmaydi. Sizga dasturxon uchun chinni likopchalar kerakmi yoki Smart Televizormi?",
+      replyMessage: "Likopchalarda smart yoki elektr funksiya bo'lmaydi. Sizga dasturxon uchun chinni likopchalar kerakmi yoki Smart Televizormi?",
       smartChips: [
         { label: "🍽 Chinni likopchalar (6 kishilik)", payload: "chinni likopcha to'plami" },
         { label: "📺 Smart Televizorlar", payload: "smart televizor 43 dyuym" },
@@ -331,7 +374,150 @@ function evaluateIntentDeterministic(
     };
   }
 
-  const categoryKey = detectCategoryKey(query, null);
+  // Toifani aniqlash (avval query'dan, keyin suhbat tarixidan)
+  let categoryKey = detectCategoryKey(query);
+  if (categoryKey === 'boshqa' && historyText) {
+    categoryKey = detectCategoryKey(historyText);
+  }
+
+  // 💻 NOUTBUK (Laptop) - V13.0 Kognitiv Kontekst
+  if (categoryKey === 'noutbuk') {
+    const isGaming = /o'yin|oyinf|geym|gaming|rtx|gtx|pubg|dota|videokarta/i.test(text);
+    const isCoding = /dastur|kod|it|program|developer|python|frontend|backend/i.test(text);
+    const isOffice = /ofis|o'qish|word|excel|talaba|yengil|ultrabook/i.test(text);
+
+    // Agar 2-bosqichda o'yinlar tanlangan bo'lsa:
+    if (isGaming || (turnCount >= 2 && /o'yin/i.test(query))) {
+      if (turnCount >= 3 || selectedPayload?.gpu || /rtx|gtx|3050|4060|4050/i.test(query)) {
+        return {
+          status: 'READY_TO_SEARCH' as const,
+          turn_count: turnCount,
+          category: 'Noutbuk',
+          category_key: 'noutbuk',
+          normalized_params: { region, type: 'gaming', gpu: 'RTX' },
+          clarification_data: null,
+          search_payload: {
+            query: `noutbuk gaming rtx ${region}`.trim(),
+            category_key: 'noutbuk'
+          }
+        };
+      }
+      return {
+        state: 'NEED_CLARIFICATION' as const,
+        status: 'NEED_CLARIFICATION' as const,
+        turn_count: turnCount,
+        category: 'Noutbuk',
+        category_key: 'noutbuk',
+        normalized_params: { region, type: 'gaming' },
+        replyMessage: "O‘yinlar uchun minimal RTX 3050 yoki 4060 videokartali noutbuklarni ko‘raylikmi?",
+        clarification_data: {
+          question: "O‘yinlar uchun minimal RTX 3050 yoki 4060 videokartali noutbuklarni ko‘raylikmi?",
+          options: [
+            { id: 'opt_1', label: "⚡ RTX 4060 (Yuqori FPS)", payload: { gpu: 'RTX 4060' } },
+            { id: 'opt_2', label: "🎯 RTX 3050 (Hamyonbop geyming)", payload: { gpu: 'RTX 3050' } },
+            { id: 'opt_3', label: "🔥 Asus TUF / Lenovo LOQ", payload: { brand: 'Asus/Lenovo' } }
+          ]
+        },
+        smartChips: [
+          { label: "⚡ RTX 4060 (Yuqori FPS)", payload: "noutbuk rtx 4060 gaming" },
+          { label: "🎯 RTX 3050 (Hamyonbop)", payload: "noutbuk rtx 3050" },
+          { label: "🔥 Asus TUF / Lenovo LOQ", payload: "gaming noutbuk asus tuf lenovo" }
+        ],
+        search_payload: {
+          query: `noutbuk gaming rtx ${region}`.trim(),
+          category_key: 'noutbuk'
+        }
+      };
+    }
+
+    if (turnCount >= 3 || selectedPayload?.type || selectedPayload?.ram) {
+      return {
+        status: 'READY_TO_SEARCH' as const,
+        turn_count: turnCount,
+        category: 'Noutbuk',
+        category_key: 'noutbuk',
+        normalized_params: { region, ...selectedPayload },
+        clarification_data: null,
+        search_payload: {
+          query: `${query} noutbuk ${region}`.trim(),
+          category_key: 'noutbuk'
+        }
+      };
+    }
+
+    // 1-bosqich: Vazifa bo'yicha aniqlashtirish
+    return {
+      state: 'NEED_CLARIFICATION' as const,
+      status: 'NEED_CLARIFICATION' as const,
+      turn_count: turnCount,
+      category: 'Noutbuk',
+      category_key: 'noutbuk',
+      normalized_params: { region },
+      replyMessage: "Sizga noutbuk asosan qanday vazifalar (dasturlash, 3D dizayn yoki o‘yinlar) uchun kerak?",
+      clarification_data: {
+        question: "Sizga noutbuk asosan qanday vazifalar (dasturlash, 3D dizayn yoki o‘yinlar) uchun kerak?",
+        options: [
+          { id: 'opt_1', label: "🎮 O‘yinlar uchun", payload: { type: 'gaming' } },
+          { id: 'opt_2', label: "💻 Dasturlash va IT (16GB RAM)", payload: { type: 'dev' } },
+          { id: 'opt_3', label: "💼 Ofis va o‘qish (Ultrabook)", payload: { type: 'office' } }
+        ]
+      },
+      smartChips: [
+        { label: "🎮 O‘yinlar uchun", payload: "o'yinlar uchun" },
+        { label: "💻 Dasturlash va IT", payload: "dasturlash va IT uchun" },
+        { label: "💼 Ofis va o‘qish", payload: "ofis va o'qish uchun" }
+      ],
+      search_payload: {
+        query: `noutbuk ${region}`.trim(),
+        category_key: 'noutbuk'
+      }
+    };
+  }
+
+  // 📱 TELEFON (Smartfon) - V13.0 Kognitiv Kontekst
+  if (categoryKey === 'telefon') {
+    if (turnCount >= 3 || selectedPayload?.feature || /iphone|samsung|redmi|a55|15 pro/i.test(query)) {
+      return {
+        status: 'READY_TO_SEARCH' as const,
+        turn_count: turnCount,
+        category: 'Telefon',
+        category_key: 'telefon',
+        normalized_params: { region, ...selectedPayload },
+        clarification_data: null,
+        search_payload: {
+          query: `${query} smartfon ${region}`.trim(),
+          category_key: 'telefon'
+        }
+      };
+    }
+
+    return {
+      state: 'NEED_CLARIFICATION' as const,
+      status: 'NEED_CLARIFICATION' as const,
+      turn_count: turnCount,
+      category: 'Telefon',
+      category_key: 'telefon',
+      normalized_params: { region },
+      replyMessage: "Sizga telefon tanlashda asosan qaysi jihati (kamera, batareya quvvati yoki byudjet) muhimroq?",
+      clarification_data: {
+        question: "Sizga telefon tanlashda asosan qaysi jihati (kamera, batareya quvvati yoki byudjet) muhimroq?",
+        options: [
+          { id: 'opt_1', label: "📱 Kamera flagman (iPhone / Galaxy S)", payload: { feature: 'camera' } },
+          { id: 'opt_2', label: "🔋 Uzoq zaryad (5000-6000 mAh)", payload: { feature: 'battery' } },
+          { id: 'opt_3', label: "⚡ Hamyonbop (Redmi / Samsung A)", payload: { feature: 'budget' } }
+        ]
+      },
+      smartChips: [
+        { label: "📱 Kamera uchun", payload: "kamera uchun flagman telefon" },
+        { label: "🔋 Uzoq zaryad (6000mAh)", payload: "katta batareyali telefon" },
+        { label: "⚡ Hamyonbop (A-seriya)", payload: "hamyonbop smartfon" }
+      ],
+      search_payload: {
+        query: `smartfon ${region}`.trim(),
+        category_key: 'telefon'
+      }
+    };
+  }
 
   // Turn 3 ga yetganda yoki foydalanuvchi variant tanlaganda majburiy qidiruv
   if (turnCount >= 3 || selectedPayload?.area || selectedPayload?.type || selectedPayload?.material || selectedPayload?.screen) {
@@ -352,13 +538,15 @@ function evaluateIntentDeterministic(
     };
   }
 
-  // Konditsioner uchun aniqlashtirish savollari
+  // ❄️ KONDITSIONER (Faqat haqiqatda konditsioner bo'lsa!)
   if (categoryKey === 'konditsioner') {
     return {
+      state: 'NEED_CLARIFICATION' as const,
       status: 'NEED_CLARIFICATION' as const,
       turn_count: turnCount,
       category: 'Konditsioner',
       category_key: 'konditsioner',
+      replyMessage: `${region} iqlimi va tarmoq kuchlanishi uchun mos konditsioner tanlashda maydon va kompressor turi muhim. Qanday xonaga o'rnatmoqchisiz?`,
       normalized_params: {
         capacity_btu: text.includes('12') ? '12000' : text.includes('18') ? '18000' : '12000',
         region,
@@ -373,6 +561,11 @@ function evaluateIntentDeterministic(
           { id: 'opt_3', label: 'Tijorat / Ofis (Past kuchlanish 140V ga chidamli)', payload: { area: 'commercial', voltage_protection: true } }
         ]
       },
+      smartChips: [
+        { label: "🏠 30-35 kv.m (Inverter)", payload: "12 lik inverter konditsioner" },
+        { label: "🏢 40 kv.m+ (On/Off)", payload: "18 lik kuchaytirilgan konditsioner" },
+        { label: "⚡ Past kuchlanish 140V", payload: "past kuchlanishga chidamli konditsioner" }
+      ],
       search_payload: {
         query: `konditsioner 12000 BTU inverter ${region}`,
         category_key: 'konditsioner'
@@ -380,13 +573,15 @@ function evaluateIntentDeterministic(
     };
   }
 
-  // Elektr choynak uchun aniqlashtirish
+  // 🫖 ELEKTR CHOYNAK
   if (categoryKey === 'elektr_choynak') {
     return {
+      state: 'NEED_CLARIFICATION' as const,
       status: 'NEED_CLARIFICATION' as const,
       turn_count: turnCount,
       category: 'Elektr choynak',
       category_key: 'elektr_choynak',
+      replyMessage: `${region} suvi uchun qaysi turdagi elektr choynak ma'qul?`,
       normalized_params: { region, material: null },
       clarification_data: {
         question: `${region} suvi uchun qaysi turdagi elektr choynak ma'qul?`,
@@ -396,6 +591,11 @@ function evaluateIntentDeterministic(
           { id: 'opt_3', label: 'Smart harorat saqlovchi (Xiaomi Pro)', payload: { smart: true } }
         ]
       },
+      smartChips: [
+        { label: "🫖 1.7L Zanglamas po'lat", payload: "1.7L zanglamas elektr choynak" },
+        { label: "💡 Shisha LED korpus", payload: "shisha led elektr choynak" },
+        { label: "🌡 Smart harorat saqlovchi", payload: "smart elektr choynak harorat" }
+      ],
       search_payload: {
         query: `elektr choynak 1.7L ${region}`,
         category_key: 'elektr_choynak'
@@ -403,13 +603,15 @@ function evaluateIntentDeterministic(
     };
   }
 
-  // Chinni va oshxona idishlari uchun (V7.0)
+  // 🍽 CHINNI VA OSHXONA IDISHLARI
   if (categoryKey === 'chinni_idishlar' || categoryKey === 'oshxona_anjomlari' || categoryKey === 'oshxona_idishlari') {
     return {
+      state: 'NEED_CLARIFICATION' as const,
       status: 'NEED_CLARIFICATION' as const,
       turn_count: turnCount,
       category: 'Chinni va oshxona idishlari',
       category_key: 'chinni_idishlar',
+      replyMessage: "Dasturxoningiz uchun qanday turdagi to‘plam ma‘qul?",
       normalized_params: { region },
       clarification_data: {
         question: 'Dasturxoningiz uchun qanday turdagi to‘plam ma‘qul?',
@@ -419,6 +621,11 @@ function evaluateIntentDeterministic(
           { id: 'opt_3', label: "✨ Bayramona servirovka", payload: { set: 'serving', type: 'luxury' } }
         ]
       },
+      smartChips: [
+        { label: "🍽 6 kishilik to'plam", payload: "chinni serviz 6 kishilik" },
+        { label: "🥣 Donalab (Kundalik)", payload: "chinni tarelka likopcha donalab" },
+        { label: "✨ Bayramona servirovka", payload: "bayramona chinni idishlar" }
+      ],
       search_payload: {
         query: `chinni likopcha va idishlar to'plami ${region}`,
         category_key: 'chinni_idishlar'
@@ -426,13 +633,15 @@ function evaluateIntentDeterministic(
     };
   }
 
-  // Televizor uchun
+  // 📺 TELEVIZOR
   if (categoryKey === 'televizor') {
     return {
+      state: 'NEED_CLARIFICATION' as const,
       status: 'NEED_CLARIFICATION' as const,
       turn_count: turnCount,
       category: 'Televizor',
       category_key: 'televizor',
+      replyMessage: "Xonangiz masofasiga qaysi ekran o‘lchami mos keladi?",
       normalized_params: { region },
       clarification_data: {
         question: 'Xonangiz masofasiga qaysi ekran o‘lchami mos keladi?',
@@ -442,6 +651,11 @@ function evaluateIntentDeterministic(
           { id: 'opt_3', label: '65+ dyuym Cinema QLED', payload: { screen: '65', resolution: 'QLED' } }
         ]
       },
+      smartChips: [
+        { label: "📺 43 dyuym Smart TV", payload: "smart tv 43 dyuym android" },
+        { label: "🎬 55 dyuym 4K HDR", payload: "smart tv 55 4k hdr" },
+        { label: "✨ 65+ Cinema QLED", payload: "qled televizor 65 dyuym" }
+      ],
       search_payload: {
         query: `smart tv 43 4k ${region}`,
         category_key: 'televizor'
@@ -449,17 +663,33 @@ function evaluateIntentDeterministic(
     };
   }
 
-  // Standart to'g'ridan-to'g'ri qidiruv
+  // 🌐 BOSHQALAR (General) - Hech qachon konditsionerga burilmaydi!
   return {
-    status: 'READY_TO_SEARCH' as const,
+    state: 'NEED_CLARIFICATION' as const,
+    status: 'NEED_CLARIFICATION' as const,
     turn_count: turnCount,
-    category: CATEGORY_RULES[categoryKey]?.name || 'Texnika',
-    category_key: categoryKey,
+    category: 'Xarid Maslahati',
+    category_key: 'boshqa',
+    replyMessage: `Siz qidirayotgan mahsulot bo‘yicha rasmiy do‘konlar narxlari va tahlilini topishga tayyorman. Aniqroq qaysi toifani ko‘rib chiqamiz?`,
+    smartChips: [
+      { label: "💻 Kuchli Noutbuklar", payload: "noutbuk" },
+      { label: "📱 Zamonaviy Telefonlar", payload: "telefon" },
+      { label: "🍽 Chinni Idishlar", payload: "chinni idishlar" },
+      { label: "❄️ Konditsionerlar", payload: "konditsioner" }
+    ],
+    clarification_data: {
+      question: "Qaysi yo'nalishdagi mahsulotlarni tanlaymiz?",
+      options: [
+        { id: 'opt_1', label: "💻 Noutbuklar", payload: { cat: 'noutbuk' } },
+        { id: 'opt_2', label: "📱 Telefonlar", payload: { cat: 'telefon' } },
+        { id: 'opt_3', label: "🍽 Chinni idishlar", payload: { cat: 'chinni_idishlar' } }
+      ]
+    },
+    cleanQuery: '',
     normalized_params: { region },
-    clarification_data: null,
     search_payload: {
       query: `${query} ${region}`.trim(),
-      category_key: categoryKey
+      category_key: 'boshqa'
     }
   };
 }
@@ -494,8 +724,8 @@ Faqat toza JSON qaytaring:
   "roi_summary": "Sifatli chinni idishlar tirnalmaydi, darz ketmaydi va uzoq yillar xizmat qiladi."
 }`;
 
-    let aiDishJson = await callOpenAI(SYSTEM_PROMPT_LEAD_ECONOMIST, dishPrompt, true)
-      || await callGemini(SYSTEM_PROMPT_LEAD_ECONOMIST, dishPrompt, true);
+    let aiDishJson = await callOpenAI(SYSTEM_PROMPT_LEAD_ECONOMIST, dishPrompt, [], true)
+      || await callGemini(SYSTEM_PROMPT_LEAD_ECONOMIST, dishPrompt, [], true);
 
     if (aiDishJson) {
       try {
@@ -521,6 +751,30 @@ Faqat toza JSON qaytaring:
     };
   }
 
+  // 💻 NOUTBUK (Laptop): Unumdorlik, sovutish va xizmat muddati tahlili
+  if (categoryKey === 'noutbuk') {
+    return {
+      headline: enforceMaxWordsAndSentences(`${region} bozorida tanlangan ushbu noutbuklar kuchli protsessor, samarali sovutish va rasmiy kafolat bilan eng maqbul sarmoyadir.`),
+      monthly_kwh: 15,
+      monthly_cost_uzs: 6750,
+      tariff_rate: 450,
+      regional_compatibility: "Kuchli sovutish tizimi va uzoq batareya quvvati issiq iqlim sharoitida ham barqaror ishlashni ta'minlaydi.",
+      roi_summary: "Yuqori unumdorlikdagi protsessor va tezkor SSD drayveri ish va o'yin jarayonida tizim eskirishini oldini oladi."
+    };
+  }
+
+  // 📱 TELEFON (Smartfon): Rasmiy IMEI, displey va batareya chidamliligi
+  if (categoryKey === 'telefon') {
+    return {
+      headline: enforceMaxWordsAndSentences(`${region} bozorida rasmiy IMEI-kod ro'yxatidan o'tgan va xizmat ko'rsatish kafolatiga ega smartfonlar eng ishonchli xariddir.`),
+      monthly_kwh: 3,
+      monthly_cost_uzs: 1350,
+      tariff_rate: 450,
+      regional_compatibility: "O'zbekistonning barcha mobil aloqa operatorlari (5G/4G) va rasmiy IMEI tizimiga to'liq mos.",
+      roi_summary: "Rasmiy kafolatli smartfonlar ikkilamchi bozorda o'z qiymatini yuqori saqlaydi va bepul servis xizmatini ta'minlaydi."
+    };
+  }
+
   const energy = calculateEnergyMetrics(categoryKey);
   const rule = CATEGORY_RULES[categoryKey] || CATEGORY_RULES['konditsioner'];
   const regionalCompatibility = rule.regional_insight[region] || rule.regional_insight['default'];
@@ -539,10 +793,10 @@ QAT'IY QOIDALAR (V8.0):
 Faqat toza JSON qaytaring.`;
 
   // 1-o'rinda foydalanuvchining pullik ChatGPT (OpenAI) orqali Iqtisodchi tahlilini olish
-  let aiJson = await callOpenAI(SYSTEM_PROMPT_LEAD_ECONOMIST, prompt, true);
+  let aiJson = await callOpenAI(SYSTEM_PROMPT_LEAD_ECONOMIST, prompt, [], true);
   if (!aiJson) {
     // Agar OpenAI javob bermasa, Gemini fallback
-    aiJson = await callGemini(SYSTEM_PROMPT_LEAD_ECONOMIST, prompt, true);
+    aiJson = await callGemini(SYSTEM_PROMPT_LEAD_ECONOMIST, prompt, [], true);
   }
 
   if (aiJson) {
@@ -654,9 +908,9 @@ JORIY BOSQICH (TURN): ${currentTurn}
 HUDUD: ${targetRegion}
 Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
 
-    // 1-o'rinda pullik ChatGPT (OpenAI) API dan foydalanish
-    const rawAiJson = await callOpenAI(SYSTEM_PROMPT_INTENT_ROUTER, aiPrompt, true)
-      || await callGemini(SYSTEM_PROMPT_INTENT_ROUTER, aiPrompt, true);
+    // 🧠 1-o'rinda pullik ChatGPT (OpenAI) API dan suhbat tarixi bilan birga foydalanish (V13.0)
+    const rawAiJson = await callOpenAI(SYSTEM_PROMPT_INTENT_ROUTER, aiPrompt, history, true)
+      || await callGemini(SYSTEM_PROMPT_INTENT_ROUTER, aiPrompt, history, true);
 
     if (rawAiJson) {
       try {
@@ -713,13 +967,14 @@ Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
     }
   }
 
-  // Fallback FSM
+  // Fallback FSM (V13.0 Kognitiv Xotira)
   if (!intentResult) {
     const fsmResult = evaluateIntentDeterministic(
       userMessage,
       currentTurn,
       params?.region,
-      params?.clarification_payload
+      params?.clarification_payload,
+      history
     );
     const fsm: any = fsmResult;
     const isChatFsm = fsm.state === 'CONVERSATION' || fsm.state === 'NEED_CLARIFICATION' || fsm.status === 'NEED_CLARIFICATION';

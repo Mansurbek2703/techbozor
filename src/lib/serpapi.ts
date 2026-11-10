@@ -191,6 +191,42 @@ export const CATEGORY_RULES: Record<string, CategoryRule> = {
     regional_insight: {
       "default": "Yuqori haroratda pishirilgan keramik va chinni idishlar issiqlikni uzoq saqlaydi va emal qoplamasi qattiq suvda ham darz ketmaydi."
     }
+  },
+  "telefon": {
+    key: "telefon",
+    name: "Smartfonlar va telefonlar",
+    required_tokens: ["telefon", "smartfon", "iphone", "samsung", "redmi", "xiaomi", "honor", "vivo", "oppo", "galaxy", "realme"],
+    forbidden_tokens: ["chexol", "steklo", "shnur", "kabel", "konditsioner", "muzlatgich", "choynak"],
+    min_price: 500_000,
+    max_price: 25_000_000,
+    monthly_kwh_est: 2,
+    regional_insight: {
+      "default": "O'zbekiston hududida IMEI ro'yxatidan o'tgan (Uztel rasmiy) va 1 yil rasmiy kafolatga ega modellar tavsiya etiladi."
+    }
+  },
+  "noutbuk": {
+    key: "noutbuk",
+    name: "Noutbuklar va kompyuterlar",
+    required_tokens: ["noutbuk", "laptop", "kompyuter", "macbook", "lenovo", "asus", "hp", "acer", "dell", "thinkpad", "victus", "tuf"],
+    forbidden_tokens: ["chexol", "sumka", "mouse", "sichqoncha", "konditsioner", "muzlatgich", "choynak"],
+    min_price: 2_000_000,
+    max_price: 45_000_000,
+    monthly_kwh_est: 10,
+    regional_insight: {
+      "default": "Rasmiy servis markazi mavjud va kuchlanish tebranishlariga chidamli quvvatlagichli modellar ma'qul."
+    }
+  },
+  "boshqa": {
+    key: "boshqa",
+    name: "Mahsulot",
+    required_tokens: [],
+    forbidden_tokens: [],
+    min_price: 10_000,
+    max_price: 100_000_000,
+    monthly_kwh_est: 0,
+    regional_insight: {
+      "default": "Rasmiy kafolat va tezkor yetkazib berish shartlariga e'tibor qarating."
+    }
   }
 };
 
@@ -199,6 +235,12 @@ export const CATEGORY_RULES: Record<string, CategoryRule> = {
  */
 export function detectCategoryKey(query?: string, categoryHint?: string | null): string {
   const text = `${query || ''} ${categoryHint || ''}`.toLowerCase();
+  if (/\b(telefon|smartfon|iphone|samsung|galaxy|redmi|xiaomi|honor|vivo|oppo|realme|pixel)\b/i.test(text)) {
+    return 'telefon';
+  }
+  if (/\b(noutbuk|laptop|kompyuter|macbook|komp|asus|lenovo|hp|acer|dell|thinkpad|victus|tuf)\b/i.test(text)) {
+    return 'noutbuk';
+  }
   if (/\b(choynak|kettle|термопот|samovar)\b/i.test(text) && !/\b(chashka|serviz|piyola|likopcha|likopchalar|tarelka)\b/i.test(text)) {
     return 'elektr_choynak';
   }
@@ -217,7 +259,10 @@ export function detectCategoryKey(query?: string, categoryHint?: string | null):
   if (/\b(chashka|idish|serviz|piyola|tarelka|likopcha|likopchalar|lagan|tovoq|farfor|chinni|qozon|tova)\b/i.test(text)) {
     return 'chinni_idishlar';
   }
-  return 'konditsioner'; // default fallback
+  if (categoryHint && CATEGORY_RULES[categoryHint]) {
+    return categoryHint;
+  }
+  return 'boshqa'; // ❌ NEVER default to 'konditsioner'!
 }
 
 // Gallyutsinatsiya va chet el platformalarini chetlatish uchun stop-so'zlar
@@ -287,6 +332,14 @@ export function getCategoryBadges(categoryKey: string, itemTitle: string): strin
 
   if (cat === "televizor" || title.includes("tv") || title.includes("smart")) {
     return ["Smart TV Android", "4K UltraHD", "Rasmiy kafolat"];
+  }
+
+  if (cat === "telefon" || /telefon|smartfon|iphone|samsung|galaxy|redmi|xiaomi|honor/i.test(title)) {
+    return ["Rasmiy IMEI ro'yxatdan o'tgan", "1 yil kafolat", "Original qadoq"];
+  }
+
+  if (cat === "noutbuk" || /noutbuk|laptop|kompyuter|macbook|asus|lenovo|hp|acer/i.test(title)) {
+    return ["Kuchli protsessor", "Rasmiy kafolat", "Tezkor SSD xotira"];
   }
 
   return ["Rasmiy do'kon kafolati"];
@@ -401,8 +454,8 @@ export function validateImageUrl(url: string, title: string, forbiddenKeywords: 
  * Bazaviy ijtimoiy norma: 1 kVt/soat = 450 so'm (200 kVt gacha)
  */
 export function calculateEnergyMetrics(categoryKey: string) {
-  const rule = CATEGORY_RULES[categoryKey] || CATEGORY_RULES['konditsioner'];
-  const monthlyKwh = rule.monthly_kwh_est;
+  const rule = CATEGORY_RULES[categoryKey] || CATEGORY_RULES['boshqa'] || { monthly_kwh_est: 0 };
+  const monthlyKwh = rule.monthly_kwh_est || 0;
   const tariffPerKwh = 450; // so'm/kVt (O'zbekiston 2024-2026 joriy bazaviy tarifi)
   const monthlyCostUzs = monthlyKwh * tariffPerKwh;
 
@@ -930,8 +983,113 @@ export async function searchLocalProducts(
     // 2. Kategoriya bo'yicha deterministik, aniq narxli va ROI hisob-kitobli tovarlar
     const catKey = detectCategoryKey(cleanSearchTerm, category);
     const energy = calculateEnergyMetrics(catKey);
-    const rule = CATEGORY_RULES[catKey] || CATEGORY_RULES['konditsioner'];
+    const rule = CATEGORY_RULES[catKey] || CATEGORY_RULES['boshqa'] || { name: 'Mahsulot', regional_insight: { default: 'Rasmiy kafolat' } };
     const regInsight = rule.regional_insight[regName] || rule.regional_insight['default'];
+
+    if (catKey === 'telefon') {
+      return [
+        {
+          id: generateUniqueId(),
+          title: 'Samsung Galaxy A55 5G 8/128GB (Awesome Iceblue)',
+          price: '4 150 000 so‘m',
+          priceNumber: 4150000,
+          source: 'Uzum Market',
+          storeBadge: 'Tezkor yetkazish',
+          link: `https://uzum.uz/uz/search?q=${encodeURIComponent('Samsung Galaxy A55')}`,
+          thumbnail: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+          images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80'],
+          snippet: `Super AMOLED 120Hz ekran, 50MP OIS kamera va 5000 mAh batareya. Rasmiy Uztel IMEI ro'yxatdan o'tgan.`,
+          region: regName,
+          keySpecs: ['Super AMOLED 120Hz', '50MP OIS kamera', '5000 mAh batareya'],
+          warranty: '1 yil rasmiy kafolat (IMEI ro‘yxatdan o‘tgan)',
+          deliveryInfo: `${regName} bo‘ylab 24 soatda yetkazish`,
+          monthlyKwh: 2,
+          monthlyCostUzs: 900,
+          roiVerdict: 'Kuchli kamera va uzoq batareya quvvati bilan o‘z toifasida eng maqbul smartfon.',
+        },
+        {
+          id: generateUniqueId(),
+          title: 'Xiaomi Redmi Note 13 Pro 8/256GB',
+          price: '3 280 000 so‘m',
+          priceNumber: 3280000,
+          source: 'Texnomart',
+          storeBadge: 'Muddatli to‘lov',
+          link: `https://texnomart.uz/uz/search?search=${encodeURIComponent('Redmi Note 13 Pro')}`,
+          thumbnail: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=800&q=80',
+          images: ['https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=800&q=80'],
+          snippet: `200MP ultra aniq kamera, 67W tezkor zaryadlash va 1.5K AMOLED displey.`,
+          region: regName,
+          keySpecs: ['200MP kamera', '67W tezkor zaryad', '256GB xotira'],
+          warranty: '12 oy rasmiy kafolat',
+          deliveryInfo: `${regName} hududida yetkazish`,
+          monthlyKwh: 2,
+          monthlyCostUzs: 900,
+          roiVerdict: 'Yuqori tezkor zaryadlash va katta xotira kundalik ishlar uchun qulaylik beradi.',
+        },
+        {
+          id: generateUniqueId(),
+          title: 'Apple iPhone 15 128GB Black (Dual Sim / eSIM)',
+          price: '10 450 000 so‘m',
+          priceNumber: 10450000,
+          source: 'Olcha',
+          storeBadge: 'Rasmiy kafolat',
+          link: `https://olcha.uz/search?q=${encodeURIComponent('iPhone 15')}`,
+          thumbnail: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=800&q=80',
+          images: ['https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=800&q=80'],
+          snippet: `Dynamic Island, 48MP asosiy kamera va A16 Bionic protsessori. Uztel IMEI kafolatlangan.`,
+          region: regName,
+          keySpecs: ['Dynamic Island', 'A16 Bionic', '48MP kamera'],
+          warranty: '1 yil Apple rasmiy kafolati',
+          deliveryInfo: `${regName} bo‘ylab 1 kunda yetkazish`,
+          monthlyKwh: 2,
+          monthlyCostUzs: 900,
+          roiVerdict: 'Yuqori qayta sotish qiymati va 5 yillik tizim yangilanishi ta’minlanadi.',
+        }
+      ];
+    }
+
+    if (catKey === 'noutbuk') {
+      return [
+        {
+          id: generateUniqueId(),
+          title: 'Asus Vivobook 15 Core i5 16GB / 512GB SSD',
+          price: '6 450 000 so‘m',
+          priceNumber: 6450000,
+          source: 'Uzum Market',
+          storeBadge: 'Tezkor yetkazish',
+          link: `https://uzum.uz/uz/search?q=${encodeURIComponent('Asus Vivobook i5 16gb')}`,
+          thumbnail: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+          images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80'],
+          snippet: `Dasturlash, ofis va talabalar uchun yengil va baquvvat noutbuk. 16GB tezkor xotira bilan.`,
+          region: regName,
+          keySpecs: ['Intel Core i5', '16GB RAM', '512GB NVMe SSD'],
+          warranty: '12 oy rasmiy kafolat',
+          deliveryInfo: `${regName} bo‘ylab yetkazish`,
+          monthlyKwh: 10,
+          monthlyCostUzs: 4500,
+          roiVerdict: '16GB RAM ko‘p vazifalilikda (multitasking) qotishlarsiz ishlashni kafolatlaydi.',
+        },
+        {
+          id: generateUniqueId(),
+          title: 'Lenovo LOQ 15 Gaming RTX 4050 / Core i5 13-avlod',
+          price: '9 890 000 so‘m',
+          priceNumber: 9890000,
+          source: 'Texnomart',
+          storeBadge: 'Muddatli to‘lov',
+          link: `https://texnomart.uz/uz/search?search=${encodeURIComponent('Lenovo LOQ RTX 4050')}`,
+          thumbnail: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=800&q=80',
+          images: ['https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=800&q=80'],
+          snippet: `O'yinlar, 3D rendering va og'ir grafik dasturlar uchun RTX 4050 6GB videokartali model.`,
+          region: regName,
+          keySpecs: ['NVIDIA RTX 4050 6GB', 'Core i5-13420H', '144Hz IPS ekran'],
+          warranty: '1 yil kafolat',
+          deliveryInfo: `${regName} hududida yetkazish`,
+          monthlyKwh: 25,
+          monthlyCostUzs: 11250,
+          roiVerdict: 'Kuchli sovutish tizimi va zamonaviy GPU og‘ir vazifalarni yengil bajaradi.',
+        }
+      ];
+    }
 
     if (catKey === 'konditsioner') {
       return [

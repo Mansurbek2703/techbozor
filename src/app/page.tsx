@@ -35,7 +35,8 @@ import {
   SerpProductItem, 
   getCategoryBadges, 
   isDishwareQuery,
-  isStrictValidProduct 
+  isStrictValidProduct,
+  detectCategoryKey 
 } from '@/lib/serpapi';
 import { 
   UiFormData, 
@@ -116,6 +117,20 @@ function ProductCardImage({
 function getLiveGuidedChips(query: string) {
   const q = (query || '').toLowerCase();
 
+  if (/noutbuk|laptop|macbook|kompyuter|notbuk/i.test(q)) {
+    return [
+      { label: "🎮 O‘yinlar uchun (RTX 4060)", queryAppend: "noutbuk gaming rtx", icon: "🎮" },
+      { label: "💻 Dasturlash & IT (16GB RAM)", queryAppend: "noutbuk dasturlash 16gb", icon: "💻" },
+      { label: "💼 Ofis & O‘qish (Ultrabook)", queryAppend: "noutbuk ultrabook ofis", icon: "💼" },
+    ];
+  }
+  if (/telefon|smartfon|iphone|samsung|redmi|xiaomi|honor|ayfon/i.test(q)) {
+    return [
+      { label: "📱 Kamera flagman (iPhone / S24)", queryAppend: "kamera flagman smartfon", icon: "📱" },
+      { label: "🔋 Uzoq zaryad (5000mAh+)", queryAppend: "katta batareyali smartfon", icon: "🔋" },
+      { label: "⚡ Hamyonbop (A-seriya / Redmi)", queryAppend: "hamyonbop smartfon", icon: "⚡" },
+    ];
+  }
   if (/chinni|likop|tarelka|tovoq|idish|serviz|chashka|farfor/i.test(q)) {
     return [
       { label: "6 kishilik to'plam", queryAppend: "6 kishilik to'plam serviz", icon: "🍽" },
@@ -147,9 +162,10 @@ function getLiveGuidedChips(query: string) {
 
   // Standart tavsiyalar
   return [
+    { label: "💻 Kuchli noutbuklar", queryAppend: "noutbuk", icon: "💻" },
+    { label: "📱 Zamonaviy smartfonlar", queryAppend: "smartfon", icon: "📱" },
     { label: "🍽 Chinni likopchalar", queryAppend: "chinni likopcha 6 kishilik to'plam", icon: "🍽" },
     { label: "❄️ 12 lik Inverter konditsioner", queryAppend: "12 lik inverter konditsioner", icon: "❄️" },
-    { label: "⚡ 1.7L Zanglamas elektr choynak", queryAppend: "1.7L elektr choynak zanglamas", icon: "⚡" },
   ];
 }
 
@@ -1058,8 +1074,9 @@ export default function HomePage() {
       {/* 🌟 IN-APP PRODUCT MODAL (Saytdan chiqmasdan ko'rish) */}
       {selectedProduct && (() => {
         const modalBrand = getStoreBrandConfig(selectedProduct.source);
-        const isDish = isDishwareQuery(selectedProduct.title, selectedProduct.category);
-        const dynamicBadges = getCategoryBadges(isDish ? 'chinni_idishlar' : 'konditsioner', selectedProduct.title);
+        const prodCategoryKey = (selectedProduct as any).categoryKey || selectedProduct.category || detectCategoryKey(selectedProduct.title);
+        const isDish = isDishwareQuery(selectedProduct.title, prodCategoryKey);
+        const dynamicBadges = getCategoryBadges(prodCategoryKey, selectedProduct.title);
 
         return (
           <div 
@@ -1110,7 +1127,7 @@ export default function HomePage() {
                       thumbnail={selectedProduct.thumbnail}
                       title={selectedProduct.title}
                       storeName={selectedProduct.source}
-                      category={isDish ? 'chinni_idishlar' : 'konditsioner'}
+                      category={prodCategoryKey}
                     />
                   </div>
 
@@ -1153,7 +1170,24 @@ export default function HomePage() {
                       Mikroto‘lqinli pech va idish yuvish mashinasiga to‘liq mos, zarbalarga chidamli sirlangan chinni.
                     </p>
                   </div>
-                ) : selectedProduct.monthlyCostUzs ? (
+                ) : (prodCategoryKey === 'telefon' || prodCategoryKey === 'noutbuk') ? (
+                  <div className="p-3 bg-blue-50/80 rounded-2xl border border-blue-200 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
+                      <span className="flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                        {prodCategoryKey === 'telefon' ? 'Smartfon Standartlari:' : 'Noutbuk Parametrlari:'}
+                      </span>
+                      <span className="text-blue-800 font-black">
+                        {prodCategoryKey === 'telefon' ? 'IMEI & Rasmiy Kafolat' : 'Original litsenziya'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 font-medium">
+                      {prodCategoryKey === 'telefon' 
+                        ? '100% rasmiy bojxona ro‘yxatidan o‘tgan IMEI va ishlab chiqaruvchi kafolati.'
+                        : 'Samarali sovutish tizimi va uzoq batareya quvvati bilan barqaror ish faoliyati.'}
+                    </p>
+                  </div>
+                ) : (selectedProduct.monthlyCostUzs && selectedProduct.monthlyCostUzs > 0) ? (
                   <div className="p-3 bg-orange-50/80 rounded-2xl border border-orange-200 space-y-1.5">
                     <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
                       <span className="flex items-center gap-1">
