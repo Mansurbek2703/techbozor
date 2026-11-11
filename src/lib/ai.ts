@@ -297,7 +297,7 @@ function sanitizeExtractedData(parsed: any, prompt: string): ExtractedRequestDat
 
   const recs: AIRecommendation[] = (parsed.recommendations || []).map((rec: any) => ({
     brand: rec.brand || 'O‘zbekiston Rasmiy',
-    model: rec.model || 'Standart model',
+    model: rec.model || rec.brand || 'Rasmiy model',
     category: rec.category || categoryName,
     categoryKey: rec.categoryKey || categoryKey,
     estimatedPrice: Number(rec.estimatedPrice) || budget,

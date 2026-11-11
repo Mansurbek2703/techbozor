@@ -245,27 +245,30 @@ export const OPEN_WORLD_JSON_SCHEMA = {
 /**
  * 🧠 Agentning System Prompti (Miyasi)
  */
-export const SYSTEM_PROMPT_OPEN_WORLD = `Sen "Aqlli Bozor" platformasining intellektual xarid maslahatchisisan.
-Sening asosiy vazifang foydalanuvchining xom so'rovini aniq qidiruv parametrlariga (filtrlariga) aylantirish va kerak bo'lganda qo'shimcha savollar berishdir.
+export const SYSTEM_PROMPT_OPEN_WORLD = `Siz O'zbekistonning eng aqlli elektron tijorat maslahatchisisiz.
+Foydalanuvchi barcha turdagi mahsulotlarni so'rashi mumkin.
 
-QAT'IY QOIDALAR:
-1. TOVAR TOIFASINI FARQLASH: Foydalanuvchi so'rovini tahlil qil va uning qaysi toifaga (category) tegishliligini aniqla:
-   - "apparel" (kiyim-kechak, qo'lqop, poyabzal): Bunda faqat jinsi, o'lchami, matosi va rangini so'ra. Hech qachon elektr quvvati, kVt yoki ROI haqida gapirma.
-   - "electronics" (maishiy texnika, noutbuk, telefon): Bunda texnik parametrlar, elektr sarfi va byudjetni hisobga ol.
-   - "materials" (qurilish mollari, mebel): Bunda o'lcham, xomashyo va miqdorni so'ra.
-   - "other": Yuqoridagilarga kirmaydigan boshqa barcha tovarlar.
-2. HUDUDNI ANIQLASH: Tizim foydalanuvchiga to'g'ri do'kon va narxlarni topishi uchun hudud (viloyat/shahar) muhim. Agar joriy suhbat kontekstida foydalanuvchining hududi noma'lum bo'lsa (location null bo'lsa), boshqa parametrlarni so'rash bilan birga hududni ham tanlashni so'ra va dynamic_chips ro'yxatida kamida 2 ta hudud variantini (masalan: "📍 Toshkent", "📍 Xorazm") kirit. Agar hudud ma'lum bo'lsa, uni extracted_data.location ga yoz.
-3. CHIPLAR (Guided Chips): Har bir savoling uchun foydalanuvchi tanlashi oson bo'lgan 3-4 ta qisqa, emojili javob variantlarini (chiplarni) taqdim et. Chiplar doim kontekstga va tovar turiga to'liq mos bo'lishi shart.
-4. QIDIRUVGA TAYYORLIK (READY_TO_SEARCH): Agar mahsulot va uning asosiy parametrlari aniq bo'lsa (masalan: "qora charm erkaklar qo'lqopi Xorazm", "12 lik inverter konditsioner Toshkent", "asus vivobook 16gb Toshkent"), yoki suhbat 3-bosqichga yetgan bo'lsa, status: "READY_TO_SEARCH" qaytar, dynamic_chips massivini bo'sh qoldir va message ga qisqa tasdiq yoz (masalan: "Sizga mos eng yaxshi variantlarni saralayapman...").
-5. JAVOB FORMATI: Sen faqat qat'iy belgilangan JSON formatida javob qaytarishing shart. Matnli kirish yoki xulosalar yozma.
+QAT'IY BOSQICHLI QOIDALAR:
+1. HAR DOIM HUDUDNI SO'RANG: Agar foydalanuvchi birinchi marta biron narsa so'rasa va qaysi hududga (Toshkent, Xorazm, Samarqand va h.k) yetkazib berish kerakligini aytmagan bo'lsa (location null bo'lsa), sizning birinchi vazifangiz mahsulot turini aniqlashtirish bilan birga, viloyatni ham so'rashdir.
+2. MANTIQIY CHIPLAR (ZERO-MIXED CHIPS): Siz qaytaradigan dynamic_chips massivi aslo aralashib ketmasin:
+   - 1-BOSQICH (Hudud noma'lum bo'lsa): FAQAT hudud chiplarini bering! Masalan: ["📍 Toshkent shahri", "📍 Xorazm viloyati", "📍 Samarqand viloyati", "📍 Boshqa hudud"]. Hech qachon rang yoki matoni hudud bilan bitta qatorga aralashtirmang!
+   - 2-BOSQICH (Hudud ma'lum bo'lgach): Endi FAQAT o'sha mahsulot xususiyati (mato, o'lcham, quvvat, brend yoki rang) chiplarini bering! Masalan qo'lqop uchun: ["🧤 Qalin Charm", "🧵 100% Paxta", "🧶 Issiq Jun"].
+3. TOVAR TOIFASINI FARQLASH:
+   - "apparel" (kiyim-kechak, qo'lqop, poyabzal, kurtka): Faqat jinsi, o'lchami, matosi va rangini so'ra. Elektr, kVt yoki ROI haqida ASLO gapirma (is_electronic: false).
+   - "electronics" (maishiy texnika, noutbuk, telefon): Texnik parametrlar va elektr sarfini hisobga ol (is_electronic: true).
+   - "materials" (qurilish mollari, mebel): O'lcham, xomashyo va miqdorni so'ra (is_electronic: false).
+   - "other": Boshqa tovarlar (is_electronic: false).
+4. SOXTA MODELLAR QAT'IYAN TAQIQLANADI: O'zingizdan "Standart Model", "Pro Edition" kabi soxta modellar yasamang va mahsulotni bor deb aldamang.
+5. QIDIRUVGA TAYYORLIK (READY_TO_SEARCH): Agar mahsulot va uning asosiy parametrlari aniq bo'lsa (masalan: "qora charm erkaklar qo'lqopi Xorazm", "12 lik inverter konditsioner Toshkent"), yoki suhbat 3-bosqichga yetgan bo'lsa, status: "READY_TO_SEARCH" qaytar, dynamic_chips massivini bo'sh qoldir va message ga qisqa tasdiq yoz (masalan: "Sizga mos rasmiy do'konlar narxlarini tekshirmoqdaman...").
+6. JAVOB FORMATI: Sen faqat qat'iy belgilangan JSON formatida javob qaytarishing shart.
 
-Misol:
+Misol 1 (1-Bosqich - Hudud yo'q):
 Foydalanuvchi: "Menga qo'lqop kerak"
 Javob:
 {
   "status": "NEED_CLARIFICATION",
-  "message": "Qo'lqopni yetkazib berish uchun qaysi hududdansiz va qanday mato qidiryapsiz?",
-  "dynamic_chips": ["📍 Xorazm", "📍 Toshkent", "🧤 Charm", "🧤 Paxta"],
+  "message": "Qo'lqopni yetkazib berish uchun qaysi hududdansiz?",
+  "dynamic_chips": ["📍 Toshkent shahri", "📍 Xorazm viloyati", "📍 Samarqand viloyati", "📍 Boshqa hudud"],
   "extracted_data": {
     "category": "apparel",
     "product_name": "qo'lqop",
@@ -279,11 +282,31 @@ Javob:
       "other": null
     }
   }
-}`;;
+}
 
-/**
- * 🎩 2.2. Bosh Iqtisodchi va Xarid Strategi (Lead Economist Advisor - V7.0)
- */
+Misol 2 (2-Bosqich - Hudud ma'lum, endi faqat tovar xususiyatlari):
+Foydalanuvchi: "📍 Xorazm viloyati"
+Javob:
+{
+  "status": "NEED_CLARIFICATION",
+  "message": "Xorazm uchun qanday matodan ishlangan qo'lqop qidiryapsiz?",
+  "dynamic_chips": ["🧤 Qalin Charm", "🧵 100% Paxta", "🧶 Issiq Jun"],
+  "extracted_data": {
+    "category": "apparel",
+    "product_name": "qo'lqop",
+    "location": "Xorazm",
+    "is_electronic": false,
+    "attributes": {
+      "color": null,
+      "material": null,
+      "size": null,
+      "specs": null,
+      "other": null
+    }
+  }
+}
+`;
+
 const SYSTEM_PROMPT_LEAD_ECONOMIST = `Siz — O'zbekiston bozorining Bosh Iqtisodchisisiz. Sizning xulosangiz sarmoyaning o'zini oqlashi (ROI), energiya samaradorligi yoki tovarning amaliy chidamliligiga tayanadi.
 
 QOIDALAR:
@@ -1242,7 +1265,72 @@ export async function runEcommerceAgentPipeline(
   const categoryKey = intentResult.category_key || detectCategoryKey(searchQuery, intentResult.category);
 
   const rawProducts = await searchLocalProducts(searchQuery, intentResult.category, activeRegion);
-  const cleanProducts = rawProducts.slice(0, 4);
+    const cleanProducts = rawProducts.slice(0, 4);
+
+  // 🛡️ ZERO-FAKE DIRECTIVE (V15.0): Agar haqiqiy natija topilmasa, soxta mahsulot yasamaymiz!
+  if (cleanProducts.length === 0) {
+    const notFoundMsg = `Kechirasiz, ${activeRegion} hududi bo‘yicha rasmiy do‘konlarda hozircha siz so‘ragan mahsulot topilmadi.`;
+    return {
+      type: 'CHAT',
+      ui_mode: 'CONVERSATION_ONLY',
+      ai_reply: notFoundMsg,
+      message: notFoundMsg,
+      state: 'NEED_CLARIFICATION',
+      status: 'NEED_CLARIFICATION',
+      turn_count: currentTurn,
+      category: intentResult.category || 'boshqa',
+      category_key: categoryKey,
+      dynamic_chips: [
+        '📍 Toshkent shahri',
+        '📍 Xorazm viloyati',
+        '📍 Samarqand viloyati',
+        '📍 Boshqa hudud'
+      ],
+      extracted_data: intentResult.extracted_data,
+      is_electronic: isElectronic,
+      normalized_params: { region: activeRegion },
+      clarification_data: {
+        question: notFoundMsg,
+        options: [
+          { id: 'c0', label: '📍 Toshkent shahri', payload: { filter: 'Toshkent' } },
+          { id: 'c1', label: '📍 Xorazm viloyati', payload: { filter: 'Xorazm' } },
+          { id: 'c2', label: '📍 Samarqand viloyati', payload: { filter: 'Samarqand' } },
+          { id: 'c3', label: '📍 Boshqa hudud', payload: { filter: 'boshqa' } }
+        ]
+      },
+      economist_insight: null,
+      search_payload: {
+        query: searchQuery,
+        category_key: categoryKey
+      },
+      products: [],
+      comparison_table: [],
+      short_advice_uz: notFoundMsg,
+      smartChips: [
+        { label: '📍 Toshkent shahri', payload: 'Toshkent' },
+        { label: '📍 Xorazm viloyati', payload: 'Xorazm' },
+        { label: '📍 Samarqand viloyati', payload: 'Samarqand' },
+        { label: '📍 Boshqa hudud', payload: 'boshqa' }
+      ],
+      cleanQuery: '',
+      replyMessage: notFoundMsg,
+      step: 'needs_params',
+      is_ready_to_search: false,
+      normalized_query: searchQuery,
+      ui_form_data: {
+        regions: ["Toshkent", "Xorazm", "Samarqand", "Buxoro", "Farg'ona", "Andijon"],
+        budget_ranges: ["Hamyonbop", "O‘rta toifa", "Premium"],
+        features: [],
+      },
+      extracted_filters: {
+        budget_max: null,
+        region: activeRegion,
+        specific_feature: null,
+      },
+      expanded_serpapi_query: null,
+      dynamic_facets: [],
+    };
+  }
 
   // 4-QATLAM: Bosh Iqtisodchi AI (Lead Economist Advisor - isElectronic bayrog'i bilan)
   const economistInsight = await generateEconomistInsight(categoryKey, activeRegion, cleanProducts, isElectronic);
