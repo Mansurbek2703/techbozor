@@ -111,70 +111,12 @@ function ProductCardImage({
   );
 }
 
-/**
- * 🚀 "1 Soniyali Aqlli Yo'naltiruvchi" uchun dinamik tavsiyalar (V7.0)
- */
-function getLiveGuidedChips(query: string) {
-  const q = (query || '').toLowerCase();
-
-  if (/noutbuk|laptop|macbook|kompyuter|notbuk/i.test(q)) {
-    return [
-      { label: "🎮 O‘yinlar uchun (RTX 4060)", queryAppend: "noutbuk gaming rtx", icon: "🎮" },
-      { label: "💻 Dasturlash & IT (16GB RAM)", queryAppend: "noutbuk dasturlash 16gb", icon: "💻" },
-      { label: "💼 Ofis & O‘qish (Ultrabook)", queryAppend: "noutbuk ultrabook ofis", icon: "💼" },
-    ];
-  }
-  if (/telefon|smartfon|iphone|samsung|redmi|xiaomi|honor|ayfon/i.test(q)) {
-    return [
-      { label: "📱 Kamera flagman (iPhone / S24)", queryAppend: "kamera flagman smartfon", icon: "📱" },
-      { label: "🔋 Uzoq zaryad (5000mAh+)", queryAppend: "katta batareyali smartfon", icon: "🔋" },
-      { label: "⚡ Hamyonbop (A-seriya / Redmi)", queryAppend: "hamyonbop smartfon", icon: "⚡" },
-    ];
-  }
-  if (/chinni|likop|tarelka|tovoq|idish|serviz|chashka|farfor/i.test(q)) {
-    return [
-      { label: "6 kishilik to'plam", queryAppend: "6 kishilik to'plam serviz", icon: "🍽" },
-      { label: "Donalab (Kundalik)", queryAppend: "donalab kundalik", icon: "🥣" },
-      { label: "Bayramona servirovka", queryAppend: "bayramona servirovka likopcha", icon: "✨" },
-    ];
-  }
-  if (/kondits|split|inverter|12|kandits/i.test(q)) {
-    return [
-      { label: "30 kv.m gacha (Uy)", queryAppend: "30 kv.m gacha inverter", icon: "🏠" },
-      { label: "40 kv.m+ (Ofis)", queryAppend: "40 kv.m+ kuchaytirilgan", icon: "🏢" },
-      { label: "Faqat Inverter (Tejamkor)", queryAppend: "inverter A+++ tejamkor", icon: "⚡" },
-    ];
-  }
-  if (/choynak|kettle|термопот/i.test(q)) {
-    return [
-      { label: "1.7L Zanglamas po'lat", queryAppend: "1.7L zanglamas po'lat", icon: "🫖" },
-      { label: "Shisha LED korpus", queryAppend: "shisha LED korpus", icon: "💡" },
-      { label: "Smart harorat saqlovchi", queryAppend: "smart harorat saqlovchi", icon: "🌡" },
-    ];
-  }
-  if (/tv|televiz|smart/i.test(q)) {
-    return [
-      { label: "43 dyuym Smart TV", queryAppend: "43 dyuym Smart TV", icon: "📺" },
-      { label: "55 dyuym 4K HDR", queryAppend: "55 dyuym 4K HDR", icon: "🎬" },
-      { label: "65+ Cinema QLED", queryAppend: "65 dyuym Cinema QLED", icon: "✨" },
-    ];
-  }
-
-  // Standart tavsiyalar
-  return [
-    { label: "💻 Kuchli noutbuklar", queryAppend: "noutbuk", icon: "💻" },
-    { label: "📱 Zamonaviy smartfonlar", queryAppend: "smartfon", icon: "📱" },
-    { label: "🍽 Chinni likopchalar", queryAppend: "chinni likopcha 6 kishilik to'plam", icon: "🍽" },
-    { label: "❄️ 12 lik Inverter konditsioner", queryAppend: "12 lik inverter konditsioner", icon: "❄️" },
-  ];
-}
-
 export default function HomePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'model',
-      content: 'Assalomu alaykum! "Aqlli Bozor" O‘zbekiston elektron tijorat ekotizimida xaridlar bo‘yicha iqtisodiy tahlilchi va agregatoringizman. Istalgan tovar so‘rovingizni yozing (masalan, "chinni likopcha Xorazm", "12 lik konditsioner", "elektr choynak"), rasmiy do‘konlar narxlari va toza xulosani taqdim etaman.',
+      content: 'Assalomu alaykum! Men "Aqlli Bozor" xarid va iqtisodiy tahlil maslahatchisiman. Istalgan tovar yoki mahsulot (kiyim-kechak, maishiy texnika, qurilish mollari, elektronika, oshxona anjomlari va h.k.) bo‘yicha so‘rovingizni yozing, rasmiy do‘konlar narxlari va eng maqbul tanlovni taqdim etaman.',
       normalizedQuery: 'Aqlli Bozor',
       turnCount: 0,
       uiFormData: {
@@ -367,7 +309,7 @@ export default function HomePage() {
       {
         id: 'welcome',
         role: 'model',
-        content: 'Assalomu alaykum! "Aqlli Bozor" O‘zbekiston elektron tijorat ekotizimida xaridlar bo‘yicha iqtisodiy tahlilchi va agregatoringizman. Istalgan tovar so‘rovingizni yozing (masalan, "chinni likopcha Xorazm", "12 lik konditsioner", "elektr choynak"), rasmiy do‘konlar narxlari va toza xulosani taqdim etaman.',
+        content: 'Assalomu alaykum! Men "Aqlli Bozor" xarid va iqtisodiy tahlil maslahatchisiman. Istalgan tovar yoki mahsulot (kiyim-kechak, maishiy texnika, qurilish mollari, elektronika, oshxona anjomlari va h.k.) bo‘yicha so‘rovingizni yozing, rasmiy do‘konlar narxlari va eng maqbul tanlovni taqdim etaman.',
         normalizedQuery: 'Aqlli Bozor',
         turnCount: 0,
         uiFormData: {
@@ -1002,16 +944,17 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 🚀 "1 SONIYALI AQLLI YO'NALTIRUVCHI" (SMART CHIP GUIDED INTERFACE - V7.0) */}
-        <div className="px-3 sm:px-4 pt-3 pb-1.5 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto scrollbar-none">
-          <span className="text-[11px] font-black text-[#0F172A] flex items-center gap-1 shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
-            Aqlli Yo‘naltiruvchi (GPT):
-          </span>
-          {(() => {
-            const lastMsg = [...messages].reverse().find(m => m.smartChips && m.smartChips.length > 0);
-            if (lastMsg && lastMsg.smartChips && lastMsg.smartChips.length > 0) {
-              return lastMsg.smartChips.map((chip, idx) => (
+        {/* 🚀 "1 SONIYALI AQLLI YO'NALTIRUVCHI" (SMART CHIP GUIDED INTERFACE - V14.0 ZERO-HARDCODE) */}
+        {(() => {
+          const lastMsg = [...messages].reverse().find(m => m.smartChips && m.smartChips.length > 0);
+          if (!lastMsg || !lastMsg.smartChips || lastMsg.smartChips.length === 0) return null;
+          return (
+            <div className="px-3 sm:px-4 pt-3 pb-1.5 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto scrollbar-none">
+              <span className="text-[11px] font-black text-[#0F172A] flex items-center gap-1 shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
+                Aqlli Yo‘naltiruvchi (GPT):
+              </span>
+              {lastMsg.smartChips.map((chip, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -1021,21 +964,10 @@ export default function HomePage() {
                   <span className="text-sm">✨</span>
                   <span>{chip.label}</span>
                 </button>
-              ));
-            }
-            return getLiveGuidedChips(inputText || messages[messages.length - 1]?.normalizedQuery || '').map((chip, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleGuidedChipClick(chip)}
-                className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-[#FF6B00] text-[#0F172A] hover:text-white border border-orange-200 hover:border-[#FF6B00] text-xs font-bold transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                <span>{chip.icon}</span>
-                <span>{chip.label}</span>
-              </button>
-            ));
-          })()}
-        </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* ⌨️ SO'ROV VA QIDIRUV KIRITISH MAYDONI */}
         <div className="p-3 sm:p-4 bg-white border-t border-slate-200">
