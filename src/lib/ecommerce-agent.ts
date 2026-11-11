@@ -62,15 +62,41 @@ export interface EconomistInsight {
   roi_summary: string;
 }
 
+export interface ExtractedDataOpenWorld {
+  category: 'apparel' | 'electronics' | 'materials' | 'other' | string;
+  product_name: string;
+  location: string | null;
+  is_electronic: boolean;
+  attributes: {
+    color?: string | null;
+    material?: string | null;
+    size?: string | null;
+    specs?: string | null;
+    other?: string | null;
+    [key: string]: any;
+  } | string;
+}
+
+export interface OpenWorldStructuredResponse {
+  status: 'NEED_CLARIFICATION' | 'READY_TO_SEARCH';
+  message: string;
+  dynamic_chips: string[];
+  extracted_data: ExtractedDataOpenWorld;
+}
+
 export interface AgentPipelineResponse {
   type: 'CHAT' | 'SEARCH';
   ui_mode: 'CONVERSATION_ONLY' | 'PRODUCT_RESULTS';
   ai_reply: string;
+  message?: string;
   state?: 'CONVERSATION' | 'NEED_CLARIFICATION' | 'PRODUCT_SEARCH';
   status: 'NEED_CLARIFICATION' | 'READY_TO_SEARCH';
   turn_count: number;
   category: string;
   category_key: string;
+  dynamic_chips?: string[];
+  extracted_data?: ExtractedDataOpenWorld;
+  is_electronic?: boolean;
   normalized_params: Record<string, any>;
   clarification_data?: ClarificationData | null;
   economist_insight?: EconomistInsight | null;
@@ -129,56 +155,131 @@ function getGeminiApiKeys(): string[] {
 }
 
 function getOpenAIApiKey(): string {
-  return (process.env.OPENAI_API_KEY || '').trim();
+  let key = (process.env.OPENAI_API_KEY || '').trim();
+  if (!key) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      for (const f of ['.env.local', '.env']) {
+        const fullPath = path.resolve(process.cwd(), f);
+        if (fs.existsSync(fullPath)) {
+          const content = fs.readFileSync(fullPath, 'utf8');
+          for (const line of content.split('\n')) {
+            if (line.startsWith('OPENAI_API_KEY=')) {
+              key = line.trim().substring('OPENAI_API_KEY='.length).trim().replace(/^["']|["']$/g, '');
+              if (key) {
+                process.env.OPENAI_API_KEY = key;
+                return key;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+  return key;
 }
 
 /**
- * 🤖 1-QATLAM: "Aqlli Hamroh" va Niyatni Marshrutlash (The Ultimate Open-World Commerce Controller - V14.0)
+ * 🤖 1-QATLAM: OpenAI GPT-4o-mini Structured Outputs Schema (Directive V15.0)
  */
-const SYSTEM_PROMPT_INTENT_ROUTER = `Siz O'zbekistonning eng aqlli elektron tijorat maslahatchisisiz (The Ultimate Open-World Commerce AI - V14.0).
-Foydalanuvchi BARCHA TURDAGI mahsulotlarni (kiyim-kechak, maishiy texnika, oziq-ovqat, qurilish mollari, elektronika, oshxona anjomlari, kantselyariya, sport mollari va h.k.) so'rashi mumkin.
+export const OPEN_WORLD_JSON_SCHEMA = {
+  name: 'open_world_agent_response',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      status: {
+        type: 'string',
+        enum: ['NEED_CLARIFICATION', 'READY_TO_SEARCH'],
+        description: "Agar qidiruv uchun ma'lumotlar yetarli bo'lmasa NEED_CLARIFICATION, hamma narsa aniq bo'lsa READY_TO_SEARCH qaytar."
+      },
+      message: {
+        type: 'string',
+        description: "Foydalanuvchiga ko'rsatiladigan keyingi savol yoki xabar."
+      },
+      dynamic_chips: {
+        type: 'array',
+        items: { type: 'string' },
+        description: "Foydalanuvchi bosishi mumkin bo'lgan 3-4 ta qisqa javob variantlari. Masalan: ['📍 Xorazm', '📍 Toshkent'] yoki ['🧤 Charm', '🧤 Paxta']"
+      },
+      extracted_data: {
+        type: 'object',
+        properties: {
+          category: {
+            type: 'string',
+            enum: ['apparel', 'electronics', 'materials', 'other']
+          },
+          product_name: { type: 'string' },
+          location: {
+            type: ['string', 'null'],
+            description: "Foydalanuvchi tanlagan viloyat yoki shahar. Yo'q bo'lsa null."
+          },
+          is_electronic: {
+            type: 'boolean',
+            description: 'Faqat elektr tokida ishlaydigan texnikalar uchun true.'
+          },
+          attributes: {
+            type: 'object',
+            description: "Rang, mato, xotira hajmi kabi qolgan barcha parametrlar kalit-qiymat ko'rinishida.",
+            properties: {
+              color: { type: ['string', 'null'] },
+              material: { type: ['string', 'null'] },
+              size: { type: ['string', 'null'] },
+              specs: { type: ['string', 'null'] },
+              other: { type: ['string', 'null'] }
+            },
+            required: ['color', 'material', 'size', 'specs', 'other'],
+            additionalProperties: false
+          }
+        },
+        required: ['category', 'product_name', 'location', 'is_electronic', 'attributes'],
+        additionalProperties: false
+      }
+    },
+    required: ['status', 'message', 'dynamic_chips', 'extracted_data'],
+    additionalProperties: false
+  }
+};
 
-QAT'IY QOIDA (ZERO-HARDCODE):
-Hech qachon o'zingizcha "Noutbuk", "Telefon", "Konditsioner" kabi toifalarni tiqishtirmang! Foydalanuvchi nima so'ragan bo'lsa (masalan, Paypoq, Qishki kurtka, Daftar, G'isht, Televizor va h.k.), keyingi savolingiz va taklif qiladigan Smart Chiplaringiz FAQAT VA FAQAT SHU MAHSULOTGA taalluqli bo'lishi SHART.
+/**
+ * 🧠 Agentning System Prompti (Miyasi)
+ */
+export const SYSTEM_PROMPT_OPEN_WORLD = `Sen "Aqlli Bozor" platformasining intellektual xarid maslahatchisisan.
+Sening asosiy vazifang foydalanuvchining xom so'rovini aniq qidiruv parametrlariga (filtrlariga) aylantirish va kerak bo'lganda qo'shimcha savollar berishdir.
 
-Misol 1: Agar mijoz "Klassik paypoqlar" desa:
-Noto'g'ri: "Noutbuk ko'rasizmi?"
-To'g'ri: "Klassik paypoqlarni qanday materialdan (paxta, bambuk) va qanday rangda izlayapsiz?"
-To'g'ri Chiplar: [{"label": "🧦 100% Paxta", "payload": "paxta paypoq"}, {"label": "🖤 Qora rangli", "payload": "qora klassik paypoq"}, {"label": "🎋 Bambuk tola", "payload": "bambuk paypoq"}]
+QAT'IY QOIDALAR:
+1. TOVAR TOIFASINI FARQLASH: Foydalanuvchi so'rovini tahlil qil va uning qaysi toifaga (category) tegishliligini aniqla:
+   - "apparel" (kiyim-kechak, qo'lqop, poyabzal): Bunda faqat jinsi, o'lchami, matosi va rangini so'ra. Hech qachon elektr quvvati, kVt yoki ROI haqida gapirma.
+   - "electronics" (maishiy texnika, noutbuk, telefon): Bunda texnik parametrlar, elektr sarfi va byudjetni hisobga ol.
+   - "materials" (qurilish mollari, mebel): Bunda o'lcham, xomashyo va miqdorni so'ra.
+   - "other": Yuqoridagilarga kirmaydigan boshqa barcha tovarlar.
+2. HUDUDNI ANIQLASH: Tizim foydalanuvchiga to'g'ri do'kon va narxlarni topishi uchun hudud (viloyat/shahar) muhim. Agar joriy suhbat kontekstida foydalanuvchining hududi noma'lum bo'lsa (location null bo'lsa), boshqa parametrlarni so'rash bilan birga hududni ham tanlashni so'ra va dynamic_chips ro'yxatida kamida 2 ta hudud variantini (masalan: "📍 Toshkent", "📍 Xorazm") kirit. Agar hudud ma'lum bo'lsa, uni extracted_data.location ga yoz.
+3. CHIPLAR (Guided Chips): Har bir savoling uchun foydalanuvchi tanlashi oson bo'lgan 3-4 ta qisqa, emojili javob variantlarini (chiplarni) taqdim et. Chiplar doim kontekstga va tovar turiga to'liq mos bo'lishi shart.
+4. QIDIRUVGA TAYYORLIK (READY_TO_SEARCH): Agar mahsulot va uning asosiy parametrlari aniq bo'lsa (masalan: "qora charm erkaklar qo'lqopi Xorazm", "12 lik inverter konditsioner Toshkent", "asus vivobook 16gb Toshkent"), yoki suhbat 3-bosqichga yetgan bo'lsa, status: "READY_TO_SEARCH" qaytar, dynamic_chips massivini bo'sh qoldir va message ga qisqa tasdiq yoz (masalan: "Sizga mos eng yaxshi variantlarni saralayapman...").
+5. JAVOB FORMATI: Sen faqat qat'iy belgilangan JSON formatida javob qaytarishing shart. Matnli kirish yoki xulosalar yozma.
 
-Misol 2: Agar mijoz "Menga qishki kurtka kerak" desa:
-To'g'ri: "Qishki kurtkani kim uchun qidiryapsiz? Erkaklar, ayollar yoki bolalar uchunmi?"
-To'g'ri Chiplar: [{"label": "🧥 Erkaklar kurtkasi", "payload": "erkaklar qishki kurtkasi"}, {"label": "👗 Ayollar kurtkasi", "payload": "ayollar qishki kurtkasi"}, {"label": "🧒 Bolalar kurtkasi", "payload": "bolalar qishki kurtkasi"}]
-
-Misol 3: Agar mijoz "Erkaklar kurtkasi" desa (2-bosqich):
-To'g'ri: "Erkaklar qishki kurtkasi qanday material (charm, sintepon, xolofayber) yoki uslubda bo'lsin?"
-To'g'ri Chiplar: [{"label": "🧥 Sintepon / Xolofayber", "payload": "erkaklar qishki kurtkasi sintepon"}, {"label": "👔 Qalin Charm / Duxobka", "payload": "erkaklar charm qishki kurtka"}, {"label": "❄️ Termo / Suv o'tkazmas", "payload": "erkaklar suv otkazmas termo kurtka"}]
-
-HAR QANDAY SO'ROVNI 2 TA ASOSIY TURGA (TYPE) VA 3 TA HOLATGA (STATE) AJRATING:
-1. TYPE "CHAT" (Muloqot yoki Aniqlashtirish):
-   - Qachon: Salomlashish, umumiy maslahat yoki mahsulot parametrlari (o'lchami, materiali, modeli, rangi, vazifasi) hali to'liq aniqlashtirilmagan bo'lsa.
-   - HARAKAT: Hech qanday mahsulot qidiruvi qilinmaydi! searchQuery va cleanQuery BO'SH STRING bo'ladi.
-   - status: "NEED_CLARIFICATION", state: "NEED_CLARIFICATION" (yoki salomlashish bo'lsa "CONVERSATION").
-2. TYPE "SEARCH" (Aniq Mahsulot Qidiruvi):
-   - Qachon: Mijoz aynan qanday parametrli yoki qaysi modeldagi mahsulotni xohlayotgani aniq bo'lsa (masalan: "erkaklar qishki kurtkasi sintepon", "paxta paypoq qora", "12 lik inverter konditsioner", "asus vivobook 16gb", "midea 12 btu").
-   - HARAKAT: searchQuery va cleanQuery to'ldiriladi. status: "READY_TO_SEARCH", state: "PRODUCT_SEARCH".
-
-CHIQISH FORMATI (Faqat toza JSON):
+Misol:
+Foydalanuvchi: "Menga qo'lqop kerak"
+Javob:
 {
-  "type": "CHAT | SEARCH",
-  "state": "CONVERSATION | NEED_CLARIFICATION | PRODUCT_SEARCH",
-  "status": "NEED_CLARIFICATION | READY_TO_SEARCH",
-  "categoryKey": "mijoz so'ragan mahsulotning toza lotincha nomi (masalan: kurtka, paypoq, gisht, noutbuk, telefon, idish, kiyim)",
-  "searchQuery": "faqat SEARCH bo'lsa toza qidiruv so'zi, CHAT bo'lsa bo'sh",
-  "cleanQuery": "faqat SEARCH bo'lsa toza qidiruv so'zi, CHAT bo'lsa bo'sh",
-  "ai_reply": "Mijoz so'ragan mahsulotga 100% moslashtirilgan, mantiqiy va professional savol/maslahat (Maksimal 2 gap).",
-  "replyMessage": "Mijoz so'ragan mahsulotga 100% moslashtirilgan, mantiqiy va professional savol/maslahat (Maksimal 2 gap).",
-  "smartChips": [
-     {"label": "Chip 1 (Emoji bilan)", "payload": "Aynan shu mahsulotga oid aniqlashtiruvchi parametr yoki qidiruv so'zi"},
-     {"label": "Chip 2 (Emoji bilan)", "payload": "Aynan shu mahsulotga oid variant"},
-     {"label": "Chip 3 (Emoji bilan)", "payload": "Aynan shu mahsulotga oid variant"}
-  ]
-};`;
+  "status": "NEED_CLARIFICATION",
+  "message": "Qo'lqopni yetkazib berish uchun qaysi hududdansiz va qanday mato qidiryapsiz?",
+  "dynamic_chips": ["📍 Xorazm", "📍 Toshkent", "🧤 Charm", "🧤 Paxta"],
+  "extracted_data": {
+    "category": "apparel",
+    "product_name": "qo'lqop",
+    "location": null,
+    "is_electronic": false,
+    "attributes": {
+      "color": null,
+      "material": null,
+      "size": null,
+      "specs": null,
+      "other": null
+    }
+  }
+}`;;
 
 /**
  * 🎩 2.2. Bosh Iqtisodchi va Xarid Strategi (Lead Economist Advisor - V7.0)
@@ -316,6 +417,143 @@ async function callOpenAI(
       return data.choices?.[0]?.message?.content?.trim() || null;
     }
   } catch {}
+
+  return null;
+}
+
+/**
+ * 🌟 OpenAI GPT-4o-mini Structured Outputs chaqiruvi (Strict Schema)
+ */
+export async function callOpenAIStructured(
+  userPrompt: string,
+  history: ChatMessage[] = []
+): Promise<OpenWorldStructuredResponse | null> {
+  const key = getOpenAIApiKey();
+  if (!key) return null;
+
+  try {
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: SYSTEM_PROMPT_OPEN_WORLD },
+    ];
+
+    if (history && history.length > 0) {
+      for (const msg of history) {
+        if (!msg.content || msg.content.trim() === '') continue;
+        const role = (msg.role === 'model' || (msg.role as any) === 'assistant') ? 'assistant' : 'user';
+        messages.push({ role, content: msg.content });
+      }
+    }
+
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== userPrompt) {
+      messages.push({ role: 'user', content: userPrompt });
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 9000);
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages,
+        temperature: 0.1,
+        response_format: {
+          type: 'json_schema',
+          json_schema: OPEN_WORLD_JSON_SCHEMA
+        }
+      })
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (content) {
+        const parsed = JSON.parse(content);
+        if (parsed.status && parsed.message && Array.isArray(parsed.dynamic_chips) && parsed.extracted_data) {
+          return parsed as OpenWorldStructuredResponse;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('OpenAI Structured Outputs error:', err);
+  }
+
+  return null;
+}
+
+/**
+ * 🌟 Gemini Structured Outputs zaxirasi
+ */
+export async function callGeminiStructured(
+  userPrompt: string,
+  history: ChatMessage[] = []
+): Promise<OpenWorldStructuredResponse | null> {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) return null;
+
+  const candidateModels = [
+    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
+  ];
+
+  const contents: any[] = [];
+  if (history && history.length > 0) {
+    for (const msg of history) {
+      if (!msg.content || msg.content.trim() === '') continue;
+      const role = (msg.role === 'model' || (msg.role as any) === 'assistant') ? 'model' : 'user';
+      contents.push({ role, parts: [{ text: msg.content }] });
+    }
+  }
+
+  contents.push({
+    role: 'user',
+    parts: [{ text: `${SYSTEM_PROMPT_OPEN_WORLD}\n\nUSER PROMPT:\n${userPrompt}` }]
+  });
+
+  for (const key of keys) {
+    for (const model of candidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6500);
+
+        const res = await fetch(url, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents,
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: 'application/json',
+              maxOutputTokens: 600,
+            }
+          })
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (candidate) {
+            const parsed = JSON.parse(candidate.replace(/```json/g, '').replace(/```/g, '').trim());
+            if (parsed.status && parsed.message && Array.isArray(parsed.dynamic_chips) && parsed.extracted_data) {
+              return parsed as OpenWorldStructuredResponse;
+            }
+          }
+        }
+      } catch {}
+    }
+  }
 
   return null;
 }
@@ -591,9 +829,22 @@ function evaluateIntentDeterministic(
 
 export async function generateEconomistInsight(
   categoryKey: string,
-  region: string,
-  cleanProducts: SerpProductItem[]
+  region: string = 'Toshkent',
+  cleanProducts: SerpProductItem[] = [],
+  isElectronic: boolean = true
 ): Promise<EconomistInsight> {
+  // 🧥 NO-ELECTRIC OPEN-WORLD MAHSULOTLAR (Kiyim-kechak, Kurtka, Paypoq, Qurilish mollari va h.k.)
+  if (!isElectronic || ['apparel', 'materials', 'kurtka', 'paypoq', 'other'].includes(categoryKey)) {
+    return {
+      headline: enforceMaxWordsAndSentences(`${region} bozorida tanlangan ushbu tovarlar chidamliligi, material sifati va rasmiy kafolati bilan eng maqbul tanlovdir.`),
+      monthly_kwh: 0,
+      monthly_cost_uzs: 0,
+      tariff_rate: 0,
+      regional_compatibility: region ? `${region} sharoitiga mos va rasmiy yetkazib berish kafolatlangan.` : "O'zbekiston bo'ylab yetkazib berish kafolati mavjud.",
+      roi_summary: "Elektr sarflamaydigan tovar: faqat material sifati, uzoq xizmat muddati va qulaylik hisobga olindi."
+    };
+  }
+
   const isDish = categoryKey === 'chinni_idishlar' || categoryKey === 'oshxona_anjomlari' || categoryKey === 'oshxona_idishlari';
 
   // Chinni va oshxona idishlari: 0 kVt elektr, oziq-ovqat xavfsizligi, zarbalarga chidamlilik va ROI tahlili
@@ -838,77 +1089,73 @@ export async function runEcommerceAgentPipeline(
   const currentTurn = (params?.turn_count || 1);
   const targetRegion = params?.region || 'Toshkent';
 
-  // 1-QATLAM: Intent AI & Clarification FSM
-  let intentResult: any = null;
-
-  // Agar Gemini/OpenAI mavjud bo'lsa va turn < 3 bo'lsa, AI ga yuborish
-  // V14.0: Har doim GPT chaqiriladi (clarification_payload yoki turn 2 bo'lsa ham)
-  if (currentTurn < 5) {
-    const aiPrompt = `FOYDALANUVCHI SO'ROVI: "${userMessage}"
-JORIY BOSQICH (TURN): ${currentTurn}
-HUDUD: ${targetRegion}
-Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
-
-    // 🧠 1-o'rinda pullik ChatGPT (OpenAI) API dan suhbat tarixi bilan birga foydalanish (V13.0)
-    const rawAiJson = await callOpenAI(SYSTEM_PROMPT_INTENT_ROUTER, aiPrompt, history, true)
-      || await callGemini(SYSTEM_PROMPT_INTENT_ROUTER, aiPrompt, history, true);
-
-    if (rawAiJson) {
-      try {
-        const cleaned = rawAiJson.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleaned);
-        
-        const isChat = parsed.type === 'CHAT' || parsed.state === 'CONVERSATION' || parsed.state === 'NEED_CLARIFICATION' || (!parsed.searchQuery && !parsed.cleanQuery);
-        const state: 'CONVERSATION' | 'NEED_CLARIFICATION' | 'PRODUCT_SEARCH' =
-          isChat
-            ? (parsed.state === 'NEED_CLARIFICATION' ? 'NEED_CLARIFICATION' : 'CONVERSATION')
-            : 'PRODUCT_SEARCH';
-
-        const cleanQuery = (!isChat)
-          ? (parsed.searchQuery || parsed.cleanQuery || userMessage)
-          : '';
-        const detectedKey = (parsed.categoryKey && parsed.categoryKey !== 'boshqa')
-          ? parsed.categoryKey
-          : (detectCategoryKey(cleanQuery || userMessage) !== 'boshqa' ? detectCategoryKey(cleanQuery || userMessage) : (parsed.categoryKey || 'boshqa'));
-        const chips: Array<{ label: string; payload: string }> = Array.isArray(parsed.smartChips)
-          ? parsed.smartChips
-          : (parsed.clarification_data?.options || []);
-        const replyMsg = parsed.message || parsed.replyMessage || (parsed.clarification_data?.question) || '';
-
-        intentResult = {
-          type: isChat ? 'CHAT' : 'SEARCH',
-          ui_mode: isChat ? 'CONVERSATION_ONLY' : 'PRODUCT_RESULTS',
-          ai_reply: replyMsg,
-          state,
-          status: state === 'PRODUCT_SEARCH' ? 'READY_TO_SEARCH' : 'NEED_CLARIFICATION',
-          turn_count: currentTurn,
-          category: CATEGORY_RULES[detectedKey]?.name || parsed.category || (state === 'CONVERSATION' ? 'Muloqot' : 'Maslahat'),
-          category_key: detectedKey,
-          cleanQuery,
-          replyMessage: replyMsg,
-          smartChips: chips,
-          search_payload: {
-            query: cleanQuery || userMessage,
-            category_key: detectedKey,
-          },
-          clarification_data: chips.length > 0 ? {
-            question: replyMsg || "Iltimos, tanlang:",
-            options: chips.map((c: any, idx: number) => ({
-              id: `chip_${idx}`,
-              label: c.label || c.title || String(c),
-              payload: { filter: c.payload || c.queryAppend || c.label }
-            }))
-          } : null,
-          normalized_params: {
-            region: targetRegion,
-            item_type: detectedKey
-          }
-        };
-      } catch {}
-    }
+  // 1-QATLAM: OpenAI GPT-4o-mini Structured Outputs (Open-World AI Maslahatchisi)
+  let structured = await callOpenAIStructured(userMessage, history);
+  if (!structured) {
+    structured = await callGeminiStructured(userMessage, history);
   }
 
-  // Fallback FSM (V13.0 Kognitiv Xotira)
+  let intentResult: any = null;
+
+  if (structured) {
+    const isReadyToSearch = structured.status === 'READY_TO_SEARCH';
+    const chips: string[] = Array.isArray(structured.dynamic_chips) ? structured.dynamic_chips : [];
+    const smartChips = chips.map(c => ({ label: c, payload: c }));
+    const ext = structured.extracted_data || {
+      category: 'other',
+      product_name: userMessage,
+      location: targetRegion,
+      is_electronic: false,
+      attributes: {}
+    };
+
+    let attrStr = '';
+    if (ext.attributes && typeof ext.attributes === 'object') {
+      attrStr = Object.values(ext.attributes).filter(Boolean).join(' ');
+    } else if (typeof ext.attributes === 'string') {
+      attrStr = ext.attributes;
+    }
+
+    const cleanQuery = isReadyToSearch
+      ? `${ext.product_name} ${attrStr} ${ext.location || targetRegion}`.trim()
+      : '';
+
+    intentResult = {
+      type: isReadyToSearch ? 'SEARCH' : 'CHAT',
+      ui_mode: isReadyToSearch ? 'PRODUCT_RESULTS' : 'CONVERSATION_ONLY',
+      ai_reply: structured.message,
+      message: structured.message,
+      state: isReadyToSearch ? 'PRODUCT_SEARCH' : 'NEED_CLARIFICATION',
+      status: structured.status,
+      turn_count: currentTurn,
+      category: ext.category,
+      category_key: ext.category,
+      dynamic_chips: chips,
+      smartChips,
+      extracted_data: ext,
+      is_electronic: ext.is_electronic,
+      cleanQuery,
+      replyMessage: structured.message,
+      search_payload: {
+        query: cleanQuery || userMessage,
+        category_key: ext.category,
+      },
+      clarification_data: chips.length > 0 ? {
+        question: structured.message,
+        options: chips.map((c, idx) => ({
+          id: `chip_${idx}`,
+          label: c,
+          payload: { filter: c }
+        }))
+      } : null,
+      normalized_params: {
+        region: ext.location || targetRegion,
+        item_type: ext.category
+      }
+    };
+  }
+
+  // Fallback FSM (Agarda GPT va Gemini ishlamasa)
   if (!intentResult) {
     const fsmResult = evaluateIntentDeterministic(
       userMessage,
@@ -924,27 +1171,40 @@ Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
       type: isChatFsm ? 'CHAT' : 'SEARCH',
       ui_mode: isChatFsm ? 'CONVERSATION_ONLY' : 'PRODUCT_RESULTS',
       ai_reply: fsm.replyMessage || '',
+      message: fsm.replyMessage || '',
+      dynamic_chips: (fsm.smartChips || []).map((c: any) => c.label),
+      extracted_data: {
+        category: fsm.category_key || 'other',
+        product_name: userMessage,
+        location: targetRegion,
+        is_electronic: ['konditsioner', 'televizor', 'muzlatgich', 'kir_yuvish', 'elektr_choynak'].includes(fsm.category_key || ''),
+        attributes: {}
+      }
     };
   }
 
   // Turn count ni yangilash
   intentResult.turn_count = currentTurn;
 
-  // 🛑 1-BOSQICH: GPT'NI "CONTROLLER" QILISH
-  // Agar type === "CHAT" (yoki CONVERSATION / NEED_CLARIFICATION):
+  // 🛑 2-BOSQICH: GPT'NI "CONTROLLER" QILISH
+  // Agar status === "NEED_CLARIFICATION" (yoki ui_mode === "CONVERSATION_ONLY"):
   // HECH QANDAY SERPAPI QIDIRUVI QILINMAYDI! Mahsulotlar va jadvallar bo'sh ketadi!
-  if (intentResult.type === 'CHAT' || intentResult.ui_mode === 'CONVERSATION_ONLY' || intentResult.state === 'CONVERSATION' || intentResult.state === 'NEED_CLARIFICATION' || (intentResult.status === 'NEED_CLARIFICATION' && currentTurn < 3)) {
-    const adviceText = intentResult.ai_reply || intentResult.replyMessage || intentResult.clarification_data?.question || 'Assalomu alaykum! Men "Aqlli Bozor" xarid yordamchisiman. Sizga qanday tovar bo‘yicha yordam bera olaman?';
+  if (intentResult.status === 'NEED_CLARIFICATION' || intentResult.ui_mode === 'CONVERSATION_ONLY') {
+    const adviceText = intentResult.ai_reply || intentResult.replyMessage || 'Assalomu alaykum! Men "Aqlli Bozor" xarid yordamchisiman. Sizga qanday tovar bo‘yicha yordam bera olaman?';
 
     return {
       type: 'CHAT',
       ui_mode: 'CONVERSATION_ONLY',
       ai_reply: adviceText,
-      state: intentResult.state || 'CONVERSATION',
+      message: adviceText,
+      state: 'NEED_CLARIFICATION',
       status: 'NEED_CLARIFICATION',
       turn_count: currentTurn,
-      category: intentResult.category || 'Muloqot va Maslahat',
-      category_key: intentResult.category_key || 'boshqa',
+      category: intentResult.category || 'apparel',
+      category_key: intentResult.category_key || 'apparel',
+      dynamic_chips: intentResult.dynamic_chips || (intentResult.smartChips || []).map((c: any) => c.label),
+      extracted_data: intentResult.extracted_data,
+      is_electronic: intentResult.is_electronic ?? false,
       normalized_params: intentResult.normalized_params || {},
       clarification_data: intentResult.clarification_data,
       economist_insight: null,
@@ -967,7 +1227,7 @@ Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
       },
       extracted_filters: {
         budget_max: null,
-        region: targetRegion,
+        region: intentResult.normalized_params?.region || targetRegion,
         specific_feature: null,
       },
       expanded_serpapi_query: null,
@@ -975,17 +1235,17 @@ Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
     };
   }
 
-  // 🚀 STATE 3: PRODUCT_SEARCH (Faqat 100% ishonch bo'lganda Qora ishlar, SerpAPI va Sanitizatsiya)
-  const searchQuery = intentResult.cleanQuery || intentResult.search_payload?.query || userMessage;
+  // 🚀 3-BOSQICH: PRODUCT_SEARCH (Faqat status: READY_TO_SEARCH bo'lganda SerpAPI va Mahsulotlar)
+  const isElectronic = intentResult.extracted_data?.is_electronic ?? (intentResult.category_key === 'electronics' || ['konditsioner', 'televizor', 'muzlatgich', 'kir_yuvish', 'elektr_choynak'].includes(intentResult.category_key));
+  const activeRegion = intentResult.extracted_data?.location || intentResult.normalized_params?.region || targetRegion;
+  const searchQuery = intentResult.cleanQuery || `${intentResult.extracted_data?.product_name || userMessage} ${activeRegion}`.trim();
   const categoryKey = intentResult.category_key || detectCategoryKey(searchQuery, intentResult.category);
-  const activeRegion = intentResult.normalized_params?.region || targetRegion;
 
   const rawProducts = await searchLocalProducts(searchQuery, intentResult.category, activeRegion);
-  // Faqat eng sara 4 ta natija
   const cleanProducts = rawProducts.slice(0, 4);
 
-  // 4-QATLAM: Bosh Iqtisodchi AI (Lead Economist Advisor)
-  const economistInsight = await generateEconomistInsight(categoryKey, activeRegion, cleanProducts);
+  // 4-QATLAM: Bosh Iqtisodchi AI (Lead Economist Advisor - isElectronic bayrog'i bilan)
+  const economistInsight = await generateEconomistInsight(categoryKey, activeRegion, cleanProducts, isElectronic);
 
   // 5-QATLAM: Taqqoslash Jadvali va Formatlangan Chiqish
   const comparisonTable = buildComparisonTable(cleanProducts);
@@ -995,20 +1255,17 @@ Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
     type: 'SEARCH',
     ui_mode: 'PRODUCT_RESULTS',
     ai_reply: intentResult.ai_reply || intentResult.replyMessage || economistInsight.headline,
+    message: intentResult.ai_reply || intentResult.replyMessage || economistInsight.headline,
     state: 'PRODUCT_SEARCH',
     status: 'READY_TO_SEARCH',
     turn_count: currentTurn,
-    category: intentResult.category || CATEGORY_RULES[categoryKey]?.name || 'Texnika',
+    category: intentResult.category || CATEGORY_RULES[categoryKey]?.name || 'Mahsulotlar',
     category_key: categoryKey,
+    dynamic_chips: [],
+    extracted_data: intentResult.extracted_data,
+    is_electronic: isElectronic,
     normalized_params: intentResult.normalized_params || { region: activeRegion },
-    clarification_data: intentResult.clarification_data || (intentResult.smartChips && intentResult.smartChips.length > 0 ? {
-      question: "Iltimos, aniqroq natija uchun bittasini tanlang:",
-      options: intentResult.smartChips.map((c: any, i: number) => ({
-        id: `chip_${i}`,
-        label: c.label,
-        payload: { filter: c.payload }
-      }))
-    } : null),
+    clarification_data: null,
     economist_insight: economistInsight,
     search_payload: {
       query: searchQuery,
@@ -1017,8 +1274,9 @@ Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
     products: cleanProducts,
     comparison_table: comparisonTable,
     short_advice_uz: economistInsight.headline,
-    smartChips: intentResult.smartChips || [],
+    smartChips: [],
     cleanQuery: searchQuery,
+    replyMessage: intentResult.ai_reply || intentResult.replyMessage || economistInsight.headline,
 
     // UI legacy
     step: 'ready',
@@ -1027,7 +1285,7 @@ Iltimos, texnik topshiriqdagi JSON formatda javob bering.`;
     ui_form_data: {
       regions: ["Toshkent", "Xorazm", "Samarqand", "Buxoro", "Farg'ona", "Andijon"],
       budget_ranges: ["Hamyonbop", "O‘rta toifa", "Premium"],
-      features: ["Energiya tejamkor", "Rasmiy kafolat", "Tezkor yetkazish"],
+      features: (facets[0]?.options || []).slice(0, 4),
     },
     extracted_filters: {
       budget_max: null,

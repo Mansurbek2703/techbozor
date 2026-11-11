@@ -29,6 +29,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      status: agentResult.status,
+      message: agentResult.ai_reply || agentResult.replyMessage || agentResult.message,
+      dynamic_chips: agentResult.dynamic_chips || agentResult.smartChips?.map(c => c.label) || [],
+      extracted_data: agentResult.extracted_data || {
+        category: agentResult.category_key || 'other',
+        product_name: agentResult.cleanQuery || message,
+        location: agentResult.normalized_params?.region || region || null,
+        is_electronic: agentResult.is_electronic ?? false,
+        attributes: {}
+      },
       ui_mode: agentResult.ui_mode,
       ai_reply: agentResult.ai_reply,
       products: agentResult.products,

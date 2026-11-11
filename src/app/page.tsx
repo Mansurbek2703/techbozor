@@ -59,6 +59,7 @@ interface ChatMessage {
   ui_mode?: 'CONVERSATION_ONLY' | 'PRODUCT_RESULTS';
   ai_reply?: string;
   state?: 'CONVERSATION' | 'NEED_CLARIFICATION' | 'PRODUCT_SEARCH';
+  status?: 'NEED_CLARIFICATION' | 'READY_TO_SEARCH';
   normalizedQuery?: string;
   category?: string;
   categoryKey?: string;
@@ -71,6 +72,9 @@ interface ChatMessage {
   economistInsight?: EconomistInsight | null;
   turnCount?: number;
   smartChips?: Array<{ label: string; payload: string }>;
+  dynamic_chips?: string[];
+  extracted_data?: any;
+  is_electronic?: boolean;
   timestamp: string;
 }
 
@@ -220,22 +224,32 @@ export default function HomePage() {
       clearTimeout(stageTimer2);
       const data = await res.json();
 
-      if (data.success && (data.data || data.ui_mode)) {
+      if (data.success && (data.data || data.ui_mode || data.status)) {
         const agentData = data.data || data;
         const uiMode: 'CONVERSATION_ONLY' | 'PRODUCT_RESULTS' = 
-          data.ui_mode || agentData.ui_mode || (agentData.state === 'PRODUCT_SEARCH' && (agentData.products || []).length > 0 ? 'PRODUCT_RESULTS' : 'CONVERSATION_ONLY');
-        const aiReply = data.ai_reply || agentData.ai_reply || agentData.replyMessage || agentData.short_advice_uz || 'Siz uchun O‘zbekiston do‘konlaridan eng maqbul variantlar tayyorlandi.';
+          data.ui_mode || agentData.ui_mode || (agentData.status === 'READY_TO_SEARCH' && (agentData.products || []).length > 0 ? 'PRODUCT_RESULTS' : 'CONVERSATION_ONLY');
+        const aiReply = data.message || data.ai_reply || agentData.ai_reply || agentData.replyMessage || agentData.short_advice_uz || 'Siz uchun O‘zbekiston do‘konlaridan eng maqbul variantlar tayyorlandi.';
 
         const nextTurn = (agentData.turn_count || turn) + 1;
         setCurrentTurn(nextTurn);
 
-        // 🛡️ FRONTEND GATEKEEPER (2-BOSQICH): 
+        // 🛡️ FRONTEND GATEKEEPER: 
         // Agar ui_mode === "CONVERSATION_ONLY" bo'lsa: Mahsulotlar massivi QAT'IY BO'SH (0 ta)!
         const validProducts = uiMode === 'PRODUCT_RESULTS'
           ? (agentData.products || []).filter((p: any) => 
               isStrictValidProduct(p, agentData.category_key || agentData.category || '')
             )
           : [];
+
+        const dynamicChips: string[] = Array.isArray(data.dynamic_chips)
+          ? data.dynamic_chips
+          : (Array.isArray(agentData.dynamic_chips) ? agentData.dynamic_chips : []);
+
+        const smartChips = dynamicChips.length > 0
+          ? dynamicChips.map(c => ({ label: c, payload: c }))
+          : (agentData.smartChips || []);
+
+        const isElectronic = data.extracted_data?.is_electronic ?? agentData.is_electronic ?? false;
 
         setMessages(prev => [
           ...prev,
@@ -244,12 +258,13 @@ export default function HomePage() {
             role: 'model',
             ui_mode: uiMode,
             state: agentData.state,
+            status: agentData.status || data.status,
             content: aiReply,
             ai_reply: aiReply,
             normalizedQuery: agentData.normalized_query,
             category: agentData.category,
             categoryKey: agentData.category_key,
-            region: selectedRegion || agentData.extracted_filters?.region,
+            region: agentData.extracted_data?.location || selectedRegion || agentData.extracted_filters?.region,
             products: validProducts,
             comparisonTable: uiMode === 'PRODUCT_RESULTS' ? (agentData.comparison_table || []) : [],
             facets: uiMode === 'PRODUCT_RESULTS' ? (agentData.dynamic_facets || []) : [],
@@ -257,7 +272,10 @@ export default function HomePage() {
             clarificationData: agentData.clarification_data,
             economistInsight: uiMode === 'PRODUCT_RESULTS' ? agentData.economist_insight : null,
             turnCount: agentData.turn_count,
-            smartChips: agentData.smartChips,
+            smartChips,
+            dynamic_chips: dynamicChips,
+            extracted_data: agentData.extracted_data || data.extracted_data,
+            is_electronic: isElectronic,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }
         ]);
@@ -288,18 +306,10 @@ export default function HomePage() {
   };
 
   // 🚀 "1 Soniyali Aqlli Yo'naltiruvchi" chipi bosilganda
-  const handleGuidedChipClick = (chip: { label: string; queryAppend: string }) => {
-    const current = inputText.trim();
-    let nextQuery = chip.queryAppend;
-    if (current) {
-      if (!current.toLowerCase().includes(chip.queryAppend.toLowerCase())) {
-        nextQuery = `${current} ${chip.queryAppend}`;
-      } else {
-        nextQuery = current;
-      }
-    }
-    setInputText(nextQuery);
-    handleSearch(nextQuery);
+  const handleGuidedChipClick = (chip: { label: string; queryAppend?: string }) => {
+    const textToSend = chip.label || chip.queryAppend || '';
+    setInputText(textToSend);
+    handleSearch(textToSend);
   };
 
   const handleResetChat = () => {
@@ -539,100 +549,104 @@ export default function HomePage() {
                   )}
 
                   {/* 🎩 BOSH IQTISODCHI EKSPERTIZASI (Faqat PRODUCT_RESULTS bo'lganda!) */}
-                  {msg.ui_mode === 'PRODUCT_RESULTS' && msg.economistInsight && (
-                    <div>
-                      {isDish ? (
+                  {msg.ui_mode === 'PRODUCT_RESULTS' && msg.economistInsight && (() => {
+                    const isMsgElectronic = msg.is_electronic ?? (msg.extracted_data?.is_electronic ?? ((msg.economistInsight?.monthly_kwh || 0) > 0));
+
+                    if (!isMsgElectronic) {
+                      return (
                         <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50/50 border border-amber-200/90 space-y-2.5 shadow-xs">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-black text-[#0F172A] flex items-center gap-1.5">
                               <span className="w-5 h-5 rounded-lg bg-[#FF6B00] text-white flex items-center justify-center text-[10px] font-black">
                                 ✓
                               </span>
-                              Bosh Iqtisodchi Tahlili: Chinni va Oshxona Idishlari Sifat Kafolati
+                              Bosh Maslahatchi Tahlili: Sifat va Chidamlilik Ekspertizasi
                             </span>
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                              Oziq-ovqat xavfsizligi
+                              Chidamlilik va Sifat
                             </span>
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
                             <div className="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-2xs">
-                              <div className="text-[10px] text-slate-500 font-semibold">Zarbalarga Chidamlilik</div>
-                              <div className="text-xs sm:text-sm font-black text-[#0F172A] mt-0.5">Sirlangan Farfor</div>
+                              <div className="text-[10px] text-slate-500 font-semibold">Material Sifati</div>
+                              <div className="text-xs sm:text-sm font-black text-[#0F172A] mt-0.5">Yuqori Standart</div>
                             </div>
 
                             <div className="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-2xs">
-                              <div className="text-[10px] text-slate-500 font-semibold">Mikroto‘lqinli Pech</div>
-                              <div className="text-xs sm:text-sm font-black text-emerald-700 mt-0.5">100% Yaroqli</div>
+                              <div className="text-[10px] text-slate-500 font-semibold">Foydalanish Qulayligi</div>
+                              <div className="text-xs sm:text-sm font-black text-emerald-700 mt-0.5">100% Mos</div>
                             </div>
 
                             <div className="col-span-2 sm:col-span-1 bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-2xs">
                               <div className="text-[10px] text-slate-500 font-semibold">Xizmat Muddati</div>
-                              <div className="text-xs font-black text-[#FF6B00] mt-0.5">10+ Yil Kafolat</div>
+                              <div className="text-xs font-black text-[#FF6B00] mt-0.5">Uzoq Muddatli</div>
                             </div>
                           </div>
 
                           {msg.economistInsight.regional_compatibility && (
                             <div className="text-[11px] text-slate-700 bg-white/80 p-2 rounded-xl border border-amber-100 font-medium">
-                              <strong className="text-[#0F172A]">Chidamlilik kafolati:</strong> {msg.economistInsight.regional_compatibility}
+                              <strong className="text-[#0F172A]">Yetkazib berish va kafolat:</strong> {msg.economistInsight.regional_compatibility}
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 border border-orange-200/90 space-y-2.5 shadow-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-black text-[#0F172A] flex items-center gap-1.5">
-                              <span className="w-5 h-5 rounded-lg bg-[#FF6B00] text-white flex items-center justify-center text-[10px] font-black">
-                                ROI
-                              </span>
-                              Bosh Iqtisodchi Tahliliy Ekspertizasi (O‘zbekiston Tarifi: 450 so‘m/kVt)
+                      );
+                    }
+
+                    return (
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 border border-orange-200/90 space-y-2.5 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-black text-[#0F172A] flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-lg bg-[#FF6B00] text-white flex items-center justify-center text-[10px] font-black">
+                              ROI
                             </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              Energiya Hisobi
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
-                            <div className="bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
-                              <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
-                                <Zap className="w-3 h-3 text-amber-500" />
-                                Oylik Elektr Sarfi
-                              </div>
-                              <div className="text-xs sm:text-sm font-black text-[#0F172A] mt-0.5">
-                                {msg.economistInsight.monthly_kwh} kVt/soat
-                              </div>
-                            </div>
-
-                            <div className="bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
-                              <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
-                                <TrendingDown className="w-3 h-3 text-[#FF6B00]" />
-                                Oylik Elektr Xarajati
-                              </div>
-                              <div className="text-xs sm:text-sm font-black text-[#FF6B00] mt-0.5">
-                                {msg.economistInsight.monthly_cost_uzs.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m
-                              </div>
-                            </div>
-
-                            <div className="col-span-2 sm:col-span-1 bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
-                              <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
-                                <Building2 className="w-3 h-3 text-emerald-600" />
-                                O‘zini Oqlash (ROI)
-                              </div>
-                              <div className="text-xs font-black text-emerald-700 mt-0.5">
-                                1.5 yillik muddatda
-                              </div>
-                            </div>
-                          </div>
-
-                          {msg.economistInsight.regional_compatibility && (
-                            <div className="text-[11px] text-slate-700 bg-white/80 p-2 rounded-xl border border-orange-100 font-medium">
-                              <strong className="text-[#0F172A]">Mahalliy sharoitga mosligi:</strong> {msg.economistInsight.regional_compatibility}
-                            </div>
-                          )}
+                            Bosh Iqtisodchi Tahliliy Ekspertizasi (O‘zbekiston Tarifi: 450 so‘m/kVt)
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Energiya Hisobi
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  )}
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
+                          <div className="bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
+                            <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
+                              <Zap className="w-3 h-3 text-amber-500" />
+                              Oylik Elektr Sarfi
+                            </div>
+                            <div className="text-xs sm:text-sm font-black text-[#0F172A] mt-0.5">
+                              {msg.economistInsight.monthly_kwh} kVt/soat
+                            </div>
+                          </div>
+
+                          <div className="bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
+                            <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
+                              <TrendingDown className="w-3 h-3 text-[#FF6B00]" />
+                              Oylik Elektr Xarajati
+                            </div>
+                            <div className="text-xs sm:text-sm font-black text-[#FF6B00] mt-0.5">
+                              {msg.economistInsight.monthly_cost_uzs.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m
+                            </div>
+                          </div>
+
+                          <div className="col-span-2 sm:col-span-1 bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
+                            <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
+                              <Building2 className="w-3 h-3 text-emerald-600" />
+                              O‘zini Oqlash (ROI)
+                            </div>
+                            <div className="text-xs font-black text-emerald-700 mt-0.5">
+                              1.5 yillik muddatda
+                            </div>
+                          </div>
+                        </div>
+
+                        {msg.economistInsight.regional_compatibility && (
+                          <div className="text-[11px] text-slate-700 bg-white/80 p-2 rounded-xl border border-orange-100 font-medium">
+                            <strong className="text-[#0F172A]">Mahalliy sharoitga mosligi:</strong> {msg.economistInsight.regional_compatibility}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* 🎯 DINAMIK FILTRLAR (ADAPTIVE FACETS - Faqat PRODUCT_RESULTS bo'lganda) */}
                   {msg.ui_mode === 'PRODUCT_RESULTS' && msg.facets && msg.facets.length > 0 && msg.products && msg.products.length > 0 && (
