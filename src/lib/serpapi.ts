@@ -29,16 +29,99 @@ export function getSerpApiKey(): string {
 /**
  * 🇺🇿 3.1. Manbalar Oq Ro'yxati (Whitelist Stores) - Texnik Topshiriq
  */
+/**
+ * 🇺🇿 3.1. O'zbekiston Milliy Do'konlari Bazasi (The 30+ Whitelist - V16.0)
+ * Butun respublika bo'ylab (jumladan Xorazm, Samarqand va barcha viloyatlarda) yetkazib beradigan yoki filiallari mavjud tarmoqlar
+ */
+export const ALLOWED_DOMAINS = [
+  // 1. Umumiy va yirik marketpleyslar (Butun O'zbekiston bo'ylab)
+  "uzum.uz", "olcha.uz", "zoodmall.uz", "sello.uz", "asaxiy.uz", 
+  
+  // 2. Maishiy texnika va elektronika tarmoqlari (Viloyatlarda filiallari bor)
+  "texnomart.uz", "mediapark.uz", "ishonch.uz", "ideastore.uz", "idea.uz", "creditasia.uz", 
+  "elmakon.uz", "radius.uz", "macbro.uz", "arenamarkaz.uz", "goodzone.uz", "joybox.uz",
+  
+  // 3. Qurilish, mebel va uy-ro'zg'or
+  "stroycenter.uz", "dombrabotnik.uz", "mebel.uz", "home24.uz", "karcher.uz",
+  
+  // 4. Kiyim-kechak va sport
+  "terrapro.uz", "urbanstore.uz", "sportmaster.uz", "redtag.uz",
+  
+  // 5. Avto, shina va maxsus texnika
+  "autotuning.uz", "shina.uz", "avtoelon.uz"
+];
+
 export const ALLOWED_ECOMMERCE_STORES: Record<string, { name: string; badge: string; domain: string }> = {
+  // 1. Umumiy va yirik marketpleyslar
   "uzum.uz": { name: "Uzum Market", badge: "Tezkor yetkazish", domain: "uzum.uz" },
   "olcha.uz": { name: "Olcha", badge: "Rasmiy kafolat", domain: "olcha.uz" },
-  "texnomart.uz": { name: "Texnomart", badge: "Muddatli to'lov", domain: "texnomart.uz" },
-  "mediapark.uz": { name: "Mediapark", badge: "Keng tarmoq", domain: "mediapark.uz" },
-  "asaxiy.uz": { name: "Asaxiy", badge: "Yetkazib berish", domain: "asaxiy.uz" },
-  "idea.uz": { name: "Idea", badge: "Mavjud", domain: "idea.uz" },
   "zoodmall.uz": { name: "Zoodmall", badge: "Bozor narxi", domain: "zoodmall.uz" },
   "zoodmall.com": { name: "Zoodmall", badge: "Bozor narxi", domain: "zoodmall.com" },
+  "sello.uz": { name: "Sello", badge: "Yetkazib berish", domain: "sello.uz" },
+  "asaxiy.uz": { name: "Asaxiy", badge: "Yetkazib berish", domain: "asaxiy.uz" },
+
+  // 2. Maishiy texnika va elektronika tarmoqlari (Viloyatlarda filiallari bor)
+  "texnomart.uz": { name: "Texnomart", badge: "Muddatli to'lov", domain: "texnomart.uz" },
+  "mediapark.uz": { name: "Mediapark", badge: "Keng tarmoq", domain: "mediapark.uz" },
+  "ishonch.uz": { name: "Ishonch", badge: "Keng tarmoq", domain: "ishonch.uz" },
+  "ideastore.uz": { name: "Idea Store", badge: "Rasmiy diler", domain: "ideastore.uz" },
+  "idea.uz": { name: "Idea", badge: "Mavjud", domain: "idea.uz" },
+  "creditasia.uz": { name: "Credit Asia", badge: "Kafolatli", domain: "creditasia.uz" },
+  "elmakon.uz": { name: "Elmakon", badge: "Rasmiy do'kon", domain: "elmakon.uz" },
+  "radius.uz": { name: "Radius", badge: "Tezkor", domain: "radius.uz" },
+  "macbro.uz": { name: "MacBro", badge: "Original", domain: "macbro.uz" },
+  "arenamarkaz.uz": { name: "Arena Markaz", badge: "Rasmiy", domain: "arenamarkaz.uz" },
+  "goodzone.uz": { name: "Goodzone", badge: "Rasmiy kafolat", domain: "goodzone.uz" },
+  "joybox.uz": { name: "Joybox", badge: "Tezkor xarid", domain: "joybox.uz" },
+
+  // 3. Qurilish, mebel va uy-ro'zg'or
+  "stroycenter.uz": { name: "Stroy Center", badge: "Qurilish mollari", domain: "stroycenter.uz" },
+  "dombrabotnik.uz": { name: "Dombrabotnik", badge: "Uy mollari", domain: "dombrabotnik.uz" },
+  "mebel.uz": { name: "Mebel.uz", badge: "Mebel", domain: "mebel.uz" },
+  "home24.uz": { name: "Home24", badge: "Uy anjomlari", domain: "home24.uz" },
+  "karcher.uz": { name: "Kärcher", badge: "Nemis sifati", domain: "karcher.uz" },
+
+  // 4. Kiyim-kechak va sport
+  "terrapro.uz": { name: "Terra Pro", badge: "Brend kiyim", domain: "terrapro.uz" },
+  "urbanstore.uz": { name: "Urban Store", badge: "Moda", domain: "urbanstore.uz" },
+  "sportmaster.uz": { name: "Sportmaster", badge: "Sport mahsulotlari", domain: "sportmaster.uz" },
+  "redtag.uz": { name: "REDTAG", badge: "Kiyim-kechak", domain: "redtag.uz" },
+
+  // 5. Avto, shina va maxsus texnika
+  "autotuning.uz": { name: "Autotuning", badge: "Avto tovarlar", domain: "autotuning.uz" },
+  "shina.uz": { name: "Shina.uz", badge: "Original shinalar", domain: "shina.uz" },
+  "avtoelon.uz": { name: "Avtoelon", badge: "Yangi ehtiyot qismlar", domain: "avtoelon.uz" },
 };
+
+/**
+ * 🇺🇿 Qidiruv so'zidan viloyat va shahar nomlarini tozalash (SEPARATE CONTEXT FROM QUERY - V16.0)
+ * Qidiruv so'ziga viloyat nomi qo'shilsa milliy do'konlardagi tovarlar topilmay qoladi.
+ */
+export function stripRegionFromQuery(query: string): string {
+  if (!query) return '';
+  const regions = [
+    'toshkent shahri', 'toshkent viloyati', 'toshkent shaxri', 'toshkent sh.', 'toshkent',
+    'xorazm viloyati', 'xorazm',
+    'samarqand viloyati', 'samarqand',
+    'buxoro viloyati', 'buxoro',
+    'andijon viloyati', 'andijon',
+    "farg'ona viloyati", 'fargona viloyati', "farg'ona", 'fargona',
+    'namangan viloyati', 'namangan',
+    'qashqadaryo viloyati', 'qashqadaryo',
+    'surxondaryo viloyati', 'surxondaryo',
+    'jizzax viloyati', 'jizzax',
+    'sirdaryo viloyati', 'sirdaryo',
+    'navoiy viloyati', 'navoiy',
+    "qoraqalpog'iston", 'qoraqalpogiston',
+    'viloyati', 'shahri'
+  ];
+  let cleaned = query;
+  for (const reg of regions) {
+    const re = new RegExp(`\\b${reg}\\b`, 'gi');
+    cleaned = cleaned.replace(re, ' ');
+  }
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
 
 export const KNOWN_UZBEK_STORES: Record<string, string> = {
   'asaxiy.uz': 'Asaxiy',
@@ -96,7 +179,7 @@ export const CATEGORY_RULES: Record<string, CategoryRule> = {
       "naushnik", "headset", "choynak", "televizor"
     ],
     min_price: 2_500_000,
-    max_price: 30_000_000,
+    max_price: 60_000_000,
     monthly_kwh_est: 150,
     regional_insight: {
       "Xorazm": "Xorazmning +45°C gacha issiq iqlimi va sho‘r havosi uchun T3 tropik kompressor hamda Gold Fin/Blue Fin korroziyaga qarshi qoplama talab etiladi.",
@@ -373,9 +456,11 @@ export function isStrictValidProduct(item: any, categoryKey: string): boolean {
     return false;
   }
 
-  // Faqat ruxsat etilgan rasmiy do'konlar (Uzum, Olcha, Asaxiy, Texnomart, Mediapark, Idea, Zoodmall)
-  const ALLOWED_STORE_DOMAINS = ["uzum.uz", "olcha.uz", "asaxiy.uz", "texnomart.uz", "idea.uz", "zoodmall.uz", "mediapark.uz"];
-  const isAllowedStore = ALLOWED_STORE_DOMAINS.some(d => link.includes(d) || store.includes(d)) ||
+  // Faqat ruxsat etilgan rasmiy do'konlar (30+ Whitelist - V16.0)
+  const isAllowedStore = ALLOWED_DOMAINS.some(d => {
+    const rootName = d.replace(/\.uz|\.com/g, '');
+    return link.includes(d) || store.includes(d) || store.includes(rootName);
+  }) ||
     Object.keys(ALLOWED_ECOMMERCE_STORES).some(domain => {
       const meta = ALLOWED_ECOMMERCE_STORES[domain];
       return link.includes(domain) || store.includes(domain) || store.includes(meta.name.toLowerCase());
@@ -385,9 +470,15 @@ export function isStrictValidProduct(item: any, categoryKey: string): boolean {
   }
 
   // B. Narx tekshiruvi: "Bozor narxida", narxsiz, kelishilgan yoki 0 so'm bo'lsa darhol chetlatiladi
-  const rawPrice = String(item.price || "").toLowerCase();
+  let rawPrice = String(item.price || "").toLowerCase();
   if (!rawPrice || rawPrice.includes("bozor") || rawPrice.includes("kelishilgan") || rawPrice.includes("narxi yo'q") || rawPrice.includes("tekshiring")) {
-    return false;
+    const fromSnippet = extractPriceFromText(item.snippet || "");
+    if (fromSnippet) {
+      item.price = `${fromSnippet} so‘m`;
+      rawPrice = item.price;
+    } else {
+      return false;
+    }
   }
 
   const priceNum = parseUzbekPrice(item.price);
@@ -410,6 +501,22 @@ export function isStrictValidProduct(item: any, categoryKey: string): boolean {
 }
 
 /**
+ * Matndan O'zbekiston narxlarini aniqlash (so'm, сум, uzs)
+ */
+export function extractPriceFromText(text: string): number | null {
+  if (!text) return null;
+  const match = text.match(/(\d{1,3}(?:[\s.,]\d{3})+(?:\s*(?:so['’`]?m|сум|uzs))?|\d{5,9}\s*(?:so['’`]?m|сум|uzs))/i);
+  if (match) {
+    const rawDigits = match[1].replace(/[^\d]/g, '');
+    const num = parseInt(rawDigits, 10);
+    if (!isNaN(num) && num >= 10000 && num <= 100000000) {
+      return num;
+    }
+  }
+  return null;
+}
+
+/**
  * 🛡️ 3.3. Qat'iy Validatsiya: Narxni tahlil qilish (parse_uzbek_price)
  */
 export function parseUzbekPrice(rawVal: any): number | null {
@@ -420,6 +527,9 @@ export function parseUzbekPrice(rawVal: any): number | null {
   if (['bozor narxida', 'kelishilgan', "narxi yo'q", "narx ko'rsatilmagan", 'mavjud emas', "do'kondan tekshiring", "narxni do‘kondan tekshiring"].some(x => valStr.includes(x))) {
     return null;
   }
+
+  const fromText = extractPriceFromText(valStr);
+  if (fromText) return fromText;
 
   const cleaned = valStr.replace(/[^\d]/g, '');
   if (!cleaned) return null;
@@ -880,23 +990,35 @@ export async function searchLocalProducts(
   category?: string,
   region?: string
 ): Promise<SerpProductItem[]> {
-  const cleanSearchTerm = query.replace(/\(.*?\)/g, '').replace(/site:[\w.]+/gi, '').trim();
+  // 1. Qidiruv so'zidan viloyat nomini to'liq tozalash (SEPARATE CONTEXT FROM QUERY - V16.0)
+  const cleanSearchTerm = stripRegionFromQuery(
+    query.replace(/\(.*?\)/g, '').replace(/site:[\w.]+/gi, '').trim()
+  );
   const catKey = detectCategoryKey(cleanSearchTerm, category);
   const isDish = isDishwareQuery(cleanSearchTerm, category) || catKey === 'chinni_idishlar' || catKey === 'oshxona_anjomlari';
 
-  // Agar so'rovda do'konlar ko'rsatilmagan bo'lsa, mos do'konlar bilan kengaytirish
-  let expandedQuery = query.trim();
-  if (!expandedQuery.toLowerCase().includes('site:')) {
-    const domains = isDish 
-      ? ['uzum.uz', 'asaxiy.uz', 'olcha.uz', 'zoodmall.com', 'texnomart.uz']
-      : ['asaxiy.uz', 'mediapark.uz', 'texnomart.uz', 'idea.uz', 'olcha.uz', 'uzum.uz'];
-    const sitesPart = domains.map(d => `site:${d}`).join(' OR ');
-    expandedQuery = `${expandedQuery} (${sitesPart})`;
+  // 2. Kategoriya bo'yicha eng mos 30+ milliy do'konlar bilan qidiruvni kengaytirish
+  let expandedQuery = cleanSearchTerm;
+  if (!expandedQuery.toLowerCase().includes('.uz') && !expandedQuery.toLowerCase().includes('site:')) {
+    let domains: string[] = [];
+    if (isDish || catKey === 'oshxona_anjomlari') {
+      domains = ['uzum.uz', 'olcha.uz', 'asaxiy.uz', 'texnomart.uz', 'home24.uz'];
+    } else if (catKey === 'apparel' || catKey === 'kurtka') {
+      domains = ['uzum.uz', 'terrapro.uz', 'urbanstore.uz', 'sportmaster.uz', 'redtag.uz', 'olcha.uz'];
+    } else if (catKey === 'materials') {
+      domains = ['uzum.uz', 'stroycenter.uz', 'dombrabotnik.uz', 'mebel.uz', 'home24.uz', 'karcher.uz'];
+    } else if (catKey === 'auto') {
+      domains = ['uzum.uz', 'autotuning.uz', 'shina.uz', 'avtoelon.uz'];
+    } else {
+      // Elektronika va maishiy texnika (Viloyatlarda filiallari bor milliy tarmoqlar)
+      domains = ['texnomart.uz', 'mediapark.uz', 'ishonch.uz', 'uzum.uz', 'olcha.uz', 'asaxiy.uz', 'creditasia.uz'];
+    }
+    const sitesPart = domains.join(' OR ');
+    expandedQuery = `${cleanSearchTerm} (${sitesPart})`;
   }
 
   const products = await fetchAndEnrichStores(expandedQuery, category, region, cleanSearchTerm);
 
-  // 🛡️ ZERO-FAKE DIRECTIVE (V15.0): Agar SerpAPI orqali mahsulot topilmasa,
-  // HECH QANDAY soxta mock ma'lumot ('Standart Model', 'Pro Edition') qaytarilmaydi!
+  // 🛡️ ZERO-FAKE DIRECTIVE: Agar mahsulot topilmasa, soxta mock yasamaymiz!
   return products;
 }

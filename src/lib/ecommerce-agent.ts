@@ -3,6 +3,8 @@ import {
   detectCategoryKey,
   calculateEnergyMetrics,
   CATEGORY_RULES,
+  stripRegionFromQuery,
+  ALLOWED_DOMAINS,
   SerpProductItem 
 } from './serpapi';
 
@@ -1098,6 +1100,193 @@ export function generateAdaptiveFacets(products: SerpProductItem[]): DynamicFilt
 /**
  * 🚀 ASOSIY PIPELINE DVIGATELI (5-Qatlamli Arxitektura)
  */
+
+/**
+ * 🤖 3.3. Autonomous AI Agent: SerpAPI Cheklovini Aylanib O'tish (Function Calling Loop - V16.0)
+ * Agar birinchi qidiruvda tovar topilmasa, kalit so'zni o'zgartirib (qisqartirib/sinonimlar bilan) qayta qidiradi.
+ */
+export async function autonomousAgentProductSearch(
+  initialQuery: string,
+  category: string | undefined,
+  activeRegion: string,
+  history: ChatMessage[] = []
+): Promise<{
+  products: SerpProductItem[];
+  finalAdvice?: string;
+  searchHistory: Array<{ query: string; found: number }>;
+}> {
+  const key = getOpenAIApiKey();
+  const cleanInitial = stripRegionFromQuery(initialQuery);
+  const searchHistory: Array<{ query: string; found: number }> = [];
+
+  // Agar OpenAI kalit bo'lmasa, to'g'ridan-to'g'ri qidiruv
+  if (!key) {
+    const raw = await searchLocalProducts(cleanInitial, category, activeRegion);
+    searchHistory.push({ query: cleanInitial, found: raw.length });
+    return { products: raw.slice(0, 4), searchHistory };
+  }
+
+  const systemPrompt = `Siz O'zbekistonning eng malakali avtonom elektron savdo agentisiz.
+Vazifangiz: O'zbekiston milliy do'konlaridan (Uzum, Texnomart, Mediapark, Olcha, Ishonch, Credit Asia, Idea va h.k.) mijoz so'ragan mahsulotni topish.
+QAT'IY QOIDALAR:
+1. QIDIRUVNI MANTIQAN IKKIGA BO'LING: search_uzbek_ecommerce vositasiga yuboriladigan search_query ichiga HECH QACHON viloyat/shahar nomini (masalan: Xorazm, Toshkent, Samarqand) qo'shmang! Faqat tovar va model nomini bering (masalan: "LG kolonnali konditsioner 24000 BTU" yoki "LG konditsioner").
+2. QAYTA IZLASH (RETRY LOOP): Agar vosita "found: 0" deb javob bersa, darhol taslim bo'lmang! Kalit so'zni o'zgartiring:
+   - "LG yerda turadigan" -> "LG kolonnali konditsioner" yoki "LG shkaf konditsioner"
+   - Qisqartiring: "LG konditsioner 24000" yoki "LG inverter konditsioner"
+   - Sinonimlarini sinang.
+3. DEAD LOOP YO'QLIGI: Agar bir necha urinishdan so'ng ham O'zbekiston bozorida ushbu aniq model umuman topilmasa, aslo yana "Hududni tanlang" deb so'ramang! Foydalanuvchiga ${activeRegion}ga yetkazib berish sharti bilan hozircha ushbu model yo'qligini ayting va muqobil variantlarni (devorga ilinadigan kuchliroq LG modellari, yoki Artel, Samsung, Gree brendlari) taklif qiling.`;
+
+  const agentMessages: Array<any> = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `Hudud: ${activeRegion}. Foydalanuvchi qidiruvi: "${cleanInitial}". Mos mahsulotlarni topib bering.` }
+  ];
+
+  const tools = [
+    {
+      type: 'function',
+      function: {
+        name: 'search_uzbek_ecommerce',
+        description: "O'zbekiston onlayn do'konlaridan mahsulot izlash. Diqqat: Qidiruv so'ziga viloyat nomini qo'shmang! Agar topilmasa, kalit so'zni o'zgartirib yoki qisqartirib qayta ishlating.",
+        parameters: {
+          type: 'object',
+          properties: {
+            search_query: { type: 'string', description: 'Mahsulot nomi va modeli (viloyat nomi aslo qo\'shilmasin!)' },
+            category: { type: 'string', description: 'Tovar toifasi (apparel, electronics, materials, etc.)' }
+          },
+          required: ['search_query']
+        }
+      }
+    }
+  ];
+
+  let bestProducts: SerpProductItem[] = [];
+  let finalAdvice = '';
+
+  // Maksimal 3 ta qadam (Initial + 2 ta retry)
+  for (let step = 0; step < 3; step++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 9000);
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: agentMessages,
+          tools,
+          tool_choice: step === 0 ? { type: 'function', function: { name: 'search_uzbek_ecommerce' } } : 'auto',
+          temperature: 0.1
+        })
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) break;
+
+      const data = await res.json();
+      const choiceMsg = data.choices?.[0]?.message;
+      if (!choiceMsg) break;
+
+      agentMessages.push(choiceMsg);
+
+      // Agar model tool chaqirgan bo'lsa
+      if (choiceMsg.tool_calls && choiceMsg.tool_calls.length > 0) {
+        const toolCall = choiceMsg.tool_calls[0];
+        if (toolCall.function?.name === 'search_uzbek_ecommerce') {
+          let args: any = {};
+          try {
+            args = JSON.parse(toolCall.function.arguments);
+          } catch {}
+
+          const rawQuery = args.search_query || cleanInitial;
+          const queryNoRegion = stripRegionFromQuery(rawQuery);
+          console.log(`[AutonomousAgent] Step ${step + 1} Search Query: "${queryNoRegion}" (Region: ${activeRegion})`);
+
+          const found = await searchLocalProducts(queryNoRegion, args.category || category, activeRegion);
+          searchHistory.push({ query: queryNoRegion, found: found.length });
+
+          if (found.length > 0) {
+            bestProducts = found;
+            console.log(`[AutonomousAgent] Step ${step + 1} Found ${found.length} products!`);
+            // Tool natijasini modelga qaytaramiz
+            agentMessages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: JSON.stringify({
+                status: 'success',
+                found_count: found.length,
+                top_products: found.slice(0, 4).map(p => ({
+                  title: p.title,
+                  price: p.price,
+                  store: p.source
+                }))
+              })
+            });
+
+            // Model yakuniy xulosa bersin
+            try {
+              const finalRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${key}`
+                },
+                body: JSON.stringify({
+                  model: 'gpt-4o-mini',
+                  messages: agentMessages,
+                  temperature: 0.1
+                })
+              });
+              if (finalRes.ok) {
+                const finalData = await finalRes.json();
+                finalAdvice = finalData.choices?.[0]?.message?.content || '';
+              }
+            } catch {}
+
+            break; // Mahsulot topildi, tsikldan chiqamiz!
+          } else {
+            console.log(`[AutonomousAgent] Step ${step + 1} 0 products found for "${queryNoRegion}". Retrying with adjusted query...`);
+            // Mahsulot topilmadi - Agentga qayta izlash uchun yo'naltirish beramiz
+            agentMessages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: JSON.stringify({
+                status: 'not_found',
+                found_count: 0,
+                message: `"${queryNoRegion}" bo'yicha rasmiy do'konlarda mahsulot topilmadi. Iltimos, kalit so'zni o'zgartirib (sinonimlar: masalan 'yerda turadigan' o'rniga 'kolonnali', yoki qisqartirilgan brend/model nomi) qayta qidiring.`
+              })
+            });
+            // Tsikl davom etadi va agent qayta izlaydi
+            continue;
+          }
+        }
+      } else {
+        // Model matnli javob qaytardi
+        finalAdvice = choiceMsg.content || '';
+        break;
+      }
+    } catch (err) {
+      console.warn('[AutonomousAgent error]:', err);
+      break;
+    }
+  }
+
+  // Agar agent orqali ham topilmagan bo'lsa va hali to'g'ridan-to'g'ri qidiruv qilinmagan bo'lsa
+  if (bestProducts.length === 0 && searchHistory.length === 0) {
+    bestProducts = await searchLocalProducts(cleanInitial, category, activeRegion);
+  }
+
+  return {
+    products: bestProducts.slice(0, 4),
+    finalAdvice,
+    searchHistory
+  };
+}
+
 export async function runEcommerceAgentPipeline(
   userMessage: string,
   history: ChatMessage[] = [],
@@ -1258,18 +1447,62 @@ export async function runEcommerceAgentPipeline(
     };
   }
 
-  // 🚀 3-BOSQICH: PRODUCT_SEARCH (Faqat status: READY_TO_SEARCH bo'lganda SerpAPI va Mahsulotlar)
+  // 🚀 3-BOSQICH: PRODUCT_SEARCH (Faqat status: READY_TO_SEARCH bo'lganda Autonomous Agent va Mahsulotlar)
   const isElectronic = intentResult.extracted_data?.is_electronic ?? (intentResult.category_key === 'electronics' || ['konditsioner', 'televizor', 'muzlatgich', 'kir_yuvish', 'elektr_choynak'].includes(intentResult.category_key));
   const activeRegion = intentResult.extracted_data?.location || intentResult.normalized_params?.region || targetRegion;
-  const searchQuery = intentResult.cleanQuery || `${intentResult.extracted_data?.product_name || userMessage} ${activeRegion}`.trim();
+  
+  // 1. QIDIRUVNI MANTIQAN IKKIGA BO'LISH (SEPARATE CONTEXT FROM QUERY - V16.0)
+  // Qidiruv so'ziga viloyat nomi qo'shilmaydi! Viloyat konteksti alohida yetkazib berish va Bosh Iqtisodchiga beriladi.
+  const rawProdName = intentResult.extracted_data?.product_name || intentResult.cleanQuery || userMessage;
+  const searchQuery = stripRegionFromQuery(rawProdName);
   const categoryKey = intentResult.category_key || detectCategoryKey(searchQuery, intentResult.category);
 
-  const rawProducts = await searchLocalProducts(searchQuery, intentResult.category, activeRegion);
-    const cleanProducts = rawProducts.slice(0, 4);
+  // 3. AI AGENT YARATISH: AUTONOMOUS FUNCTION CALLING (OPENAI TOOLS - V16.0)
+  // Birinchi marta topilmasa, o'zi kalit so'zni o'zgartirib qayta qidiradi!
+  const agentSearchResult = await autonomousAgentProductSearch(
+    searchQuery,
+    intentResult.category,
+    activeRegion,
+    history
+  );
+  const cleanProducts = agentSearchResult.products.slice(0, 4);
 
-  // 🛡️ ZERO-FAKE DIRECTIVE (V15.0): Agar haqiqiy natija topilmasa, soxta mahsulot yasamaymiz!
+  // 🛡️ ZERO-DEAD-LOOP & GRACEFUL FAILURE (V16.0): Agar mahsulot topilmasa,
+  // hech qachon yana hududni so'ramaymiz! Muqobil tovar parametrlarini taklif qilamiz.
   if (cleanProducts.length === 0) {
-    const notFoundMsg = `Kechirasiz, ${activeRegion} hududi bo‘yicha rasmiy do‘konlarda hozircha siz so‘ragan mahsulot topilmadi.`;
+    const notFoundMsg = agentSearchResult.finalAdvice ||
+      `${activeRegion}ga yetkazib berish sharti bilan rasmiy do‘konlarda hozircha siz so‘ragan "${searchQuery}" modeli topilmadi. Keling, o‘rniga muqobil variantlarni yoki boshqa brendlarni (Artel, Samsung) ko‘rib chiqamizmi?`;
+
+    // Mantiqiy muqobil chiplar (Aslo viloyat chiplari chiqmaydi!)
+    let alternativeChips: string[] = [];
+    if (categoryKey === 'konditsioner' || /konditsioner/i.test(searchQuery)) {
+      alternativeChips = [
+        '❄️ Devorga ilinadigan (LG)',
+        '🏢 Boshqa brend (Artel/Gree)',
+        '⚡ Quvvatni o‘zgartirish'
+      ];
+    } else if (categoryKey === 'apparel' || /kurtka|kiyim|oyoqkiyim|qo'lqop/i.test(searchQuery)) {
+      alternativeChips = [
+        '🧥 Boshqa model/mato',
+        '🏷️ Boshqa brend',
+        '📏 O‘lchamni o‘zgartirish'
+      ];
+    } else if (categoryKey === 'televizor' || /televizor|tv/i.test(searchQuery)) {
+      alternativeChips = [
+        '📺 Artel Smart TV',
+        '🌟 Samsung Crystal UHD',
+        '📐 Boshqa diagonal'
+      ];
+    } else {
+      alternativeChips = [
+        '🔍 Boshqa model ko‘rish',
+        '🏷️ Muqobil brendlar',
+        '⚙️ Parametrlarni o‘zgartirish'
+      ];
+    }
+
+    const smartChips = alternativeChips.map(c => ({ label: c, payload: c }));
+
     return {
       type: 'CHAT',
       ui_mode: 'CONVERSATION_ONLY',
@@ -1280,23 +1513,13 @@ export async function runEcommerceAgentPipeline(
       turn_count: currentTurn,
       category: intentResult.category || 'boshqa',
       category_key: categoryKey,
-      dynamic_chips: [
-        '📍 Toshkent shahri',
-        '📍 Xorazm viloyati',
-        '📍 Samarqand viloyati',
-        '📍 Boshqa hudud'
-      ],
+      dynamic_chips: alternativeChips,
       extracted_data: intentResult.extracted_data,
       is_electronic: isElectronic,
       normalized_params: { region: activeRegion },
       clarification_data: {
         question: notFoundMsg,
-        options: [
-          { id: 'c0', label: '📍 Toshkent shahri', payload: { filter: 'Toshkent' } },
-          { id: 'c1', label: '📍 Xorazm viloyati', payload: { filter: 'Xorazm' } },
-          { id: 'c2', label: '📍 Samarqand viloyati', payload: { filter: 'Samarqand' } },
-          { id: 'c3', label: '📍 Boshqa hudud', payload: { filter: 'boshqa' } }
-        ]
+        options: alternativeChips.map((c, i) => ({ id: `alt_${i}`, label: c, payload: { filter: c } }))
       },
       economist_insight: null,
       search_payload: {
@@ -1306,12 +1529,7 @@ export async function runEcommerceAgentPipeline(
       products: [],
       comparison_table: [],
       short_advice_uz: notFoundMsg,
-      smartChips: [
-        { label: '📍 Toshkent shahri', payload: 'Toshkent' },
-        { label: '📍 Xorazm viloyati', payload: 'Xorazm' },
-        { label: '📍 Samarqand viloyati', payload: 'Samarqand' },
-        { label: '📍 Boshqa hudud', payload: 'boshqa' }
-      ],
+      smartChips,
       cleanQuery: '',
       replyMessage: notFoundMsg,
       step: 'needs_params',
