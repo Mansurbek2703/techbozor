@@ -96,6 +96,10 @@ function ProductCardImage({
   const [hasError, setHasError] = useState(false);
   const isDish = isDishwareQuery(title, category);
 
+  useEffect(() => {
+    setHasError(false);
+  }, [thumbnail]);
+
   // Rasm URL'ida elektronika bo'lsa yoki rasm topilmasa, SVG vektor chiqaramiz
   const imgLower = (thumbnail || '').toLowerCase();
   const hasForbiddenPattern = isDish && ['headphone', 'naushnik', 'earphone', 'mouse', 'keyboard', 'cable'].some(p => imgLower.includes(p));
@@ -108,6 +112,8 @@ function ProductCardImage({
     <img
       src={thumbnail}
       alt={title}
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
       onError={() => setHasError(true)}
       className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
       loading="lazy"

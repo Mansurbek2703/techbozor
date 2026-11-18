@@ -251,17 +251,22 @@ export const SYSTEM_PROMPT_OPEN_WORLD = `Siz O'zbekistonning eng aqlli elektron 
 Foydalanuvchi barcha turdagi mahsulotlarni so'rashi mumkin.
 
 QAT'IY BOSQICHLI QOIDALAR:
-1. HAR DOIM HUDUDNI SO'RANG: Agar foydalanuvchi birinchi marta biron narsa so'rasa va qaysi hududga (Toshkent, Xorazm, Samarqand va h.k) yetkazib berish kerakligini aytmagan bo'lsa (location null bo'lsa), sizning birinchi vazifangiz mahsulot turini aniqlashtirish bilan birga, viloyatni ham so'rashdir.
+1. HAR DOIM HUDUDNI SO'RANG (Faqat 1-bosqichda va umumiy so'rovda): Agar foydalanuvchi birinchi marta umumiy narsa so'rasa (masalan: "menga kiyim kerak", "konditsioner olmoqchiman") va qaysi hududga (Toshkent, Xorazm, Samarqand va h.k) yetkazib berish aytilmagan bo'lsa (location null bo'lsa), birinchi navbatda hududni so'rang.
 2. MANTIQIY CHIPLAR (ZERO-MIXED CHIPS): Siz qaytaradigan dynamic_chips massivi aslo aralashib ketmasin:
    - 1-BOSQICH (Hudud noma'lum bo'lsa): FAQAT hudud chiplarini bering! Masalan: ["📍 Toshkent shahri", "📍 Xorazm viloyati", "📍 Samarqand viloyati", "📍 Boshqa hudud"]. Hech qachon rang yoki matoni hudud bilan bitta qatorga aralashtirmang!
    - 2-BOSQICH (Hudud ma'lum bo'lgach): Endi FAQAT o'sha mahsulot xususiyati (mato, o'lcham, quvvat, brend yoki rang) chiplarini bering! Masalan qo'lqop uchun: ["🧤 Qalin Charm", "🧵 100% Paxta", "🧶 Issiq Jun"].
-3. TOVAR TOIFASINI FARQLASH:
+3. QIDIRUVGA TEZKOR O'TISH (READY_TO_SEARCH):
+   Quyidagi hollarda darhol status: "READY_TO_SEARCH" qaytaring va dynamic_chips: [] (bo'sh) qiling:
+   - Foydalanuvchi aniq brend yoki model so'ragan bo'lsa (masalan: "LG konditsioner", "Artel televizor", "iPhone 15", "Samsung muzlatgich", "Asus noutbuk") va hudud ma'lum bo'lsa (yoki kontekstda berilgan bo'lsa).
+   - Suhbat 2 yoki 3-bosqichga (turn >= 2) yetgan bo'lsa yoki foydalanuvchi oldingi savolga javob berib chip tanlagan bo'lsa.
+   - Foydalanuvchi "narxi", "qidir", "topib ber", "sotib olmoqchiman", "modellarini ko'rsat" kabi qidiruv niyatini bildirsa.
+   - status: "READY_TO_SEARCH" bo'lganda dynamic_chips massivini bo'sh qoldiring [] va message ga qisqa tasdiq yozing (masalan: "Siz uchun O'zbekiston rasmiy do'konlaridan eng yaxshi takliflarni saralab chiqmoqdaman...").
+4. TOVAR TOIFASINI FARQLASH:
    - "apparel" (kiyim-kechak, qo'lqop, poyabzal, kurtka): Faqat jinsi, o'lchami, matosi va rangini so'ra. Elektr, kVt yoki ROI haqida ASLO gapirma (is_electronic: false).
    - "electronics" (maishiy texnika, noutbuk, telefon): Texnik parametrlar va elektr sarfini hisobga ol (is_electronic: true).
    - "materials" (qurilish mollari, mebel): O'lcham, xomashyo va miqdorni so'ra (is_electronic: false).
    - "other": Boshqa tovarlar (is_electronic: false).
-4. SOXTA MODELLAR QAT'IYAN TAQIQLANADI: O'zingizdan "Standart Model", "Pro Edition" kabi soxta modellar yasamang va mahsulotni bor deb aldamang.
-5. QIDIRUVGA TAYYORLIK (READY_TO_SEARCH): Agar mahsulot va uning asosiy parametrlari aniq bo'lsa (masalan: "qora charm erkaklar qo'lqopi Xorazm", "12 lik inverter konditsioner Toshkent"), yoki suhbat 3-bosqichga yetgan bo'lsa, status: "READY_TO_SEARCH" qaytar, dynamic_chips massivini bo'sh qoldir va message ga qisqa tasdiq yoz (masalan: "Sizga mos rasmiy do'konlar narxlarini tekshirmoqdaman...").
+5. SOXTA MODELLAR QAT'IYAN TAQIQLANADI: O'zingizdan "Standart Model", "Pro Edition" kabi soxta modellar yasamang va mahsulotni bor deb aldamang.
 6. JAVOB FORMATI: Sen faqat qat'iy belgilangan JSON formatida javob qaytarishing shart.
 
 Misol 1 (1-Bosqich - Hudud yo'q):
@@ -286,23 +291,23 @@ Javob:
   }
 }
 
-Misol 2 (2-Bosqich - Hudud ma'lum, endi faqat tovar xususiyatlari):
-Foydalanuvchi: "📍 Xorazm viloyati"
+Misol 2 (Aniq model yoki 2-bosqich - Qidiruv):
+Foydalanuvchi: "LG konditsioner Toshkent"
 Javob:
 {
-  "status": "NEED_CLARIFICATION",
-  "message": "Xorazm uchun qanday matodan ishlangan qo'lqop qidiryapsiz?",
-  "dynamic_chips": ["🧤 Qalin Charm", "🧵 100% Paxta", "🧶 Issiq Jun"],
+  "status": "READY_TO_SEARCH",
+  "message": "Toshkent shahri uchun LG konditsionerlarining eng maqbul rasmiy narxlarini solishtirmoqdaman...",
+  "dynamic_chips": [],
   "extracted_data": {
-    "category": "apparel",
-    "product_name": "qo'lqop",
-    "location": "Xorazm",
-    "is_electronic": false,
+    "category": "electronics",
+    "product_name": "LG konditsioner",
+    "location": "Toshkent",
+    "is_electronic": true,
     "attributes": {
       "color": null,
       "material": null,
       "size": null,
-      "specs": null,
+      "specs": "inverter",
       "other": null
     }
   }
@@ -451,14 +456,20 @@ async function callOpenAI(
  */
 export async function callOpenAIStructured(
   userPrompt: string,
-  history: ChatMessage[] = []
+  history: ChatMessage[] = [],
+  context?: { turnCount?: number; region?: string }
 ): Promise<OpenWorldStructuredResponse | null> {
   const key = getOpenAIApiKey();
   if (!key) return null;
 
   try {
+    let systemInstruction = SYSTEM_PROMPT_OPEN_WORLD;
+    if (context) {
+      systemInstruction += `\n\n[Joriy Kontekst: Bosqich = ${context.turnCount || 1}, Hudud = ${context.region || 'Toshkent'}. Agar aniq tovar/brend so'ralgan bo'lsa yoki bosqich >= 2 bo'lsa, status: "READY_TO_SEARCH" qaytaring]`;
+    }
+
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: SYSTEM_PROMPT_OPEN_WORLD },
+      { role: 'system', content: systemInstruction },
     ];
 
     if (history && history.length > 0) {
@@ -518,7 +529,8 @@ export async function callOpenAIStructured(
  */
 export async function callGeminiStructured(
   userPrompt: string,
-  history: ChatMessage[] = []
+  history: ChatMessage[] = [],
+  context?: { turnCount?: number; region?: string }
 ): Promise<OpenWorldStructuredResponse | null> {
   const keys = getGeminiApiKeys();
   if (keys.length === 0) return null;
@@ -529,6 +541,11 @@ export async function callGeminiStructured(
     'gemini-3.5-flash',
     'gemini-flash-latest',
   ];
+
+  let systemInstruction = SYSTEM_PROMPT_OPEN_WORLD;
+  if (context) {
+    systemInstruction += `\n\n[Joriy Kontekst: Bosqich = ${context.turnCount || 1}, Hudud = ${context.region || 'Toshkent'}. Agar aniq tovar/brend so'ralgan bo'lsa yoki bosqich >= 2 bo'lsa, status: "READY_TO_SEARCH" qaytaring]`;
+  }
 
   const contents: any[] = [];
   if (history && history.length > 0) {
@@ -541,7 +558,7 @@ export async function callGeminiStructured(
 
   contents.push({
     role: 'user',
-    parts: [{ text: `${SYSTEM_PROMPT_OPEN_WORLD}\n\nUSER PROMPT:\n${userPrompt}` }]
+    parts: [{ text: `${systemInstruction}\n\nUSER PROMPT:\n${userPrompt}` }]
   });
 
   for (const key of keys) {
@@ -1302,16 +1319,24 @@ export async function runEcommerceAgentPipeline(
   const targetRegion = params?.region || 'Toshkent';
 
   // 1-QATLAM: OpenAI GPT-4o-mini Structured Outputs (Open-World AI Maslahatchisi)
-  let structured = await callOpenAIStructured(userMessage, history);
+  let structured = await callOpenAIStructured(userMessage, history, { turnCount: currentTurn, region: targetRegion });
   if (!structured) {
-    structured = await callGeminiStructured(userMessage, history);
+    structured = await callGeminiStructured(userMessage, history, { turnCount: currentTurn, region: targetRegion });
   }
 
   let intentResult: any = null;
 
   if (structured) {
-    const isReadyToSearch = structured.status === 'READY_TO_SEARCH';
-    const chips: string[] = Array.isArray(structured.dynamic_chips) ? structured.dynamic_chips : [];
+    const isBrandOrModelQuery = /\b(lg|samsung|artel|apple|iphone|xiaomi|midea|gree|asus|lenovo|hp|acer|bosch|tefal|philips|tcl|honor|huawei|sony)\b/i.test(userMessage) &&
+      /\b(konditsioner|telefon|smartfon|noutbuk|televizor|muzlatgich|kir\s*yuvish|choynak|changyutgich|planshet)\b/i.test(userMessage);
+
+    let isReadyToSearch = structured.status === 'READY_TO_SEARCH';
+    if (!isReadyToSearch && (currentTurn >= 2 || isBrandOrModelQuery)) {
+      isReadyToSearch = true;
+      structured.status = 'READY_TO_SEARCH';
+    }
+
+    const chips: string[] = isReadyToSearch ? [] : (Array.isArray(structured.dynamic_chips) ? structured.dynamic_chips : []);
     const smartChips = chips.map(c => ({ label: c, payload: c }));
     const ext = structured.extracted_data || {
       category: 'other',
@@ -1338,7 +1363,7 @@ export async function runEcommerceAgentPipeline(
       ai_reply: structured.message,
       message: structured.message,
       state: isReadyToSearch ? 'PRODUCT_SEARCH' : 'NEED_CLARIFICATION',
-      status: structured.status,
+      status: isReadyToSearch ? 'READY_TO_SEARCH' : 'NEED_CLARIFICATION',
       turn_count: currentTurn,
       category: ext.category,
       category_key: ext.category,

@@ -131,6 +131,122 @@ export const STORE_BRANDS: Record<string, StoreBrandConfig> = {
       </svg>
     ),
   },
+  'alif': {
+    name: 'Alif Shop',
+    shortName: 'Alif',
+    bgClass: 'bg-emerald-50',
+    textClass: 'text-emerald-700',
+    borderClass: 'border-emerald-200',
+    accentColor: '#00C292',
+    tagline: 'Halol muddatli to‘lov (Alif Nasiya)',
+    logoSvg: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 4.5l-7-3.5V17l7 3.5 7-3.5v-5l-7 3.5z" />
+      </svg>
+    ),
+  },
+  'artel': {
+    name: 'Artel Electronics',
+    shortName: 'Artel',
+    bgClass: 'bg-red-50',
+    textClass: 'text-red-700',
+    borderClass: 'border-red-200',
+    accentColor: '#E31E24',
+    tagline: 'O‘zbekiston milliy ishlab chiqaruvchisi',
+    logoSvg: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  'ishonch': {
+    name: 'Ishonch',
+    shortName: 'Ishonch',
+    bgClass: 'bg-sky-50',
+    textClass: 'text-sky-700',
+    borderClass: 'border-sky-200',
+    accentColor: '#0072CE',
+    tagline: 'Barcha viloyatlarda filiallar mavjud',
+    logoSvg: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+      </svg>
+    ),
+  },
+  'creditasia': {
+    name: 'Credit Asia',
+    shortName: 'CreditAsia',
+    bgClass: 'bg-rose-50',
+    textClass: 'text-rose-700',
+    borderClass: 'border-rose-200',
+    accentColor: '#E4002B',
+    tagline: 'Rasmiy kafolat va tezkor yetkazish',
+    logoSvg: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <line x1="2" y1="10" x2="22" y2="10" stroke="#fff" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  'macbro': {
+    name: 'MacBro',
+    shortName: 'MacBro',
+    bgClass: 'bg-slate-100',
+    textClass: 'text-slate-800',
+    borderClass: 'border-slate-300',
+    accentColor: '#1D1D1F',
+    tagline: 'Original Apple mahsulotlari',
+    logoSvg: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.38c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.98.6-2.62 1.34-.56.64-1.05 1.7-0.92 2.73 1 .08 2-.47 2.62-1.22z" />
+      </svg>
+    ),
+  },
+  'radius': {
+    name: 'Radius Mobile',
+    shortName: 'Radius',
+    bgClass: 'bg-amber-50',
+    textClass: 'text-amber-800',
+    borderClass: 'border-amber-300',
+    accentColor: '#FF9900',
+    tagline: 'Gadjetlar va aksessuarlar',
+    logoSvg: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="4" fill="#fff" />
+      </svg>
+    ),
+  },
+  'beemarket': {
+    name: 'BeeMarket',
+    shortName: 'BeeMarket',
+    bgClass: 'bg-yellow-50',
+    textClass: 'text-yellow-800',
+    borderClass: 'border-yellow-300',
+    accentColor: '#FFCC00',
+    tagline: 'Beeline rasmiy marketi',
+    logoSvg: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M6 12h12M12 6v12" stroke="#000" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  'openshop': {
+    name: 'OpenShop',
+    shortName: 'OpenShop',
+    bgClass: 'bg-indigo-50',
+    textClass: 'text-indigo-700',
+    borderClass: 'border-indigo-200',
+    accentColor: '#3F51B5',
+    tagline: 'Onlayn do‘kon',
+    logoSvg: (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5zm4 4h-2v-6h2v6zm0-8h-2V7h2v2z" />
+      </svg>
+    ),
+  },
 };
 
 /**
