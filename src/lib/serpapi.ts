@@ -1010,11 +1010,12 @@ export async function fetchAndEnrichStores(
  */
 
 /**
- * ⚡ MAXPROFIT REAL-TIME AGGREGATOR SEARCH (v17.0 - "MaxProfit Sifatli Qidiruv")
- * O'zbekistonning eng yirik agregatori (https://maxprofit.uz/) orqali 100% haqiqiy
- * rasmiy do'konlar (Texnomart, Olcha, Uzum, Alifshop, Artel, Asaxiy, Idea va h.k.),
- * real narxlar va yuqori sifatli CDN rasmlarni sub-sekund tezlikda tortib olish.
+ * ⚡ IQTISODCHI REAL-TIME SEARCH ENGINE (v19.0)
+ * O'zbekistonning barcha rasmiy do'konlari narxlari va yuqori sifatli HD rasmlarini
+ * o'ta tez (keshlash va sub-sekund agregatsiya bilan) tortib olish dvigateli.
  */
+const searchMemoryCache = new Map<string, { data: SerpProductItem[]; expiresAt: number }>();
+
 export async function searchMaxProfit(
   query: string,
   category?: string,
@@ -1024,15 +1025,23 @@ export async function searchMaxProfit(
   if (!cleanTerm) return [];
 
   const targetRegion = region || 'Toshkent';
+  const cacheKey = `${cleanTerm.toLowerCase()}__${targetRegion.toLowerCase()}`;
+
+  // ⚡ 1-QADAM: Xotiradagi o'ta tez kesh (0-1ms javob tezligi!)
+  const cached = searchMemoryCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const catKey = detectCategoryKey(cleanTerm, category);
   const rule = CATEGORY_RULES[catKey] || CATEGORY_RULES['boshqa'] || { monthly_kwh_est: 0, min_price: 10000, max_price: 100000000, regional_insight: {} };
   const energy = calculateEnergyMetrics(catKey);
   const regInsight = (rule.regional_insight && rule.regional_insight[targetRegion]) || (rule.regional_insight && rule.regional_insight['default']) || "Rasmiy kafolat va yetkazib berish xizmati bilan.";
 
-  // URL 1: MaxProfit Search
+  // URL 1: Search endpoint
   const searchUrl = `https://maxprofit.uz/search?q=${encodeURIComponent(cleanTerm)}`;
   
-  // URL 2: Kategoriya sahifalari (agar qidiruv bo'sh chiqsa katalogdan qidirish)
+  // URL 2: Kategoriya sahifalari
   const categoryMap: Record<string, string> = {
     'konditsioner': '/katalog/konditsionerlar',
     'noutbuk': '/katalog/noutbuklar',
@@ -1050,14 +1059,15 @@ export async function searchMaxProfit(
   for (const url of urlsToTry) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
+      const timeoutId = setTimeout(() => controller.abort(), 3200);
 
       const res = await fetch(url, {
         signal: controller.signal,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'uz,ru;q=0.9',
+          'Cache-Control': 'no-cache',
         },
       });
       clearTimeout(timeoutId);
@@ -1253,7 +1263,7 @@ export async function searchMaxProfit(
             title: title.slice(0, 95),
             price: `${priceNum.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m`,
             priceNumber: priceNum,
-            source: 'MaxProfit Do‘konlari',
+            source: 'Iqtisodchi Hamkor Do‘konlari',
             storeBadge: 'Eng yaxshi narx',
             link: slug ? `https://maxprofit.uz${slug}` : `https://maxprofit.uz/search?q=${encodeURIComponent(title)}`,
             directUrl: slug ? `https://maxprofit.uz${slug}` : undefined,
@@ -1274,13 +1284,21 @@ export async function searchMaxProfit(
 
       if (results.length > 0) {
         results.sort((a, b) => (a.priceNumber || 0) - (b.priceNumber || 0));
-        (results as any).priceInsight = priceInsight;
-        (results as any).bestBanner = bestBanner;
-        (results as any).totalResultsCount = totalResultsCount || results.length;
-        return results.slice(0, 24);
+        const finalResults = results.slice(0, 24);
+        (finalResults as any).priceInsight = priceInsight;
+        (finalResults as any).bestBanner = bestBanner;
+        (finalResults as any).totalResultsCount = totalResultsCount || results.length;
+
+        // ⚡ Keshga yozish (15 daqiqa saqlanadi - keyingi so'rovlar 0-1ms!)
+        searchMemoryCache.set(cacheKey, {
+          data: finalResults,
+          expiresAt: Date.now() + 15 * 60 * 1000
+        });
+
+        return finalResults;
       }
     } catch (err) {
-      console.warn('[MaxProfit Search error]:', err);
+      console.warn('[Iqtisodchi Search error]:', err);
     }
   }
 

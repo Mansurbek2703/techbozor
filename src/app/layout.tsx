@@ -13,8 +13,8 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'MaxProfit — Сравнение цен в интернет-магазинах Узбекистана',
-  description: 'Поиск и сравнение цен на технику и товары в магазинах Узбекистана: Uzum, Texnomart, Olcha, Idea, Alifshop, BeeMarket.',
+  title: 'Iqtisodchi — O‘zbekiston onlayn do‘konlaridagi narxlar va xarid dasturi',
+  description: 'Iqtisodchi intellektual dasturi — Uzum, Texnomart, Olcha, Idea, Alifshop, BeeMarket do‘konlaridagi real narxlar, sifat va kafolatlarni taqqoslash.',
 };
 
 export default function RootLayout({
@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru">
+    <html lang="uz">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

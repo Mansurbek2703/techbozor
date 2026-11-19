@@ -47,7 +47,7 @@ interface ChatMessage {
   timestamp: string;
 }
 
-export default function MaxProfitSearchPage() {
+export default function IqtisodchiSearchPage() {
   // 1. Search Query State
   const [searchQuery, setSearchQuery] = useState('televizor samsung 55');
   const [activeQuery, setActiveQuery] = useState('televizor samsung 55');
@@ -85,6 +85,7 @@ export default function MaxProfitSearchPage() {
   const [chatInput, setChatInput] = useState('');
   const [isChatThinking, setIsChatThinking] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const clientCache = useRef<Record<string, any>>({});
 
   // Load favorites from localStorage
   useEffect(() => {
@@ -119,8 +120,23 @@ export default function MaxProfitSearchPage() {
     const q = queryToSearch.trim();
     if (!q) return;
 
-    setIsLoading(true);
     setActiveQuery(q);
+
+    // Ultra-fast client-side cache hit (0ms instant response)
+    const cacheKey = q.toLowerCase();
+    if (clientCache.current[cacheKey]) {
+      const cached = clientCache.current[cacheKey];
+      setProducts(cached.products);
+      if (cached.price_insight) setPriceInsight(cached.price_insight);
+      if (cached.best_banner) setBestBanner(cached.best_banner);
+      setTotalResultsCount(cached.total_results_count);
+      setAiAdvice(cached.ai_advice);
+      if (cached.dynamic_chips) setDynamicChips(cached.dynamic_chips);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await fetch('/api/ai/agent', {
@@ -135,13 +151,11 @@ export default function MaxProfitSearchPage() {
         setProducts(prods);
 
         // Price Insight
-        const pi = data.price_insight || data.data?.price_insight;
-        if (pi) {
-          setPriceInsight(pi);
-        } else if (prods.length > 0) {
+        let computedPi = data.price_insight || data.data?.price_insight;
+        if (!computedPi && prods.length > 0) {
           const minP = Math.min(...prods.map(p => p.priceNumber || 5000000));
           const maxP = Math.max(...prods.map(p => p.priceNumber || 8000000));
-          setPriceInsight({
+          computedPi = {
             level: '📈 Narxlar solishtirildi',
             sub: '· 30 kunlik',
             chart_points: [
@@ -151,43 +165,56 @@ export default function MaxProfitSearchPage() {
               ['Bugun', `${minP.toLocaleString('uz-UZ')} so'm`, 100, 30]
             ],
             facts: [
-              { label: 'Лучшая цена сегодня', value: `${minP.toLocaleString('uz-UZ')} сум` },
-              { label: 'Минимум за 30 дней', value: `${(minP * 0.95).toLocaleString('uz-UZ')} сум` },
-              { label: 'Обычная цена', value: `${(minP / 1e6).toFixed(1)} млн – ${(maxP / 1e6).toFixed(1)} млн` },
-              { label: 'Доступно в магазинах', value: `${prods.length} ta rasmiy taklif` }
+              { label: 'Bugungi eng arzon narx', value: `${minP.toLocaleString('uz-UZ')} so'm` },
+              { label: '30 kunlik eng past narx', value: `${(minP * 0.95).toLocaleString('uz-UZ')} so'm` },
+              { label: 'O‘rtacha bozor narxi', value: `${(minP / 1e6).toFixed(1)} mln – ${(maxP / 1e6).toFixed(1)} mln` },
+              { label: 'Do‘konlardagi takliflar', value: `${prods.length} ta rasmiy do‘kon` }
             ],
             note: 'Do‘konlar narxlari rasmiy manbalardan taqqoslandi. Muddatli to‘lov va kafolat shartlariga e‘tibor bering.'
-          });
+          };
         }
+        if (computedPi) setPriceInsight(computedPi);
 
         // Best Banner
-        const bb = data.best_banner || data.data?.best_banner;
-        if (bb && bb.title) {
-          setBestBanner(bb);
-        } else if (prods.length > 0) {
+        let computedBb = data.best_banner || data.data?.best_banner;
+        if ((!computedBb || !computedBb.title) && prods.length > 0) {
           const cheapest = prods[0];
-          setBestBanner({
+          computedBb = {
             title: cheapest.title,
             image: cheapest.thumbnail,
             store: cheapest.source,
             price: cheapest.price,
             link: cheapest.link
-          });
+          };
         }
+        if (computedBb) setBestBanner(computedBb);
 
         // Total Count
-        setTotalResultsCount(data.total_results_count || prods.length);
+        const count = data.total_results_count || prods.length;
+        setTotalResultsCount(count);
 
         // AI Advice
-        setAiAdvice(data.ai_reply || data.message || '');
-        setDynamicChips(data.dynamic_chips || ['55 duym OLED', '65 duym 4K', 'Artel televizor', 'Toshkentda 24 soatda yetkazish']);
+        const advice = data.ai_reply || data.message || '';
+        setAiAdvice(advice);
+        const chips = data.dynamic_chips || ['55 duym OLED', '65 duym 4K', 'Artel televizor', 'Toshkentda 24 soatda yetkazish'];
+        setDynamicChips(chips);
+
+        // Save in client cache for sub-millisecond reuse
+        clientCache.current[cacheKey] = {
+          products: prods,
+          price_insight: computedPi,
+          best_banner: computedBb,
+          total_results_count: count,
+          ai_advice: advice,
+          dynamic_chips: chips
+        };
 
         // Initialize Chat Message
         setChatMessages([
           {
             id: 'init_advisor',
             role: 'model',
-            content: data.ai_reply || `"${q}" bo‘yicha O‘zbekiston rasmiy do‘konlaridan narxlar taqqoslandi. Eng arzon variant va muddatli to‘lov shartlari ko‘rsatilgan. Sizga tanlashda yana nima bo‘yicha yordam beray?`,
+            content: advice || `"${q}" bo‘yicha O‘zbekiston rasmiy do‘konlaridan narxlar taqqoslandi. Eng arzon variant va muddatli to‘lov shartlari ko‘rsatilgan. Sizga tanlashda yana nima bo‘yicha yordam beray?`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
         ]);
@@ -335,7 +362,7 @@ export default function MaxProfitSearchPage() {
       <header className="mp-header">
         <div className="container">
           {/* Logo */}
-          <Link href="/" className="mp-logo" aria-label="MaxProfit">
+          <Link href="/" className="mp-logo" aria-label="Iqtisodchi">
             <div className="mp-logo-mark">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -343,10 +370,10 @@ export default function MaxProfitSearchPage() {
             </div>
             <div className="flex flex-col">
               <span className="font-extrabold text-[19px] tracking-tight text-[#0F172A] leading-none">
-                Max<span className="text-[#6366F1]">Profit</span>
+                Iqtisod<span className="text-[#6366F1]">chi</span>
               </span>
               <span className="text-[9px] uppercase tracking-wider font-bold text-[#64748B]">
-                narxlar agregatori
+                intellektual xarid dasturi
               </span>
             </div>
           </Link>
@@ -1207,13 +1234,13 @@ export default function MaxProfitSearchPage() {
       )}
 
       {/* =========================================================================
-          9. FOOTER (Matching MaxProfit clean footer)
+          9. FOOTER (Iqtisodchi clean footer)
           ========================================================================= */}
       <footer className="border-t border-[#E7E9F2] bg-white py-6 mt-auto">
         <div className="max-w-[1120px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#64748B]">
           <div className="flex items-center gap-2">
-            <span className="font-extrabold text-[#0F172A]">MaxProfit</span>
-            <span>— O‘zbekiston onlayn do‘konlaridagi narxlar taqqoslagichi</span>
+            <span className="font-extrabold text-[#0F172A]">Iqtisodchi</span>
+            <span>— O‘zbekiston onlayn do‘konlaridagi narxlar taqqoslagichi va intellektual xarid dasturi</span>
           </div>
           <div className="flex items-center gap-4">
             <button 
