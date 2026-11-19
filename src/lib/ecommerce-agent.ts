@@ -5,7 +5,9 @@ import {
   CATEGORY_RULES,
   stripRegionFromQuery,
   ALLOWED_DOMAINS,
-  SerpProductItem 
+  SerpProductItem,
+  PriceInsightData,
+  BestBannerData
 } from './serpapi';
 
 export interface ChatMessage {
@@ -112,6 +114,11 @@ export interface AgentPipelineResponse {
   smartChips?: Array<{ label: string; payload: string }>;
   cleanQuery?: string;
   replyMessage?: string;
+  
+  // MaxProfit 1:1 boyitilgan xususiyatlar
+  price_insight?: PriceInsightData | null;
+  best_banner?: BestBannerData | null;
+  total_results_count?: number;
   
   // UI mosligi uchun qo'shimcha maydonlar
   step: 'ready' | 'needs_params';
@@ -1140,7 +1147,7 @@ export async function autonomousAgentProductSearch(
   if (!key) {
     const raw = await searchLocalProducts(cleanInitial, category, activeRegion);
     searchHistory.push({ query: cleanInitial, found: raw.length });
-    return { products: raw.slice(0, 4), searchHistory };
+    return { products: raw, searchHistory };
   }
 
   const systemPrompt = `Siz O'zbekistonning eng malakali avtonom elektron savdo agentisiz.
@@ -1298,7 +1305,7 @@ QAT'IY QOIDALAR:
   }
 
   return {
-    products: bestProducts.slice(0, 4),
+    products: bestProducts,
     finalAdvice,
     searchHistory
   };
@@ -1490,7 +1497,10 @@ export async function runEcommerceAgentPipeline(
     activeRegion,
     history
   );
-  const cleanProducts = agentSearchResult.products.slice(0, 4);
+  const cleanProducts = agentSearchResult.products;
+  const priceInsight = (cleanProducts as any)?.priceInsight || null;
+  const bestBanner = (cleanProducts as any)?.bestBanner || null;
+  const totalResultsCount = (cleanProducts as any)?.totalResultsCount || cleanProducts.length;
 
   // 🛡️ ZERO-DEAD-LOOP & GRACEFUL FAILURE (V16.0): Agar mahsulot topilmasa,
   // hech qachon yana hududni so'ramaymiz! Muqobil tovar parametrlarini taklif qilamiz.
@@ -1625,6 +1635,9 @@ export async function runEcommerceAgentPipeline(
     },
     expanded_serpapi_query: searchQuery,
     dynamic_facets: facets,
+    price_insight: priceInsight,
+    best_banner: bestBanner,
+    total_results_count: totalResultsCount,
   };
 }
 

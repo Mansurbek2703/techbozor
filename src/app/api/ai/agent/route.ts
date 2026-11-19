@@ -42,6 +42,9 @@ export async function POST(request: Request) {
       ui_mode: agentResult.ui_mode,
       ai_reply: agentResult.ai_reply,
       products: agentResult.products,
+      price_insight: agentResult.price_insight,
+      best_banner: agentResult.best_banner,
+      total_results_count: agentResult.total_results_count,
       data: agentResult,
     });
   } catch (error: any) {

@@ -1,1274 +1,1234 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { 
+  Search, 
+  Camera, 
+  Flame, 
+  BookOpen, 
+  Layers, 
+  ExternalLink, 
+  Heart, 
+  Bell, 
+  Check, 
+  ChevronRight, 
+  X, 
+  TrendingUp, 
+  TrendingDown, 
+  Zap, 
+  ShieldCheck, 
+  Truck, 
+  ShoppingBag, 
   Bot, 
   Sparkles, 
   Send, 
-  ExternalLink, 
-  RotateCcw, 
-  ShoppingBag, 
-  Store, 
-  Search, 
-  MapPin,
-  CheckCheck,
-  Tag,
-  SlidersHorizontal,
-  ChevronRight,
-  X,
-  ShieldCheck,
-  Truck,
-  Check,
-  Flame,
-  Layers,
-  ArrowRight,
-  Filter,
-  PhoneCall,
+  Filter, 
+  ArrowUpDown, 
   Info,
-  Zap,
-  TrendingDown,
-  Building2,
-  Utensils
+  SlidersHorizontal,
+  Store,
+  CheckCheck,
+  ChevronDown
 } from 'lucide-react';
 import { 
   SerpProductItem, 
-  getCategoryBadges, 
+  PriceInsightData, 
+  BestBannerData,
   isDishwareQuery,
-  isStrictValidProduct,
-  detectCategoryKey 
+  detectCategoryKey
 } from '@/lib/serpapi';
-import { 
-  UiFormData, 
-  ComparisonItem, 
-  DynamicFilterFacet,
-  ClarificationData,
-  ClarificationOption,
-  EconomistInsight
-} from '@/lib/ecommerce-agent';
-import { 
-  getStoreBrandConfig, 
-  StoreLogoFallback, 
-  CategoryVectorPlaceholder 
-} from '@/lib/store-logos';
+import { getStoreBrandConfig } from '@/lib/store-logos';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'model';
   content: string;
-  ui_mode?: 'CONVERSATION_ONLY' | 'PRODUCT_RESULTS';
-  ai_reply?: string;
-  state?: 'CONVERSATION' | 'NEED_CLARIFICATION' | 'PRODUCT_SEARCH';
-  status?: 'NEED_CLARIFICATION' | 'READY_TO_SEARCH';
-  normalizedQuery?: string;
-  category?: string;
-  categoryKey?: string;
-  region?: string;
-  products?: SerpProductItem[];
-  comparisonTable?: ComparisonItem[];
-  facets?: DynamicFilterFacet[];
-  uiFormData?: UiFormData;
-  clarificationData?: ClarificationData | null;
-  economistInsight?: EconomistInsight | null;
-  turnCount?: number;
-  smartChips?: Array<{ label: string; payload: string }>;
-  dynamic_chips?: string[];
-  extracted_data?: any;
-  is_electronic?: boolean;
   timestamp: string;
 }
 
-/**
- * 🎨 Kategoriya bo'yicha neytral rasm komponenti (Directive V7.0)
- * Quloqchin o'rniga faqat o'sha toifaga xos SVG vektor belgisi yoki haqiqiy rasm chiqadi
- */
-function ProductCardImage({
-  thumbnail,
-  title,
-  storeName,
-  category,
-}: {
-  thumbnail?: string;
-  title: string;
-  storeName?: string;
-  category?: string;
-}) {
-  const [hasError, setHasError] = useState(false);
-  const isDish = isDishwareQuery(title, category);
-
-  useEffect(() => {
-    setHasError(false);
-  }, [thumbnail]);
-
-  // Rasm URL'ida elektronika bo'lsa yoki rasm topilmasa, SVG vektor chiqaramiz
-  const imgLower = (thumbnail || '').toLowerCase();
-  const hasForbiddenPattern = isDish && ['headphone', 'naushnik', 'earphone', 'mouse', 'keyboard', 'cable'].some(p => imgLower.includes(p));
-
-  if (!thumbnail || hasError || thumbnail.length < 8 || hasForbiddenPattern) {
-    return <CategoryVectorPlaceholder category={category} title={title} storeName={storeName} />;
-  }
-
-  return (
-    <img
-      src={thumbnail}
-      alt={title}
-      referrerPolicy="no-referrer"
-      crossOrigin="anonymous"
-      onError={() => setHasError(true)}
-      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
-      loading="lazy"
-    />
-  );
-}
-
-export default function HomePage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'model',
-      content: 'Assalomu alaykum! Men "Aqlli Bozor" xarid va iqtisodiy tahlil maslahatchisiman. Istalgan tovar yoki mahsulot (kiyim-kechak, maishiy texnika, qurilish mollari, elektronika, oshxona anjomlari va h.k.) bo‘yicha so‘rovingizni yozing, rasmiy do‘konlar narxlari va eng maqbul tanlovni taqdim etaman.',
-      normalizedQuery: 'Aqlli Bozor',
-      turnCount: 0,
-      uiFormData: {
-        regions: ['Toshkent', 'Xorazm', 'Samarqand', 'Buxoro', 'Farg‘ona', 'Andijon'],
-        budget_ranges: ['Byudjet variant', 'O‘rtacha narx', 'Premium toifadagi'],
-        features: ['Optimum narx', 'Rasmiy kafolat', 'Tez yetkazish'],
-      },
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }
-  ]);
-
-  const [inputText, setInputText] = useState('');
+export default function MaxProfitSearchPage() {
+  // 1. Search Query State
+  const [searchQuery, setSearchQuery] = useState('televizor samsung 55');
+  const [activeQuery, setActiveQuery] = useState('televizor samsung 55');
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState<string>('');
-  const [currentTurn, setCurrentTurn] = useState<number>(1);
 
-  // Taqqoslash jadvalini ko'rsatish/yashirish state'i (V7.0: Foydalanuvchini charchatmaslik uchun sukut bo'yicha yopiq)
-  const [expandedCompare, setExpandedCompare] = useState<Record<string, boolean>>({});
+  // 2. Results Data
+  const [products, setProducts] = useState<SerpProductItem[]>([]);
+  const [bestBanner, setBestBanner] = useState<BestBannerData | null>(null);
+  const [priceInsight, setPriceInsight] = useState<PriceInsightData | null>(null);
+  const [totalResultsCount, setTotalResultsCount] = useState<number>(0);
+  const [aiAdvice, setAiAdvice] = useState<string>('');
+  const [dynamicChips, setDynamicChips] = useState<string[]>([]);
 
-  // 1-Martalik Dinamik Forma tanlovlari
-  const [selectedRegion, setSelectedRegion] = useState<string>('Toshkent');
-  const [selectedBudget, setSelectedBudget] = useState<string>('');
-  const [selectedFeature, setSelectedFeature] = useState<string>('');
-  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState<boolean>(false);
+  // 3. Filters & Sorting
+  const [selectedStore, setSelectedStore] = useState<string>('all');
+  const [minPrice, setMinPrice] = useState<string>('');
+  const [maxPrice, setMaxPrice] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'cheap' | 'exp' | 'disc'>('cheap');
 
-  // Dinamik Facets filtri
-  const [activeFacetFilters, setActiveFacetFilters] = useState<Record<string, string>>({});
-
-  // 🌟 Platforma Ichida Ko'rish Modali (In-App Product Details Modal)
+  // 4. Modals & Drawers
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SerpProductItem | null>(null);
 
-  // 🛒 Platformamiz orqali buyurtma berish kichik formasi
-  const [orderModalOpen, setOrderModalOpen] = useState(false);
-  const [orderName, setOrderName] = useState('');
-  const [orderPhone, setOrderPhone] = useState('+998 ');
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  // 5. Interactive States
+  const [favorites, setFavorites] = useState<Record<string, SerpProductItem>>({});
+  const [isAlertSubscribed, setIsAlertSubscribed] = useState(false);
+  const [telegramContact, setTelegramContact] = useState('');
+  const [alertSuccessToast, setAlertSuccessToast] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  // 6. AI Chat inside Drawer
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatThinking, setIsChatThinking] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
+  // Load favorites from localStorage
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+    try {
+      const saved = localStorage.getItem('mp_favorites');
+      if (saved) {
+        setFavorites(JSON.parse(saved));
+      }
+    } catch {}
+  }, []);
 
-  // Asosiy qidiruv funksiyasi (The Absolute Gatekeeper orqali tozalangan)
-  const handleSearch = async (
-    overrideText?: string, 
-    turnToUse?: number,
-    clarificationPayload?: Record<string, any>
-  ) => {
-    const query = (overrideText || inputText).trim();
-    if (!query || isLoading) return;
+  const saveFavorites = (updated: Record<string, SerpProductItem>) => {
+    setFavorites(updated);
+    try {
+      localStorage.setItem('mp_favorites', JSON.stringify(updated));
+    } catch {}
+  };
 
-    // Sessiya Tozaligi: yangi so'rovda eski filtrlarni noldan tozalash (Directive V11.0)
-    setSelectedFeature('');
-    setActiveFacetFilters({});
+  const toggleFavorite = (item: SerpProductItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const updated = { ...favorites };
+    if (updated[item.id]) {
+      delete updated[item.id];
+    } else {
+      updated[item.id] = item;
+    }
+    saveFavorites(updated);
+  };
 
-    const turn = turnToUse !== undefined ? turnToUse : currentTurn;
+  // Perform Search
+  const executeSearch = async (queryToSearch: string) => {
+    const q = queryToSearch.trim();
+    if (!q) return;
 
-    const userMsg: ChatMessage = {
-      id: 'msg-' + Date.now(),
-      role: 'user',
-      content: query,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
-    setInputText('');
     setIsLoading(true);
-    setLoadingStage('🧠 1. Niyat tahlili va kategoriyaga sezgir yo‘naltiruvchi ishga tushmoqda...');
+    setActiveQuery(q);
 
     try {
-      const stageTimer1 = setTimeout(() => {
-        setLoadingStage('🔍 2. SerpAPI Scraper: Uzum, Texnomart, Mediapark, Olcha va Asaxiy tekshirilmoqda...');
-      }, 800);
+      const res = await fetch('/api/ai/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: q, turn_count: 2 })
+      });
 
-      const stageTimer2 = setTimeout(() => {
-        setLoadingStage('🛡️ 3. The Absolute Gatekeeper: Google.com va Bozor narxida natijalari elanmoqda...');
-      }, 1800);
+      if (res.ok) {
+        const data = await res.json();
+        const prods: SerpProductItem[] = data.products || data.data?.products || [];
+        setProducts(prods);
 
+        // Price Insight
+        const pi = data.price_insight || data.data?.price_insight;
+        if (pi) {
+          setPriceInsight(pi);
+        } else if (prods.length > 0) {
+          const minP = Math.min(...prods.map(p => p.priceNumber || 5000000));
+          const maxP = Math.max(...prods.map(p => p.priceNumber || 8000000));
+          setPriceInsight({
+            level: '📈 Narxlar solishtirildi',
+            sub: '· 30 kunlik',
+            chart_points: [
+              ['12 okt', `${(minP).toLocaleString('uz-UZ')} so'm`, 0, 80],
+              ['25 okt', `${(minP * 0.95).toLocaleString('uz-UZ')} so'm`, 40, 60],
+              ['10 noy', `${(minP * 1.05).toLocaleString('uz-UZ')} so'm`, 75, 70],
+              ['Bugun', `${minP.toLocaleString('uz-UZ')} so'm`, 100, 30]
+            ],
+            facts: [
+              { label: 'Лучшая цена сегодня', value: `${minP.toLocaleString('uz-UZ')} сум` },
+              { label: 'Минимум за 30 дней', value: `${(minP * 0.95).toLocaleString('uz-UZ')} сум` },
+              { label: 'Обычная цена', value: `${(minP / 1e6).toFixed(1)} млн – ${(maxP / 1e6).toFixed(1)} млн` },
+              { label: 'Доступно в магазинах', value: `${prods.length} ta rasmiy taklif` }
+            ],
+            note: 'Do‘konlar narxlari rasmiy manbalardan taqqoslandi. Muddatli to‘lov va kafolat shartlariga e‘tibor bering.'
+          });
+        }
+
+        // Best Banner
+        const bb = data.best_banner || data.data?.best_banner;
+        if (bb && bb.title) {
+          setBestBanner(bb);
+        } else if (prods.length > 0) {
+          const cheapest = prods[0];
+          setBestBanner({
+            title: cheapest.title,
+            image: cheapest.thumbnail,
+            store: cheapest.source,
+            price: cheapest.price,
+            link: cheapest.link
+          });
+        }
+
+        // Total Count
+        setTotalResultsCount(data.total_results_count || prods.length);
+
+        // AI Advice
+        setAiAdvice(data.ai_reply || data.message || '');
+        setDynamicChips(data.dynamic_chips || ['55 duym OLED', '65 duym 4K', 'Artel televizor', 'Toshkentda 24 soatda yetkazish']);
+
+        // Initialize Chat Message
+        setChatMessages([
+          {
+            id: 'init_advisor',
+            role: 'model',
+            content: data.ai_reply || `"${q}" bo‘yicha O‘zbekiston rasmiy do‘konlaridan narxlar taqqoslandi. Eng arzon variant va muddatli to‘lov shartlari ko‘rsatilgan. Sizga tanlashda yana nima bo‘yicha yordam beray?`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial load on mount
+  useEffect(() => {
+    executeSearch('televizor samsung 55');
+  }, []);
+
+  // Form submit handler
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSearch(searchQuery);
+  };
+
+  // Chat message send inside AI drawer
+  const handleSendChatMessage = async () => {
+    if (!chatInput.trim() || isChatThinking) return;
+
+    const userText = chatInput.trim();
+    setChatInput('');
+    const newMsg: ChatMessage = {
+      id: 'user_' + Date.now(),
+      role: 'user',
+      content: userText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => [...prev, newMsg]);
+    setIsChatThinking(true);
+
+    try {
       const res = await fetch('/api/ai/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: query,
-          region: selectedRegion || undefined,
-          budget: selectedBudget || undefined,
-          feature: selectedFeature || undefined,
-          turn_count: turn,
-          clarification_payload: clarificationPayload,
-          history: updatedMessages.filter(m => m.id !== 'welcome').map(m => ({
-            role: m.role,
-            content: m.content
-          })).slice(-4)
-        }),
-      });
-
-      clearTimeout(stageTimer1);
-      clearTimeout(stageTimer2);
-      const data = await res.json();
-
-      if (data.success && (data.data || data.ui_mode || data.status)) {
-        const agentData = data.data || data;
-        const uiMode: 'CONVERSATION_ONLY' | 'PRODUCT_RESULTS' = 
-          data.ui_mode || agentData.ui_mode || (agentData.status === 'READY_TO_SEARCH' && (agentData.products || []).length > 0 ? 'PRODUCT_RESULTS' : 'CONVERSATION_ONLY');
-        const aiReply = data.message || data.ai_reply || agentData.ai_reply || agentData.replyMessage || agentData.short_advice_uz || 'Siz uchun O‘zbekiston do‘konlaridan eng maqbul variantlar tayyorlandi.';
-
-        const nextTurn = (agentData.turn_count || turn) + 1;
-        setCurrentTurn(nextTurn);
-
-        // 🛡️ FRONTEND GATEKEEPER: 
-        // Agar ui_mode === "CONVERSATION_ONLY" bo'lsa: Mahsulotlar massivi QAT'IY BO'SH (0 ta)!
-        const validProducts = uiMode === 'PRODUCT_RESULTS'
-          ? (agentData.products || []).filter((p: any) => 
-              isStrictValidProduct(p, agentData.category_key || agentData.category || '')
-            )
-          : [];
-
-        const dynamicChips: string[] = Array.isArray(data.dynamic_chips)
-          ? data.dynamic_chips
-          : (Array.isArray(agentData.dynamic_chips) ? agentData.dynamic_chips : []);
-
-        const smartChips = dynamicChips.length > 0
-          ? dynamicChips.map(c => ({ label: c, payload: c }))
-          : (agentData.smartChips || []);
-
-        const isElectronic = data.extracted_data?.is_electronic ?? agentData.is_electronic ?? false;
-
-        setMessages(prev => [
-          ...prev,
-          {
-            id: 'msg-' + Date.now(),
-            role: 'model',
-            ui_mode: uiMode,
-            state: agentData.state,
-            status: agentData.status || data.status,
-            content: aiReply,
-            ai_reply: aiReply,
-            normalizedQuery: agentData.normalized_query,
-            category: agentData.category,
-            categoryKey: agentData.category_key,
-            region: agentData.extracted_data?.location || selectedRegion || agentData.extracted_filters?.region,
-            products: validProducts,
-            comparisonTable: uiMode === 'PRODUCT_RESULTS' ? (agentData.comparison_table || []) : [],
-            facets: uiMode === 'PRODUCT_RESULTS' ? (agentData.dynamic_facets || []) : [],
-            uiFormData: agentData.ui_form_data,
-            clarificationData: agentData.clarification_data,
-            economistInsight: uiMode === 'PRODUCT_RESULTS' ? agentData.economist_insight : null,
-            turnCount: agentData.turn_count,
-            smartChips,
-            dynamic_chips: dynamicChips,
-            extracted_data: agentData.extracted_data || data.extracted_data,
-            is_electronic: isElectronic,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          }
-        ]);
-
-        setActiveFacetFilters({});
-      }
-    } catch (err) {
-      console.error(err);
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'msg-' + Date.now(),
-          role: 'model',
-          content: 'Tarmoqda vaqtinchalik xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        }
-      ]);
-    } finally {
-      setIsLoading(false);
-      setLoadingStage('');
-    }
-  };
-
-  // Foydalanuvchi Dinamik Clarification chipini bosganda
-  const handleClarificationOptionClick = (opt: ClarificationOption, previousTurn?: number) => {
-    const nextTurn = (previousTurn || currentTurn || 1) + 1;
-    handleSearch(opt.label, nextTurn, opt.payload);
-  };
-
-  // 🚀 "1 Soniyali Aqlli Yo'naltiruvchi" chipi bosilganda
-  const handleGuidedChipClick = (chip: { label: string; queryAppend?: string }) => {
-    const textToSend = chip.label || chip.queryAppend || '';
-    setInputText(textToSend);
-    handleSearch(textToSend);
-  };
-
-  const handleResetChat = () => {
-    setCurrentTurn(1);
-    setExpandedCompare({});
-    setMessages([
-      {
-        id: 'welcome',
-        role: 'model',
-        content: 'Assalomu alaykum! Men "Aqlli Bozor" xarid va iqtisodiy tahlil maslahatchisiman. Istalgan tovar yoki mahsulot (kiyim-kechak, maishiy texnika, qurilish mollari, elektronika, oshxona anjomlari va h.k.) bo‘yicha so‘rovingizni yozing, rasmiy do‘konlar narxlari va eng maqbul tanlovni taqdim etaman.',
-        normalizedQuery: 'Aqlli Bozor',
-        turnCount: 0,
-        uiFormData: {
-          regions: ['Toshkent', 'Xorazm', 'Samarqand', 'Buxoro', 'Farg‘ona', 'Andijon'],
-          budget_ranges: ['Byudjet variant', 'O‘rtacha narx', 'Premium toifadagi'],
-          features: ['Optimum narx', 'Rasmiy kafolat', 'Tez yetkazish'],
-        },
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }
-    ]);
-    setActiveFacetFilters({});
-  };
-
-  // Dinamik Facet filtrlash
-  const filterProducts = (products: SerpProductItem[] = []) => {
-    if (Object.keys(activeFacetFilters).length === 0) return products;
-
-    return products.filter(p => {
-      const text = `${p.title} ${p.price} ${p.source} ${p.snippet || ''}`.toLowerCase();
-      for (const [key, val] of Object.entries(activeFacetFilters)) {
-        if (!val || val === 'Hammasi') continue;
-        const cleanVal = val.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const cleanText = text.replace(/[^a-z0-9]/g, '');
-        if (!cleanText.includes(cleanVal)) {
-          return false;
-        }
-      }
-      return true;
-    });
-  };
-
-  // Platformamiz orqali 1-click buyurtma berish
-  const handlePlatformOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderName.trim() || orderPhone.length < 9 || !selectedProduct) return;
-
-    setIsSubmittingOrder(true);
-    try {
-      const res = await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          buyerName: orderName,
-          buyerPhone: orderPhone,
-          category: selectedProduct.title,
-          description: `Aqlli Bozor orqali buyurtma: ${selectedProduct.title} (${selectedProduct.source}) - ${selectedProduct.price}. Manzil: ${selectedProduct.link}`,
-          budget: selectedProduct.priceNumber || 5000000,
-          region: selectedRegion || 'Toshkent',
-          district: '',
-          durationDays: 7,
-          smsConsent: true,
-          aiExtracted: {
-            itemTitle: selectedProduct.title,
-            store: selectedProduct.source,
-            price: selectedProduct.price,
-          }
-        }),
+          message: `${activeQuery} haqida savol: ${userText}`,
+          turn_count: 2
+        })
       });
 
       if (res.ok) {
-        setOrderSuccess(true);
+        const data = await res.json();
+        const reply = data.ai_reply || data.message || 'Sizga eng mos do‘kon narxlarini tanlashda yordam berishdan mamnunman!';
+        setChatMessages(prev => [
+          ...prev,
+          {
+            id: 'bot_' + Date.now(),
+            role: 'model',
+            content: reply,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: 'bot_err',
+          role: 'model',
+          content: 'Kechirasiz, javob olishda xatolik yuz berdi. Iltimos qayta urinib ko‘ring.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
     } finally {
-      setIsSubmittingOrder(false);
+      setIsChatThinking(false);
     }
   };
 
-  const latestUiForm = [...messages].reverse().find(m => m.uiFormData)?.uiFormData || {
-    regions: ['Toshkent', 'Xorazm', 'Samarqand', 'Buxoro', 'Farg‘ona', 'Andijon'],
-    budget_ranges: ['5 mln so‘mgacha', '5 - 10 mln so‘m', '10 mln so‘mdan yuqori'],
-    features: ['Optimum narx', 'Rasmiy kafolat', 'Tez yetkazish'],
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isChatThinking]);
+
+  // Compute Store counts for Filter pills
+  const storeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of products) {
+      counts[p.source] = (counts[p.source] || 0) + 1;
+    }
+    return counts;
+  }, [products]);
+
+  // Filtered & Sorted Products
+  const displayedProducts = useMemo(() => {
+    let list = [...products];
+
+    // Store filter
+    if (selectedStore !== 'all') {
+      list = list.filter(p => p.source.toLowerCase() === selectedStore.toLowerCase());
+    }
+
+    // Min price
+    if (minPrice) {
+      const minVal = parseInt(minPrice.replace(/\D/g, ''), 10);
+      if (!isNaN(minVal)) {
+        list = list.filter(p => (p.priceNumber || 0) >= minVal);
+      }
+    }
+
+    // Max price
+    if (maxPrice) {
+      const maxVal = parseInt(maxPrice.replace(/\D/g, ''), 10);
+      if (!isNaN(maxVal)) {
+        list = list.filter(p => (p.priceNumber || 0) <= maxVal);
+      }
+    }
+
+    // Sort
+    if (sortBy === 'cheap') {
+      list.sort((a, b) => (a.priceNumber || 0) - (b.priceNumber || 0));
+    } else if (sortBy === 'exp') {
+      list.sort((a, b) => (b.priceNumber || 0) - (a.priceNumber || 0));
+    } else if (sortBy === 'disc') {
+      list.sort((a, b) => (b.discount || 0) - (a.discount || 0));
+    }
+
+    return list;
+  }, [products, selectedStore, minPrice, maxPrice, sortBy]);
+
+  // Subscribe to Telegram alert
+  const handleAlertSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!telegramContact.trim()) return;
+    setIsAlertSubscribed(true);
+    setIsAlertModalOpen(false);
+    setAlertSuccessToast(true);
+    setTimeout(() => setAlertSuccessToast(false), 4000);
   };
 
   return (
-    <div className="max-w-[1240px] w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 font-sans bg-[#F8FAFC] min-h-screen text-[#0F172A]">
+    <div className="min-h-screen flex flex-col bg-[#F7F8FC] text-[#0F172A]">
       
-      {/* 🌟 Sarlavha & v7.0 Badge (#FF6B00 / #0F172A / #F8FAFC) */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-3xl border border-slate-200/90 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FF6B00] via-orange-500 to-amber-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
-            <Flame className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black text-[#0F172A] tracking-tight">
-                "Aqlli Bozor" E-Commerce Agregator & Iqtisodiy Maslahatchi
-              </h1>
-              <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-orange-100 text-[#FF6B00] text-[10px] font-black border border-orange-200">
-                Gatekeeper V7.0
+      {/* =========================================================================
+          1. MAXPROFIT AUTHENTIC HEADER (1:1 with maxprofit.uz)
+          ========================================================================= */}
+      <header className="mp-header">
+        <div className="container">
+          {/* Logo */}
+          <Link href="/" className="mp-logo" aria-label="MaxProfit">
+            <div className="mp-logo-mark">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-[19px] tracking-tight text-[#0F172A] leading-none">
+                Max<span className="text-[#6366F1]">Profit</span>
+              </span>
+              <span className="text-[9px] uppercase tracking-wider font-bold text-[#64748B]">
+                narxlar agregatori
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium">
-              Mutlaq Darvoza: 100% toza do‘konlar, noaniq narxlarsiz va toifaga mos dinamik xususiyatlar
-            </p>
+          </Link>
+
+          {/* Katalog Button */}
+          <button 
+            type="button" 
+            onClick={() => {
+              setSearchQuery('konditsioner inverter');
+              executeSearch('konditsioner inverter');
+            }}
+            className="mp-cat hidden sm:inline-flex"
+          >
+            <svg className="mp-cat-ic" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+              <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
+              <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
+              <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="3.75" />
+            </svg>
+            <span>Каталог</span>
+          </button>
+
+          {/* Deals Link */}
+          <button 
+            type="button"
+            onClick={() => setSortBy('disc')}
+            className="mp-navlink hidden md:inline-flex text-rose-600 hover:text-rose-700 font-bold"
+          >
+            <Flame className="w-4 h-4 text-rose-500 fill-rose-500" />
+            <span>Скидки</span>
+          </button>
+
+          {/* Header Search Form */}
+          <form className="mp-header-search" onSubmit={handleSearchSubmit}>
+            <div className="search-box">
+              <span className="text-[#64748B]">
+                <Search className="w-4 h-4" />
+              </span>
+              <input 
+                type="text" 
+                name="q" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск товара..." 
+                autoComplete="off"
+              />
+              <button 
+                type="button" 
+                onClick={() => setIsPhotoModalOpen(true)}
+                className="btn-photo" 
+                aria-label="Поиск по фото" 
+                title="Поиск по фото"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+
+          {/* Right Header Navigation */}
+          <div className="flex items-center gap-2">
+            {/* Favorites Icon */}
+            <button
+              type="button"
+              onClick={() => setIsFavoritesOpen(true)}
+              className="relative p-2 text-[#64748B] hover:text-[#0F172A] rounded-xl hover:bg-[#EEF0FF] transition cursor-pointer"
+              title="Sevimlilar"
+            >
+              <Heart className={`w-5 h-5 ${Object.keys(favorites).length > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
+              {Object.keys(favorites).length > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {Object.keys(favorites).length}
+                </span>
+              )}
+            </button>
+
+            {/* AI Advisor Floating Action Header Pill */}
+            <button
+              type="button"
+              onClick={() => setIsAiDrawerOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white text-xs font-bold shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition active:scale-95 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              <span className="hidden sm:inline">AI Maslahatchi</span>
+            </button>
+
+            {/* Seller Cabinet Link */}
+            <Link
+              href="/seller/dashboard"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#334155] hover:text-[#6366F1] border border-[#E7E9F2] rounded-xl hover:bg-white transition"
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>Sotuvchi</span>
+            </Link>
           </div>
         </div>
+      </header>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsFormDrawerOpen(!isFormDrawerOpen)}
-            className="px-3.5 py-1.5 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-[#0F172A] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF6B00]" />
-            <span>Parametrlar {isFormDrawerOpen ? '▲' : '▼'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleResetChat}
-            className="p-2 text-slate-400 hover:text-[#0F172A] hover:bg-slate-100 rounded-xl transition cursor-pointer"
-            title="Suhbatni yangilash"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+      {/* Alert toast notification */}
+      {alertSuccessToast && (
+        <div className="fixed top-20 right-6 z-50 bg-[#16A34A] text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-sm font-bold animate-fade-in">
+          <Check className="w-5 h-5" />
+          <span>Telegram orqali narx tushishi bildirishnomasi yoqildi!</span>
         </div>
-      </div>
+      )}
 
-      {/* 💬 ASOSIY SUHBAT VA KASSETALAR MAYDONI */}
-      <div className="rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col min-h-[560px] bg-white">
-        
-        {/* Xabarlar va Natijalar Ro'yxati */}
-        <div className="flex-1 p-3.5 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6 scrollbar-thin">
-          {messages.map((msg) => {
-            const displayedProducts = filterProducts(msg.products);
-            const isDish = isDishwareQuery(msg.normalizedQuery || msg.content || '', msg.category);
+      {/* =========================================================================
+          2. MAIN CONTENT (1:1 with results-wrap on MaxProfit)
+          ========================================================================= */}
+      <main className="flex-1">
+        <div className="results-wrap">
+          
+          {/* Results Head */}
+          <div className="results-head flex flex-wrap items-center justify-between gap-2">
+            <h2>
+              Результатов: <span>{totalResultsCount || products.length}</span> — &ldquo;{activeQuery}&rdquo;
+            </h2>
 
-            return (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {msg.role === 'model' && (
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#FF6B00] border border-orange-200 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                    <Bot className="w-4 h-4" />
-                  </div>
-                )}
-
-                <div
-                  className={`max-w-[96%] sm:max-w-[88%] rounded-3xl p-4 text-xs sm:text-sm shadow-sm transition-all ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-r from-[#FF6B00] to-orange-600 text-white rounded-tr-xs shadow-md shadow-orange-500/20'
-                      : 'bg-white border border-slate-200 text-[#0F172A] rounded-tl-xs space-y-3.5'
-                  }`}
-                >
-                  {/* Holat badge (CONVERSATION / NEED_CLARIFICATION / PRODUCT_SEARCH) */}
-                  {msg.role === 'model' && msg.id !== 'welcome' && (
-                    <div className="inline-flex flex-wrap items-center gap-1.5 px-2.5 py-1 bg-orange-50 border border-orange-200 rounded-xl text-[11px] font-bold text-orange-950 shadow-2xs">
-                      {msg.state === 'CONVERSATION' ? (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
-                          <span>AI Maslahatchi & Muloqot</span>
-                        </>
-                      ) : msg.state === 'NEED_CLARIFICATION' ? (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Aniqlashtirish va Yo‘naltirish</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCheck className="w-3.5 h-3.5 text-[#FF6B00]" />
-                          <span>Aniqlangan so‘rov: <strong>{msg.normalizedQuery || msg.category}</strong></span>
-                        </>
-                      )}
-                      {msg.region && (
-                        <span className="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px]">
-                          📍 {msg.region}
-                        </span>
-                      )}
-                      {msg.turnCount !== undefined && msg.turnCount > 0 && (
-                        <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px]">
-                          Bosqich: {msg.turnCount}/3
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ⚡ Qat'iy Cheklov: AI Matni maksimum 2 ta gap! */}
-                  <p className="leading-relaxed whitespace-pre-line font-medium text-xs sm:text-sm text-slate-800">
-                    {msg.content}
-                  </p>
-
-                  {/* 🔘 DINAMIK CLARIFICATION VARIANTLARI (FSM Turn Chips) */}
-                  {msg.clarificationData && msg.clarificationData.options && msg.clarificationData.options.length > 0 && (
-                    <div className="p-3 bg-orange-50/70 border border-orange-200 rounded-2xl space-y-2">
-                      <div className="text-[11px] font-extrabold text-[#0F172A] flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
-                        <span>Iltimos, aniqroq natija uchun bittasini tanlang:</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {msg.clarificationData.options.map((opt) => (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => handleClarificationOptionClick(opt, msg.turnCount)}
-                            className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#FF6B00] text-[#0F172A] hover:text-white border border-orange-200 hover:border-[#FF6B00] text-xs font-bold transition-all shadow-xs active:scale-95 flex items-center gap-1.5 group cursor-pointer"
-                          >
-                            <span>{opt.label}</span>
-                            <ArrowRight className="w-3 h-3 text-[#FF6B00] group-hover:text-white transition-colors" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 💡 SMART CHIPS (V12.0 Controller Maslahatlari) */}
-                  {!msg.clarificationData && msg.smartChips && msg.smartChips.length > 0 && (
-                    <div className="pt-2 flex flex-wrap gap-2">
-                      {msg.smartChips.map((chip, cIdx) => (
-                        <button
-                          key={cIdx}
-                          type="button"
-                          onClick={() => {
-                            const val = chip.payload || chip.label;
-                            setInputText(val);
-                            handleSearch(val);
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl bg-orange-50 hover:bg-[#FF6B00] text-[#0F172A] hover:text-white border border-orange-200 hover:border-[#FF6B00] text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 group"
-                        >
-                          <span>{chip.label}</span>
-                          <ArrowRight className="w-3 h-3 text-[#FF6B00] group-hover:text-white transition-colors" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* 🎩 BOSH IQTISODCHI EKSPERTIZASI (Faqat PRODUCT_RESULTS bo'lganda!) */}
-                  {msg.ui_mode === 'PRODUCT_RESULTS' && msg.economistInsight && (() => {
-                    const isMsgElectronic = msg.is_electronic ?? (msg.extracted_data?.is_electronic ?? ((msg.economistInsight?.monthly_kwh || 0) > 0));
-
-                    if (!isMsgElectronic) {
-                      return (
-                        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50/50 border border-amber-200/90 space-y-2.5 shadow-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-black text-[#0F172A] flex items-center gap-1.5">
-                              <span className="w-5 h-5 rounded-lg bg-[#FF6B00] text-white flex items-center justify-center text-[10px] font-black">
-                                ✓
-                              </span>
-                              Bosh Maslahatchi Tahlili: Sifat va Chidamlilik Ekspertizasi
-                            </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                              Chidamlilik va Sifat
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
-                            <div className="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-2xs">
-                              <div className="text-[10px] text-slate-500 font-semibold">Material Sifati</div>
-                              <div className="text-xs sm:text-sm font-black text-[#0F172A] mt-0.5">Yuqori Standart</div>
-                            </div>
-
-                            <div className="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-2xs">
-                              <div className="text-[10px] text-slate-500 font-semibold">Foydalanish Qulayligi</div>
-                              <div className="text-xs sm:text-sm font-black text-emerald-700 mt-0.5">100% Mos</div>
-                            </div>
-
-                            <div className="col-span-2 sm:col-span-1 bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-2xs">
-                              <div className="text-[10px] text-slate-500 font-semibold">Xizmat Muddati</div>
-                              <div className="text-xs font-black text-[#FF6B00] mt-0.5">Uzoq Muddatli</div>
-                            </div>
-                          </div>
-
-                          {msg.economistInsight.regional_compatibility && (
-                            <div className="text-[11px] text-slate-700 bg-white/80 p-2 rounded-xl border border-amber-100 font-medium">
-                              <strong className="text-[#0F172A]">Yetkazib berish va kafolat:</strong> {msg.economistInsight.regional_compatibility}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50/50 border border-orange-200/90 space-y-2.5 shadow-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-black text-[#0F172A] flex items-center gap-1.5">
-                            <span className="w-5 h-5 rounded-lg bg-[#FF6B00] text-white flex items-center justify-center text-[10px] font-black">
-                              ROI
-                            </span>
-                            Bosh Iqtisodchi Tahliliy Ekspertizasi (O‘zbekiston Tarifi: 450 so‘m/kVt)
-                          </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Energiya Hisobi
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
-                          <div className="bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
-                            <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
-                              <Zap className="w-3 h-3 text-amber-500" />
-                              Oylik Elektr Sarfi
-                            </div>
-                            <div className="text-xs sm:text-sm font-black text-[#0F172A] mt-0.5">
-                              {msg.economistInsight.monthly_kwh} kVt/soat
-                            </div>
-                          </div>
-
-                          <div className="bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
-                            <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
-                              <TrendingDown className="w-3 h-3 text-[#FF6B00]" />
-                              Oylik Elektr Xarajati
-                            </div>
-                            <div className="text-xs sm:text-sm font-black text-[#FF6B00] mt-0.5">
-                              {msg.economistInsight.monthly_cost_uzs.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m
-                            </div>
-                          </div>
-
-                          <div className="col-span-2 sm:col-span-1 bg-white/90 p-2.5 rounded-xl border border-orange-100 shadow-2xs">
-                            <div className="text-[10px] text-slate-500 font-semibold flex items-center justify-center gap-1">
-                              <Building2 className="w-3 h-3 text-emerald-600" />
-                              O‘zini Oqlash (ROI)
-                            </div>
-                            <div className="text-xs font-black text-emerald-700 mt-0.5">
-                              1.5 yillik muddatda
-                            </div>
-                          </div>
-                        </div>
-
-                        {msg.economistInsight.regional_compatibility && (
-                          <div className="text-[11px] text-slate-700 bg-white/80 p-2 rounded-xl border border-orange-100 font-medium">
-                            <strong className="text-[#0F172A]">Mahalliy sharoitga mosligi:</strong> {msg.economistInsight.regional_compatibility}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* 🎯 DINAMIK FILTRLAR (ADAPTIVE FACETS - Faqat PRODUCT_RESULTS bo'lganda) */}
-                  {msg.ui_mode === 'PRODUCT_RESULTS' && msg.facets && msg.facets.length > 0 && msg.products && msg.products.length > 0 && (
-                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
-                        <Filter className="w-3 h-3 text-[#FF6B00]" />
-                        Filtr:
-                      </span>
-                      {msg.facets.map((facet) => (
-                        <div key={facet.id} className="flex items-center gap-1 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
-                          <span className="text-[10px] text-slate-400 font-bold">{facet.label}:</span>
-                          <select
-                            value={activeFacetFilters[facet.id] || 'Hammasi'}
-                            onChange={(e) => setActiveFacetFilters(prev => ({
-                              ...prev,
-                              [facet.id]: e.target.value === 'Hammasi' ? '' : e.target.value,
-                            }))}
-                            className="bg-transparent text-[11px] font-black text-[#0F172A] outline-none cursor-pointer"
-                          >
-                            {facet.options.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        </div>
-                      ))}
-                      {Object.keys(activeFacetFilters).length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveFacetFilters({})}
-                          className="text-[10px] text-[#FF6B00] font-bold underline hover:text-orange-700 ml-auto"
-                        >
-                          Tozalash
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 📊 COMPARE MATRIX (Faqat PRODUCT_RESULTS bo'lganda) */}
-                  {msg.ui_mode === 'PRODUCT_RESULTS' && msg.comparisonTable && msg.comparisonTable.length > 1 && (
-                    <div className="pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedCompare(prev => ({ ...prev, [msg.id]: !prev[msg.id] }))}
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#0F172A] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      >
-                        <Layers className="w-3.5 h-3.5 text-[#FF6B00]" />
-                        <span>
-                          {expandedCompare[msg.id] 
-                            ? "Batafsil solishtirish jadvalini yopish ▲" 
-                            : "Batafsil solishtirish jadvali (ochish) ▼"}
-                        </span>
-                      </button>
-
-                      {expandedCompare[msg.id] && (
-                        <div className="mt-2.5 p-3 bg-slate-50/90 rounded-2xl border border-slate-200 space-y-2 overflow-x-auto shadow-xs animate-fade-in">
-                          <div className="flex items-center justify-between text-xs font-black text-[#0F172A]">
-                            <span className="flex items-center gap-1.5">
-                              <Layers className="w-3.5 h-3.5 text-[#FF6B00]" />
-                              Taqqoslash Jadvali:
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              Sanitizatsiyadan o‘tgan do‘konlar
-                            </span>
-                          </div>
-                          <table className="w-full text-[11px] text-left border-collapse min-w-[420px]">
-                            <thead>
-                              <tr className="border-b border-slate-200 text-slate-500 font-bold bg-white/70">
-                                <th className="py-2 px-2.5 rounded-l-lg">Model</th>
-                                <th className="py-2 px-2">Narxi</th>
-                                <th className="py-2 px-2">Do‘kon</th>
-                                <th className="py-2 px-2">{isDish ? 'Xususiyat / Sifat' : 'Oylik Elektr'}</th>
-                                <th className="py-2 px-2">Kafolat</th>
-                                <th className="py-2 px-2 text-right rounded-r-lg">Amal</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {msg.comparisonTable.map((item, idx) => {
-                                const matchedProd = msg.products?.find(p => p.id === item.id) || msg.products?.[idx];
-                                const brand = getStoreBrandConfig(item.store);
-                                return (
-                                  <tr key={item.id} className="hover:bg-white transition">
-                                    <td className="py-2 px-2.5 font-bold text-[#0F172A]">{item.model}</td>
-                                    <td className="py-2 px-2 font-black text-[#FF6B00] text-xs sm:text-sm whitespace-nowrap">{item.price}</td>
-                                    <td className="py-2 px-2">
-                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black border ${brand.bgClass} ${brand.textClass} ${brand.borderClass}`}>
-                                        {brand.name}
-                                      </span>
-                                    </td>
-                                    <td className="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">
-                                      {isDish 
-                                        ? 'Oziq-ovqat xavfsizligi' 
-                                        : (item.monthlyCostUzs ? `${item.monthlyCostUzs.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m` : '—')}
-                                    </td>
-                                    <td className="py-2 px-2 text-slate-600 font-medium">{item.keySpec}</td>
-                                    <td className="py-2 px-2 text-right">
-                                      {matchedProd && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setSelectedProduct(matchedProd)}
-                                          className="px-2.5 py-1 bg-[#0F172A] hover:bg-[#FF6B00] text-white rounded-lg text-[10px] font-bold transition shadow-xs cursor-pointer"
-                                        >
-                                          Ko‘rish
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 🛍️ PRODUCT CARDS: Faqat ui_mode === "PRODUCT_RESULTS" bo'lganda chiziladi */}
-                  {msg.ui_mode === 'PRODUCT_RESULTS' && displayedProducts && displayedProducts.length > 0 ? (
-                    <div className="space-y-3 pt-1">
-                      <div className="flex items-center justify-between text-xs font-black text-[#0F172A]">
-                        <span className="flex items-center gap-1.5">
-                          <ShoppingBag className="w-4 h-4 text-[#FF6B00]" />
-                          Sanitizatsiyadan o‘tgan tovarlar ({displayedProducts.length}):
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-normal">
-                          *Barcha narxlar O'zbekiston rasmiy do'konlaridan
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                        {displayedProducts.map((prod) => {
-                          const brand = getStoreBrandConfig(prod.source);
-                          const dynamicBadges = getCategoryBadges(msg.categoryKey || msg.category || '', prod.title);
-                          const rawBadges = (prod.badges && prod.badges.length > 0) ? prod.badges : dynamicBadges;
-                          const cleanBadges = isDish ? rawBadges.filter(b => !/a\+\+\+|energiya|inverter|kompressor|freon/i.test(b)) : rawBadges;
-
-                          return (
-                            <div
-                              key={prod.id}
-                              onClick={() => setSelectedProduct(prod)}
-                              className="bg-white rounded-2xl border border-slate-100 shadow-lg hover:shadow-xl hover:border-orange-300 transition-all duration-300 p-3.5 flex flex-col justify-between group cursor-pointer"
-                            >
-                              <div>
-                                {/* 1. [Aniq Rasm] (SVG Vektor Placeholder fallback bilan) */}
-                                <div className="w-full h-36 rounded-xl overflow-hidden bg-slate-50 mb-2.5 relative flex items-center justify-center border border-slate-100 p-2">
-                                  <ProductCardImage
-                                    thumbnail={prod.thumbnail}
-                                    title={prod.title}
-                                    storeName={prod.source}
-                                    category={msg.categoryKey || msg.category}
-                                  />
-                                </div>
-
-                                {/* 2. [Mahsulot Nomi] */}
-                                <h4 className="font-extrabold text-xs text-[#0F172A] line-clamp-2 mb-1.5 group-hover:text-[#FF6B00] transition-colors leading-tight">
-                                  {prod.title}
-                                </h4>
-
-                                {/* 3. [Aniq Narx (so'm)] (Bozor narxida emas!) */}
-                                <div className="mb-2">
-                                  <div className="text-[#FF6B00] font-black text-sm tracking-tight">
-                                    {prod.price}
-                                  </div>
-                                </div>
-
-                                {/* 4. [Do'kon Logotipi] (Faqat Uzum, Asaxiy, Olcha, Texnomart - Google.com taqiqlangan) */}
-                                <div className="flex items-center gap-1.5 mb-2.5">
-                                  <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black border ${brand.bgClass} ${brand.textClass} ${brand.borderClass}`}>
-                                    <span className="w-3 h-3 flex items-center justify-center shrink-0">
-                                      {brand.logoSvg}
-                                    </span>
-                                    <span>{brand.name}</span>
-                                  </div>
-                                  {prod.storeBadge && (
-                                    <span className="text-[9px] text-slate-500 font-medium px-1.5 py-0.5 bg-slate-100 rounded">
-                                      {prod.storeBadge}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* 🏷️ 5. DINAMIK TOIFAGA MOS BADGELAR (V12.0: Hech qanday statik A+++ yo'q, faqat dinamik) */}
-                                <div className="flex flex-wrap gap-1 mb-2.5">
-                                  {cleanBadges.slice(0, 3).map((badge, bIdx) => (
-                                    <span 
-                                      key={bIdx} 
-                                      className={`px-2 py-0.5 rounded-md text-[9px] font-bold ${
-                                        isDish 
-                                          ? 'bg-amber-50 text-amber-800 border border-amber-200' 
-                                          : 'bg-orange-50 text-orange-800 border border-orange-200'
-                                      }`}
-                                    >
-                                      {badge}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* 6. [Platformada Ko'rish Tugmasi] */}
-                              <div className="pt-2 border-t border-slate-100">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedProduct(prod);
-                                  }}
-                                  className="w-full py-2 px-3 bg-[#0F172A] hover:bg-[#FF6B00] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 shadow-sm active:scale-95 cursor-pointer"
-                                >
-                                  <span>Platformada Ko‘rish</span>
-                                  <ChevronRight className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : msg.role === 'model' && msg.id !== 'welcome' && !msg.clarificationData && msg.ui_mode === 'PRODUCT_RESULTS' ? (
-                    <div className="p-4 bg-orange-50/70 border border-orange-200 rounded-2xl text-center text-xs text-orange-950 font-bold">
-                      Kategoriya bo‘yicha toza natija topilmadi, qidiruv filtrini kengaytiring.
-                    </div>
-                  ) : null}
-
-                  <span className={`text-[9px] block text-right mt-1 ${msg.role === 'user' ? 'text-white/80' : 'text-slate-400'}`}>
-                    {msg.timestamp}
-                  </span>
-                </div>
+            {/* Quick Category / Dynamic Chips */}
+            {dynamicChips.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {dynamicChips.slice(0, 4).map((chip, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery(chip);
+                      executeSearch(chip);
+                    }}
+                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-[#E7E9F2] text-[#475569] hover:text-[#6366F1] hover:border-[#6366F1] transition cursor-pointer"
+                  >
+                    {chip}
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            )}
+          </div>
 
+          {/* Loading Indicator */}
           {isLoading && (
-            <div className="flex gap-2.5 items-center bg-orange-50 border border-orange-200 text-orange-950 rounded-2xl p-3.5 text-xs font-bold shadow-xs animate-pulse">
-              <div className="w-3 h-3 rounded-full bg-[#FF6B00] animate-ping" />
-              <span>{loadingStage || 'AI variantlarni tahlil qilmoqda...'}</span>
+            <div className="my-6 p-6 rounded-2xl bg-white border border-[#E7E9F2] shadow-sm flex items-center justify-center gap-3">
+              <div className="w-5 h-5 border-2 border-[#6366F1] border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm font-bold text-[#6366F1]">O‘zbekiston rasmiy do‘konlaridan narxlar saralanmoqda...</span>
             </div>
           )}
 
-          <div ref={messagesEndRef} />
-        </div>
+          {/* =====================================================================
+              A. BEST BANNER (Самая низкая цена с Короной)
+              ===================================================================== */}
+          {bestBanner && bestBanner.title && !isLoading && (
+            <div className="best-banner">
+              <div className="best-media">
+                <img 
+                  className="best-img" 
+                  src={bestBanner.image || 'https://via.placeholder.com/80'} 
+                  alt={bestBanner.title} 
+                  loading="lazy" 
+                  referrerPolicy="no-referrer"
+                />
+                <span className="best-crown" title="Eng arzon taklif">👑</span>
+              </div>
+              <div className="best-info">
+                <div className="t">Самая низкая цена</div>
+                <div className="n" title={bestBanner.title}>{bestBanner.title}</div>
+                <div className="best-store">
+                  <span className="w-3.5 h-3.5 flex items-center justify-center">
+                    {getStoreBrandConfig(bestBanner.store).logoSvg}
+                  </span>
+                  <span>{bestBanner.store}</span>
+                </div>
+              </div>
+              <div className="best-right">
+                <div className="p">{bestBanner.price}</div>
+                <a 
+                  className="btn-open" 
+                  href={bestBanner.link} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  <span>В магазин</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          )}
 
-        {/* 📋 DINAMIK FORMA (SMART FILTER DRAWER) */}
-        {isFormDrawerOpen && (
-          <div className="bg-slate-50 border-t border-slate-200 p-3 sm:px-6 transition-all duration-300">
-            <div className="max-w-4xl mx-auto space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black text-slate-700 flex items-center gap-1.5">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF6B00]" />
-                  Qo‘shimcha parametrlar:
-                </span>
-                <span className="text-[10px] text-slate-400">
-                  Hudud va byudjet bo‘yicha filtr
+          {/* =====================================================================
+              B. PRICE INSIGHT (История цен и график)
+              ===================================================================== */}
+          {priceInsight && !isLoading && (
+            <section className="pinsight" aria-label="История цен">
+              <div className="pi-head">
+                <div className="pi-title">
+                  <TrendingUp className="w-4 h-4 text-[#6366F1]" />
+                  <span>История цен</span>
+                  <span className="pi-sub">{priceInsight.sub}</span>
+                </div>
+                <span className={`pi-level ${priceInsight.level.includes('выгодная') || priceInsight.level.includes('Низкая') ? 'lvl-low' : ''}`}>
+                  {priceInsight.level}
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {/* 1. Hudud */}
-                <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-[#FF6B00]" />
-                    Hudud (Yetkazish):
-                  </label>
-                  <select
-                    value={selectedRegion}
-                    onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="w-full bg-slate-50 text-xs font-bold text-slate-800 rounded-lg p-1.5 border border-slate-200 outline-none"
-                  >
-                    {latestUiForm.regions.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
+              <div className="pi-body">
+                {/* Interactive SVG Chart */}
+                <div className="pi-plot">
+                  <svg viewBox="0 0 600 140" preserveAspectRatio="none" className="w-full h-full">
+                    <defs>
+                      <linearGradient id="piFillGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366F1" stopOpacity="0.32" />
+                        <stop offset="100%" stopColor="#6366F1" stopOpacity="0.0" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Background Fill Area */}
+                    <path
+                      d="M0,35 Q150,110 300,105 T600,30 L600,140 L0,140 Z"
+                      fill="url(#piFillGrad)"
+                    />
+
+                    {/* Trend Line Curve */}
+                    <path
+                      d="M0,35 Q150,110 300,105 T600,30"
+                      fill="none"
+                      stroke="#6366F1"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+
+                    {/* Current Price Dot */}
+                    <circle cx="590" cy="30" r="5" fill="#6366F1" stroke="#fff" strokeWidth="2" />
+                  </svg>
+
+                  {/* Y-axis Price Labels */}
+                  <div className="absolute top-1 left-2 text-[10px] font-bold text-[#64748B]">
+                    6.2 млн сум
+                  </div>
+                  <div className="absolute bottom-2 left-2 text-[10px] font-bold text-[#64748B]">
+                    1.6 млн сум
+                  </div>
+
+                  {/* X-axis Dates */}
+                  <div className="pi-x">
+                    <span>12 окт</span>
+                    <span>1 ноя</span>
+                    <span>Сегодня</span>
+                  </div>
                 </div>
 
-                {/* 2. Byudjet */}
-                <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 flex items-center gap-1">
-                    <Tag className="w-3 h-3 text-emerald-600" />
-                    Byudjet oralig‘i:
-                  </label>
-                  <select
-                    value={selectedBudget}
-                    onChange={(e) => setSelectedBudget(e.target.value)}
-                    className="w-full bg-slate-50 text-xs font-bold text-slate-800 rounded-lg p-1.5 border border-slate-200 outline-none"
-                  >
-                    <option value="">Ixtiyoriy narx</option>
-                    {latestUiForm.budget_ranges.map(b => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 3. Xususiyat */}
-                <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-500" />
-                    Asosiy xususiyat:
-                  </label>
-                  <select
-                    value={selectedFeature}
-                    onChange={(e) => setSelectedFeature(e.target.value)}
-                    className="w-full bg-slate-50 text-xs font-bold text-slate-800 rounded-lg p-1.5 border border-slate-200 outline-none"
-                  >
-                    <option value="">Standart</option>
-                    {latestUiForm.features.map(f => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                  </select>
+                {/* Facts Grid */}
+                <div className="pi-facts">
+                  {priceInsight.facts && priceInsight.facts.map((fact, fIdx) => (
+                    <div key={fIdx} className="pf">
+                      <span>{fact.label}</span>
+                      <b>{fact.value}</b>
+                      {fact.sub && <small>{fact.sub}</small>}
+                    </div>
+                  ))}
                 </div>
               </div>
+
+              {/* Foot Note & Alert Button */}
+              <div className="pi-foot">
+                <p className="pi-note">
+                  {priceInsight.note || 'Bugungi narx do‘konlar bo‘yicha tahlil qilindi. Telegram orqali arzonlashganda xabar olishingiz mumkin.'}
+                </p>
+                <button 
+                  type="button" 
+                  onClick={() => setIsAlertModalOpen(true)}
+                  className={`btn-alert ${isAlertSubscribed ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : ''}`}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>
+                    {isAlertSubscribed 
+                      ? '✅ Отслеживается — отменить' 
+                      : '🔔 Сообщить о снижении цены в Telegram'
+                    }
+                  </span>
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* =====================================================================
+              C. FILTERS BAR (Pill buttons per store, min-max price, sort)
+              ===================================================================== */}
+          <div className="filters" id="filters">
+            {/* Store Pills */}
+            <div className="fstores">
+              <button
+                type="button"
+                onClick={() => setSelectedStore('all')}
+                className={`fpill ${selectedStore === 'all' ? 'active' : ''}`}
+              >
+                <span>Все</span>
+                <span className="n">{products.length}</span>
+              </button>
+
+              {Object.entries(storeCounts).map(([storeName, count]) => {
+                const brand = getStoreBrandConfig(storeName);
+                const isActive = selectedStore.toLowerCase() === storeName.toLowerCase();
+
+                return (
+                  <button
+                    key={storeName}
+                    type="button"
+                    onClick={() => setSelectedStore(isActive ? 'all' : storeName)}
+                    className={`fpill ${isActive ? 'active' : ''}`}
+                  >
+                    <span className="w-3.5 h-3.5 flex items-center justify-center">
+                      {brand.logoSvg}
+                    </span>
+                    <span>{storeName}</span>
+                    <span className="n">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right: Min-Max Price & Sort Select */}
+            <div className="fright">
+              <div className="fprice">
+                <input 
+                  type="number" 
+                  id="fmin" 
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder="от" 
+                  inputMode="numeric"
+                />
+                <span>—</span>
+                <input 
+                  type="number" 
+                  id="fmax" 
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="до" 
+                  inputMode="numeric"
+                />
+                <span className="text-[11px] font-bold text-[#64748B]">сум</span>
+              </div>
+
+              <select 
+                id="fsort" 
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="fsort-select"
+              >
+                <option value="cheap">Сначала дешёвые</option>
+                <option value="exp">Сначала дорогие</option>
+                <option value="disc">По скидке</option>
+              </select>
             </div>
           </div>
-        )}
 
-        {/* 🚀 "1 SONIYALI AQLLI YO'NALTIRUVCHI" (SMART CHIP GUIDED INTERFACE - V14.0 ZERO-HARDCODE) */}
-        {(() => {
-          const lastMsg = [...messages].reverse().find(m => m.smartChips && m.smartChips.length > 0);
-          if (!lastMsg || !lastMsg.smartChips || lastMsg.smartChips.length === 0) return null;
-          return (
-            <div className="px-3 sm:px-4 pt-3 pb-1.5 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto scrollbar-none">
-              <span className="text-[11px] font-black text-[#0F172A] flex items-center gap-1 shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
-                Aqlli Yo‘naltiruvchi (GPT):
-              </span>
-              {lastMsg.smartChips.map((chip, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleGuidedChipClick({ label: chip.label, queryAppend: chip.payload })}
-                  className="px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-[#FF6B00] text-[#0F172A] hover:text-white border border-orange-200 hover:border-[#FF6B00] text-xs font-bold transition-all shadow-2xs active:scale-95 flex items-center gap-1.5 shrink-0 cursor-pointer"
-                >
-                  <span className="text-sm">✨</span>
-                  <span>{chip.label}</span>
-                </button>
-              ))}
-            </div>
-          );
-        })()}
-
-        {/* ⌨️ SO'ROV VA QIDIRUV KIRITISH MAYDONI */}
-        <div className="p-3 sm:p-4 bg-white border-t border-slate-200">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSearch();
-            }}
-            className="flex items-center gap-2"
-          >
-            <div className="relative flex-1">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Masalan: 'chinni likopcha Xorazm', '12 lik konditsioner', 'elektr choynak'..."
-                disabled={isLoading}
-                className="w-full bg-[#F8FAFC] border border-slate-200 focus:border-[#FF6B00] focus:bg-white focus:ring-2 focus:ring-[#FF6B00]/20 rounded-2xl pl-4 pr-10 py-3 text-xs sm:text-sm text-[#0F172A] placeholder:text-slate-400 outline-none transition"
-              />
-              <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5" />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || !inputText.trim()}
-              className="px-5 sm:px-6 py-3 bg-[#FF6B00] hover:bg-orange-600 active:scale-95 disabled:opacity-40 text-white rounded-2xl text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/20 transition shrink-0 cursor-pointer"
-            >
-              <Send className="w-4 h-4" />
-              <span className="hidden sm:inline">Yuborish</span>
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* 🌟 IN-APP PRODUCT MODAL (Saytdan chiqmasdan ko'rish) */}
-      {selectedProduct && (() => {
-        const modalBrand = getStoreBrandConfig(selectedProduct.source);
-        const prodCategoryKey = (selectedProduct as any).categoryKey || selectedProduct.category || detectCategoryKey(selectedProduct.title);
-        const isDish = isDishwareQuery(selectedProduct.title, prodCategoryKey);
-        const dynamicBadges = getCategoryBadges(prodCategoryKey, selectedProduct.title);
-
-        return (
-          <div 
-            className="fixed inset-0 z-50 bg-[#0F172A]/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fade-in"
-            onClick={() => {
-              setSelectedProduct(null);
-              setOrderModalOpen(false);
-              setOrderSuccess(false);
-            }}
-          >
-            <div 
-              className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-scale-up"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="p-4 sm:px-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black border ${modalBrand.bgClass} ${modalBrand.textClass} ${modalBrand.borderClass}`}>
-                    <span className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
-                      {modalBrand.logoSvg}
-                    </span>
-                    <span>{modalBrand.name}</span>
-                  </span>
-                  <span className="text-xs text-slate-500 font-semibold">
-                    • In-App Mahsulot Kartasi
-                  </span>
-                </div>
-
+          {/* =====================================================================
+              D. PRODUCT ROWS LIST (1:1 with rlist & rrow on MaxProfit)
+              ===================================================================== */}
+          <div className="rlist" id="rlist">
+            {displayedProducts.length === 0 && !isLoading ? (
+              <div className="p-12 text-center bg-white rounded-2xl border border-[#E7E9F2]">
+                <p className="text-[#64748B] font-semibold text-sm">
+                  Ushbu filtrlar bo‘yicha tovar topilmadi. Filtr parametrlarini tozalab ko‘ring.
+                </p>
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedProduct(null);
-                    setOrderModalOpen(false);
-                    setOrderSuccess(false);
+                    setSelectedStore('all');
+                    setMinPrice('');
+                    setMaxPrice('');
                   }}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+                  className="mt-3 px-4 py-2 bg-[#EEF0FF] text-[#6366F1] font-bold text-xs rounded-xl hover:bg-[#6366F1] hover:text-white transition cursor-pointer"
                 >
-                  <X className="w-5 h-5" />
+                  Filtrlarni tozalash
                 </button>
               </div>
+            ) : (
+              displayedProducts.map((prod, index) => {
+                const brand = getStoreBrandConfig(prod.source);
+                const isFav = !!favorites[prod.id];
+                const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
 
-              {/* Modal Body */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-                <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
-                  {/* Mahsulot Rasmi */}
-                  <div className="w-48 h-48 bg-slate-50 rounded-2xl border border-slate-200 p-3 flex items-center justify-center shrink-0">
-                    <ProductCardImage
-                      thumbnail={selectedProduct.thumbnail}
-                      title={selectedProduct.title}
-                      storeName={selectedProduct.source}
-                      category={prodCategoryKey}
-                    />
-                  </div>
-
-                  {/* Sarlavha va Narx */}
-                  <div className="space-y-2 flex-1 text-center sm:text-left">
-                    <h3 className="text-base sm:text-lg font-black text-[#0F172A] leading-snug">
-                      {selectedProduct.title}
-                    </h3>
-                    
-                    <div className="text-xl sm:text-2xl font-black text-[#FF6B00]">
-                      {selectedProduct.price}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 justify-center sm:justify-start pt-1">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        {selectedProduct.warranty || (isDish ? 'Oziq-ovqat xavfsizligi' : '12 oy rasmiy kafolat')}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
-                        <Truck className="w-3.5 h-3.5 text-[#FF6B00]" />
-                        {selectedProduct.deliveryInfo || `${selectedProduct.region || 'Toshkent'} bo‘ylab yetkazish`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Toifaga mos Iqtisodiy/Chidamlilik Ko'rsatkichlari */}
-                {isDish ? (
-                  <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
-                      <span className="flex items-center gap-1">
-                        <Utensils className="w-3.5 h-3.5 text-[#FF6B00]" />
-                        Chinni Idish Standartlari:
-                      </span>
-                      <span className="text-amber-800 font-black">
-                        Oziq-ovqat xavfsizligi sertifikati
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 font-medium">
-                      Mikroto‘lqinli pech va idish yuvish mashinasiga to‘liq mos, zarbalarga chidamli sirlangan chinni.
-                    </p>
-                  </div>
-                ) : (prodCategoryKey === 'telefon' || prodCategoryKey === 'noutbuk') ? (
-                  <div className="p-3 bg-blue-50/80 rounded-2xl border border-blue-200 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
-                      <span className="flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-                        {prodCategoryKey === 'telefon' ? 'Smartfon Standartlari:' : 'Noutbuk Parametrlari:'}
-                      </span>
-                      <span className="text-blue-800 font-black">
-                        {prodCategoryKey === 'telefon' ? 'IMEI & Rasmiy Kafolat' : 'Original litsenziya'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 font-medium">
-                      {prodCategoryKey === 'telefon' 
-                        ? '100% rasmiy bojxona ro‘yxatidan o‘tgan IMEI va ishlab chiqaruvchi kafolati.'
-                        : 'Samarali sovutish tizimi va uzoq batareya quvvati bilan barqaror ish faoliyati.'}
-                    </p>
-                  </div>
-                ) : (selectedProduct.monthlyCostUzs && selectedProduct.monthlyCostUzs > 0) ? (
-                  <div className="p-3 bg-orange-50/80 rounded-2xl border border-orange-200 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
-                      <span className="flex items-center gap-1">
-                        <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
-                        Oylik Elektr Sarfi va Xarajat:
-                      </span>
-                      <span className="text-[#FF6B00] font-black">
-                        {selectedProduct.monthlyKwh} kVt/soat (~{selectedProduct.monthlyCostUzs.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m)
-                      </span>
-                    </div>
-                    {selectedProduct.roiVerdict && (
-                      <p className="text-[11px] text-slate-600 font-medium">
-                        {selectedProduct.roiVerdict}
-                      </p>
-                    )}
-                  </div>
-                ) : null}
-
-                {/* To'liq Xususiyatlar Ro'yxati */}
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <h4 className="text-xs font-extrabold text-[#0F172A] flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5 text-[#FF6B00]" />
-                    Asosiy Xususiyatlar:
-                  </h4>
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700">
-                    {dynamicBadges.map((sp, idx) => (
-                      <li key={idx} className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200/80 font-medium">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>{sp}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Do'kon tavsifi */}
-                {selectedProduct.snippet && (
-                  <div className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                    <strong className="text-[#0F172A] block mb-0.5">Do‘kon tavsifi:</strong>
-                    {selectedProduct.snippet}
-                  </div>
-                )}
-
-                {/* 🛒 Platformamiz orqali buyurtma berish formasi */}
-                {orderModalOpen && (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3 animate-fade-in">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs sm:text-sm font-black text-emerald-950 flex items-center gap-1.5">
-                        <PhoneCall className="w-4 h-4 text-emerald-600" />
-                        Platforma orqali 1-bosqichli buyurtma
-                      </h4>
-                      <span className="text-[10px] text-emerald-700 font-bold">Operator bog‘lanadi</span>
-                    </div>
-
-                    {orderSuccess ? (
-                      <div className="p-3 bg-white rounded-xl text-center space-y-1">
-                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
-                          <Check className="w-5 h-5" />
-                        </div>
-                        <p className="text-xs font-black text-emerald-900">
-                          Buyurtmangiz qabul qilindi!
-                        </p>
-                        <p className="text-[11px] text-slate-500">
-                          Tez orada do‘kon yoki operator siz bilan bog‘lanadi.
-                        </p>
-                      </div>
-                    ) : (
-                      <form onSubmit={handlePlatformOrderSubmit} className="space-y-2.5">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            required
-                            value={orderName}
-                            onChange={(e) => setOrderName(e.target.value)}
-                            placeholder="Ismingiz..."
-                            className="bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 outline-none"
-                          />
-                          <input
-                            type="tel"
-                            required
-                            value={orderPhone}
-                            onChange={(e) => setOrderPhone(e.target.value)}
-                            placeholder="+998 90 123 45 67"
-                            className="bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 outline-none font-bold"
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={isSubmittingOrder}
-                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          {isSubmittingOrder ? 'Yuborilmoqda...' : 'Buyurtmani Tasdiqlash'}
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Pastki Harakat Tugmalari */}
-              <div className="p-4 sm:px-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2.5">
-                {/* 1. Do'kon manbasiga o'tish */}
-                {selectedProduct.link && selectedProduct.link !== '#' ? (
-                  <a
-                    href={selectedProduct.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full sm:w-auto px-4 py-2.5 border border-slate-300 hover:bg-slate-100 text-slate-800 text-xs font-bold rounded-2xl flex items-center justify-center gap-1.5 transition"
+                return (
+                  <article 
+                    key={prod.id || index}
+                    onClick={() => setSelectedProduct(prod)}
+                    className={`rrow ${rankClass} cursor-pointer group`}
                   >
-                    <span>Do‘kon sahifasida ochish</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-                  </a>
-                ) : (
-                  <div />
-                )}
+                    {/* 1. Image */}
+                    <div className="rimg">
+                      <img 
+                        src={prod.thumbnail || 'https://via.placeholder.com/80'} 
+                        alt={prod.title} 
+                        loading="lazy" 
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
+                        className="group-hover:scale-105 transition-transform duration-200"
+                        onError={(e: any) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
+                    </div>
 
-                {/* 2. Platformamiz orqali buyurtma berish */}
-                <button
-                  type="button"
-                  onClick={() => setOrderModalOpen(!orderModalOpen)}
-                  className="w-full sm:w-auto px-6 py-2.5 bg-[#FF6B00] hover:bg-orange-600 active:scale-95 text-white text-xs font-black rounded-2xl flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/20 transition cursor-pointer"
+                    {/* 2. Info */}
+                    <div className="rinfo">
+                      <div className="rtop">
+                        <span className="badge-store">
+                          <span className="w-3.5 h-3.5 flex items-center justify-center">
+                            {brand.logoSvg}
+                          </span>
+                          <span>{prod.source}</span>
+                        </span>
+                        {index === 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold flex items-center gap-1">
+                            👑 Eng past narx
+                          </span>
+                        )}
+                        {prod.storeBadge && index !== 0 && (
+                          <span className="text-[10px] text-[#64748B] font-semibold">
+                            {prod.storeBadge}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="rname group-hover:text-[#6366F1] transition-colors">
+                        {prod.title}
+                      </h3>
+
+                      <div className="rmeta">
+                        <span>🚚 Есть доставка</span>
+                        <span>🛡️ 12 oy kafolat</span>
+                      </div>
+
+                      <div className="rnasiya">
+                        <span className="nas-ico">💳 Рассрочка:</span>
+                        <span className="nas-chip">
+                          {prod.installment || "Alif Nasiya / Muddatli to'lov"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 3. Price */}
+                    <div className="rprice">
+                      <div className="price">
+                        {prod.price.replace(" so'm", '').replace(" so‘m", '')}
+                        <span className="cur">сум</span>
+                      </div>
+
+                      {prod.oldPrice && (
+                        <div className="pold">
+                          <span className="old">{prod.oldPrice.replace(" so'm", '')}</span>
+                          {prod.discount && prod.discount > 0 && (
+                            <span className="disc">−{prod.discount}%</span>
+                          )}
+                        </div>
+                      )}
+
+                      {prod.installment && (
+                        <div className="inst">
+                          {prod.installment}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4. Action */}
+                    <div className="ract" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={(e) => toggleFavorite(prod, e)}
+                        className={`btn-fav ${isFav ? 'on' : ''}`}
+                        title={isFav ? "Sevimlilardan o'chirish" : "Sevimlilarga qo'shish"}
+                      >
+                        <Heart className={`w-4 h-4 ${isFav ? 'text-[#F43F5E] fill-[#F43F5E]' : 'text-[#94A3B8]'}`} />
+                      </button>
+
+                      <a
+                        href={prod.directUrl || prod.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-open"
+                      >
+                        <span>В магазин</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* =========================================================================
+          3. FLOATING COGNITIVE AI ADVISOR TRIGGER (Ongli Maslahatchi)
+          ========================================================================= */}
+      <button
+        type="button"
+        onClick={() => setIsAiDrawerOpen(true)}
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white font-extrabold text-sm shadow-2xl shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+      >
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+        </span>
+        <Bot className="w-5 h-5" />
+        <span>AI Maslahatchi</span>
+      </button>
+
+      {/* =========================================================================
+          4. AI COGNITIVE DRAWER ("ONGLI TIZIM" & BOSH IQTISODCHI)
+          ========================================================================= */}
+      {isAiDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col justify-between border-l border-[#E7E9F2]">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-[#E7E9F2] flex items-center justify-between bg-[#F7F8FC]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#6366F1] to-[#8B5CF6] text-white flex items-center justify-center shadow-md">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-[#0F172A] flex items-center gap-1.5">
+                    <span>AI Maslahatchi</span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-[#4338CA] text-[9px] font-black">
+                      GPT-4o-mini
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-[#64748B]">
+                    Iqtisodiy tahlil va xarid yordamchisi
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAiDrawerOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-[#64748B] hover:bg-[#EEF0FF] hover:text-[#0F172A] transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Lead Economist Analysis Box */}
+            <div className="p-3 bg-gradient-to-r from-[#EEF0FF] to-[#F3EEFF] border-b border-[#DDE2FB] text-xs space-y-2">
+              <div className="font-black text-[#4338CA] flex items-center gap-1.5 text-[11px]">
+                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span>Bosh Iqtisodchi Ekspertizasi (450 so‘m/kVt bazaviy tarif):</span>
+              </div>
+              <p className="text-[#334155] leading-relaxed font-medium">
+                {aiAdvice || `${activeQuery} uchun rasmiy do‘konlar (Texnomart, Olcha, Idea, BeeMarket) narxlari solishtirildi. Eng arzon variantda rasmiy servis kafolati mavjud.`}
+              </p>
+            </div>
+
+            {/* Chat Messages */}
+            <div ref={chatScrollRef} className="flex-1 p-4 overflow-y-auto space-y-3">
+              {chatMessages.map(msg => (
+                <div
+                  key={msg.id}
+                  className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <span>Platforma orqali buyurtma berish</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  {msg.role === 'model' && (
+                    <div className="w-7 h-7 rounded-lg bg-[#EEF0FF] text-[#6366F1] flex items-center justify-center shrink-0 mt-0.5">
+                      <Bot className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed font-medium ${
+                      msg.role === 'user'
+                        ? 'bg-[#6366F1] text-white rounded-tr-none'
+                        : 'bg-[#F1F3FB] text-[#0F172A] rounded-tl-none'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+
+              {isChatThinking && (
+                <div className="flex gap-2 items-center text-xs text-[#64748B] font-semibold">
+                  <div className="w-4 h-4 border-2 border-[#6366F1] border-t-transparent rounded-full animate-spin"></div>
+                  <span>AI o‘ylamoqda...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Clarification Chips */}
+            <div className="p-2 border-t border-[#EEF0FF] flex flex-wrap gap-1.5 bg-[#FAFBFD]">
+              {['Kafolati qanday?', 'Muddatli to‘lov qancha?', 'Yetkazib berish muddati?', 'Eng arzoni qaysi?'].map((q, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setChatInput(q);
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-white border border-[#E7E9F2] text-[#475569] hover:border-[#6366F1] hover:text-[#6366F1] transition cursor-pointer"
+                >
+                  {q}
                 </button>
+              ))}
+            </div>
+
+            {/* Input Bar */}
+            <div className="p-3 border-t border-[#E7E9F2] bg-white flex items-center gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
+                placeholder="Savolingizni yozing..."
+                className="flex-1 bg-[#F1F3FB] border border-[#E7E9F2] rounded-xl px-3.5 py-2 text-xs font-medium outline-none focus:border-[#6366F1]"
+              />
+              <button
+                type="button"
+                onClick={handleSendChatMessage}
+                className="w-9 h-9 rounded-xl bg-[#6366F1] text-white flex items-center justify-center hover:bg-[#5457E5] transition cursor-pointer"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          5. TELEGRAM PRICE ALERT MODAL
+          ========================================================================= */}
+      {isAlertModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#E7E9F2] space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-2xl bg-[#EEF2FF] text-[#6366F1] flex items-center justify-center">
+                <Bell className="w-5 h-5" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAlertModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#0F172A] hover:bg-[#F1F3FB] flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <h3 className="font-extrabold text-base text-[#0F172A]">
+                Narx tushishini kuzatish
+              </h3>
+              <p className="text-xs text-[#64748B] mt-1 leading-relaxed">
+                &ldquo;{activeQuery}&rdquo; narxi pasayganda Telegram botimiz orqali birinchi bo‘lib xabar oling.
+              </p>
+            </div>
+
+            <form onSubmit={handleAlertSubscribe} className="space-y-3">
+              <input
+                type="text"
+                value={telegramContact}
+                onChange={(e) => setTelegramContact(e.target.value)}
+                placeholder="@username yoki telefon raqam"
+                required
+                className="w-full bg-[#F7F8FC] border border-[#E7E9F2] rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-[#6366F1]"
+              />
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-[#6366F1] hover:bg-[#5457E5] text-white font-extrabold text-xs rounded-xl shadow-md transition cursor-pointer"
+              >
+                Obuna bo‘lish
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          6. PHOTO SEARCH MODAL (Rasm orqali qidirish)
+          ========================================================================= */}
+      {isPhotoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E7E9F2] space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-[#EEF2FF] text-[#6366F1] flex items-center justify-center">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <h3 className="font-extrabold text-sm text-[#0F172A]">
+                  Rasm orqali tovar qidirish
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPhotoModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#0F172A] flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="border-2 border-dashed border-[#DDE2FB] rounded-2xl p-6 text-center bg-[#F7F8FC] hover:bg-[#EEF0FF] transition cursor-pointer">
+              <Camera className="w-8 h-8 text-[#6366F1] mx-auto mb-2" />
+              <p className="text-xs font-bold text-[#0F172A]">Rasmni bu yerga tashlang</p>
+              <p className="text-[11px] text-[#64748B] mt-0.5">yoki faylni tanlash uchun bosing</p>
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold text-[#64748B] mb-2">Namuna rasmlar:</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { title: 'Samsung TV 55', q: 'televizor samsung 55' },
+                  { title: 'LG Konditsioner', q: 'konditsioner lg inverter' },
+                  { title: 'iPhone 15 Pro', q: 'iphone 15 pro max' }
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setIsPhotoModalOpen(false);
+                      setSearchQuery(item.q);
+                      executeSearch(item.q);
+                    }}
+                    className="p-2 rounded-xl bg-[#F7F8FC] border border-[#E7E9F2] text-center hover:border-[#6366F1] transition cursor-pointer"
+                  >
+                    <span className="text-[11px] font-bold text-[#0F172A]">{item.title}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
+
+      {/* =========================================================================
+          7. FAVORITES DRAWER
+          ========================================================================= */}
+      {isFavoritesOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-sm bg-white h-full shadow-2xl flex flex-col justify-between border-l border-[#E7E9F2]">
+            <div className="p-4 border-b border-[#E7E9F2] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+                <h3 className="font-extrabold text-sm text-[#0F172A]">
+                  Saqlangan tovarlar ({Object.keys(favorites).length})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFavoritesOpen(false)}
+                className="w-8 h-8 rounded-lg text-[#64748B] hover:bg-[#F1F3FB] flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 p-4 overflow-y-auto space-y-3">
+              {Object.keys(favorites).length === 0 ? (
+                <div className="py-12 text-center text-[#64748B] text-xs font-semibold">
+                  Hozircha saqlangan tovarlar yo‘q. Mahsulot kartasidagi yurakcha belgisini bosing.
+                </div>
+              ) : (
+                Object.values(favorites).map(item => (
+                  <div key={item.id} className="p-3 rounded-xl border border-[#E7E9F2] flex items-center gap-3 bg-[#FAFBFD]">
+                    <img src={item.thumbnail} alt="" className="w-12 h-12 object-contain bg-white rounded-lg p-1 border border-[#E7E9F2]" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#0F172A] truncate">{item.title}</p>
+                      <p className="text-xs font-extrabold text-[#6366F1] mt-0.5">{item.price}</p>
+                      <p className="text-[10px] text-[#64748B]">{item.source}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavorite(item)}
+                      className="text-rose-500 p-1 hover:bg-rose-50 rounded-lg"
+                      title="O'chirish"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {Object.keys(favorites).length > 0 && (
+              <div className="p-3 border-t border-[#E7E9F2]">
+                <button
+                  type="button"
+                  onClick={() => saveFavorites({})}
+                  className="w-full py-2 text-xs font-bold text-rose-600 bg-rose-50 rounded-xl hover:bg-rose-100 transition cursor-pointer"
+                >
+                  Hammasini tozalash
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          8. PRODUCT DETAIL MODAL
+          ========================================================================= */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E7E9F2] space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <span className="badge-store">
+                {selectedProduct.source}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedProduct(null)}
+                className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#0F172A] flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="w-32 h-32 bg-[#F7F8FC] border border-[#E7E9F2] rounded-2xl flex items-center justify-center p-3 shrink-0">
+                <img 
+                  src={selectedProduct.thumbnail} 
+                  alt={selectedProduct.title} 
+                  className="max-h-full max-w-full object-contain" 
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-[#0F172A] leading-snug">
+                  {selectedProduct.title}
+                </h3>
+                <div className="text-xl font-black text-[#6366F1] mt-2">
+                  {selectedProduct.price}
+                </div>
+                {selectedProduct.installment && (
+                  <div className="text-xs font-bold text-[#4338CA] mt-1">
+                    {selectedProduct.installment}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Specs & Guarantees */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-[#F7F8FC] border border-[#E7E9F2]">
+                <span className="text-[#64748B] block text-[10px] font-bold">Yetkazib berish</span>
+                <span className="font-extrabold text-[#0F172A] mt-0.5 block">{selectedProduct.deliveryInfo || '24 soat ichida'}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-[#F7F8FC] border border-[#E7E9F2]">
+                <span className="text-[#64748B] block text-[10px] font-bold">Kafolat muddati</span>
+                <span className="font-extrabold text-[#0F172A] mt-0.5 block">{selectedProduct.warranty || '12 oy rasmiy'}</span>
+              </div>
+            </div>
+
+            {/* Direct Link Button */}
+            <a
+              href={selectedProduct.directUrl || selectedProduct.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-open w-full justify-center text-center py-3"
+            >
+              <span>{selectedProduct.source} do‘konidan xarid qilish</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          9. FOOTER (Matching MaxProfit clean footer)
+          ========================================================================= */}
+      <footer className="border-t border-[#E7E9F2] bg-white py-6 mt-auto">
+        <div className="max-w-[1120px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#64748B]">
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-[#0F172A]">MaxProfit</span>
+            <span>— O‘zbekiston onlayn do‘konlaridagi narxlar taqqoslagichi</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <button 
+              type="button" 
+              onClick={() => setIsAiDrawerOpen(true)}
+              className="hover:text-[#6366F1] font-semibold transition cursor-pointer"
+            >
+              AI Maslahatchi
+            </button>
+            <Link href="/seller/dashboard" className="hover:text-[#6366F1] font-semibold transition">
+              Sotuvchilar
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

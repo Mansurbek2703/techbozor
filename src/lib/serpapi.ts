@@ -1,11 +1,32 @@
+export interface PriceInsightData {
+  level: string;
+  sub: string;
+  chart_points: Array<[string, string, number, number]>;
+  facts: Array<{ label: string; value: string; sub?: string }>;
+  note: string;
+}
+
+export interface BestBannerData {
+  title: string;
+  image: string;
+  store: string;
+  price: string;
+  link: string;
+}
+
 export interface SerpProductItem {
   id: string;
   title: string;
   price: string;
   priceNumber?: number;
+  oldPrice?: string;
+  oldPriceNumber?: number;
+  discount?: number;
   source: string;
   storeBadge?: string;
+  storeLogo?: string;
   link: string;
+  directUrl?: string;
   thumbnail: string;
   images?: string[];
   snippet?: string;
@@ -15,11 +36,13 @@ export interface SerpProductItem {
   keySpecs?: string[];
   warranty?: string;
   deliveryInfo?: string;
+  installment?: string;
   monthlyKwh?: number;
   monthlyCostUzs?: number;
   roiVerdict?: string;
   category?: string;
   badges?: string[];
+  isBestPrice?: boolean;
 }
 
 export function getSerpApiKey(): string {
@@ -1045,6 +1068,69 @@ export async function searchMaxProfit(
       const results: SerpProductItem[] = [];
       const seenTitles = new Set<string>();
 
+      // A. Natijalar sonini aniqlash (Results count)
+      const headM = html.match(/Результатов:\s*<span>(\d+)<\/span>/i);
+      const totalResultsCount = headM ? parseInt(headM[1], 10) : 0;
+
+      // B. Eng arzon narx banneri (Best Banner with Crown)
+      let bestBanner: BestBannerData | null = null;
+      const bbM = html.match(/<div class="best-banner"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/);
+      if (bbM) {
+        const bbHtml = bbM[0];
+        const bImg = bbHtml.match(/<img[^>]+src=["']([^"']+)["']/);
+        const bTitle = bbHtml.match(/<div class="n">([^<]+)<\/div>/);
+        const bStore = bbHtml.match(/<div class="best-store">([\s\S]*?)<\/div>/);
+        const bPrice = bbHtml.match(/<div class="p">([\s\S]*?)<\/div>/);
+        const bLink = bbHtml.match(/href=["']([^"']+)["']/);
+
+        let cleanLink = bLink ? bLink[1].replace(/&amp;/g, '&') : '';
+        if (cleanLink.startsWith('/')) cleanLink = 'https://maxprofit.uz' + cleanLink;
+
+        bestBanner = {
+          title: bTitle ? bTitle[1].trim() : '',
+          image: bImg ? (bImg[1].startsWith('//') ? 'https:' + bImg[1] : bImg[1].startsWith('/') ? 'https://maxprofit.uz' + bImg[1] : bImg[1]) : '',
+          store: bStore ? bStore[1].replace(/<[^>]+>/g, '').trim() : '',
+          price: bPrice ? bPrice[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '',
+          link: cleanLink
+        };
+      }
+
+      // C. Narxlar dinamikasi va tahlili (Price Insight & History)
+      let priceInsight: PriceInsightData | null = null;
+      const piM = html.match(/<section class="pinsight"[^>]*>([\s\S]*?)<\/section>/);
+      if (piM) {
+        const pi = piM[1];
+        const levelM = pi.match(/<span class="pi-level([^"]*)">([^<]+)<\/span>/);
+        const subM = pi.match(/<span class="pi-sub">([^<]+)<\/span>/);
+        const chartM = pi.match(/data-pts=(['"])(.*?)\1/);
+        let chartPts: Array<[string, string, number, number]> = [];
+        if (chartM) {
+          try {
+            chartPts = JSON.parse(chartM[2].replace(/&quot;/g, '"'));
+          } catch {}
+        }
+        const facts: Array<{ label: string; value: string; sub?: string }> = [];
+        const factMatches = pi.match(/<div class="pf">([\s\S]*?)<\/div>/g) || [];
+        for (const f of factMatches) {
+          const lM = f.match(/<span>([^<]+)<\/span>/);
+          const vM = f.match(/<b>([\s\S]*?)<\/b>/);
+          const smM = f.match(/<small>([^<]+)<\/small>/);
+          facts.push({
+            label: lM ? lM[1].trim() : '',
+            value: vM ? vM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '',
+            sub: smM ? smM[1].trim() : ''
+          });
+        }
+        const noteM = pi.match(/<p class="pi-note">([\s\S]*?)<\/p>/);
+        priceInsight = {
+          level: levelM ? levelM[2].trim() : '📈 Narxlar solishtirildi',
+          sub: subM ? subM[1].trim() : '· 30 kunlik',
+          chart_points: chartPts,
+          facts,
+          note: noteM ? noteM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : ''
+        };
+      }
+
       // 1. Qidiruv natijalarini parslash (<article class="rrow" ...>)
       const articles = html.match(/<article class="rrow"[\s\S]*?<\/article>/g) || [];
       for (const art of articles) {
@@ -1056,7 +1142,7 @@ export async function searchMaxProfit(
 
         // Mahsulot nomi
         const titleM = art.match(/<h3 class="rname">([^<]+)<\/h3>/);
-        const title = titleM ? titleM[1].trim() : '';
+        const title = titleM ? titleM[1].replace(/&quot;/g, '"').trim() : '';
         if (!title || seenTitles.has(title.toLowerCase())) continue;
 
         // Do'kon
@@ -1064,22 +1150,37 @@ export async function searchMaxProfit(
         let store = storeM ? storeM[1].replace(/<[^>]+>/g, '').trim() : 'Rasmiy do‘kon';
         if (!store) store = 'Rasmiy do‘kon';
 
+        // Do'kon logotipi
+        const slogoM = art.match(/<img class="slogo"[^>]+src=['"]([^'"]+)['"]/);
+        let storeLogo = slogoM ? slogoM[1] : '';
+        if (storeLogo.startsWith('/')) storeLogo = 'https://maxprofit.uz' + storeLogo;
+
         // Narx
         const priceM = art.match(/data-price="(\d+)"/);
         const priceNum = priceM ? parseInt(priceM[1], 10) : 0;
         if (!priceNum || priceNum < 10000) continue;
 
-        // Havola
-        const urlM = art.match(/data-url="([^'"]+)"/);
-        let link = urlM ? urlM[1] : '';
-        if (!link) {
-          const goM = art.match(/href=['"](\/go\?u=[^'"]+)['"]/);
-          if (goM) link = 'https://maxprofit.uz' + goM[1].replace(/&amp;/g, '&');
-        }
+        // Eski narx
+        const oldM = art.match(/<span class="old">([^<]+)<\/span>/);
+        const oldPriceStr = oldM ? oldM[1].replace(/\s+/g, ' ').trim() : '';
 
         // Chegirma
         const discM = art.match(/data-discount="(\d+)"/);
         const discount = discM ? parseInt(discM[1], 10) : 0;
+
+        // Havola (Direct merchant link yoki MaxProfit redirect)
+        const urlM = art.match(/data-url="([^'"]+)"/);
+        let directUrl = urlM ? urlM[1] : '';
+        const goM = art.match(/href=['"](\/go\?u=[^'"]+)['"]/);
+        let link = directUrl || (goM ? 'https://maxprofit.uz' + goM[1].replace(/&amp;/g, '&') : `https://maxprofit.uz/search?q=${encodeURIComponent(title)}`);
+
+        // Muddatli to'lov (Installment)
+        const instM = art.match(/<div class="inst">([^<]+(?:<span[^>]*>[^<]+<\/span>)*)<\/div>/);
+        const installment = instM ? instM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+
+        // Yetkazib berish (Delivery)
+        const delivM = art.match(/<span>🚚\s*([^<]+)<\/span>/);
+        const delivery = delivM ? delivM[1].trim() : 'Yetkazib berish mavjud';
 
         // Do'kon ma'lumotlarini aniqlash
         let storeDisplayName = store;
@@ -1096,23 +1197,30 @@ export async function searchMaxProfit(
 
         results.push({
           id: generateUniqueId(),
-          title: title.slice(0, 85),
+          title: title.slice(0, 95),
           price: `${priceNum.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m`,
           priceNumber: priceNum,
+          oldPrice: oldPriceStr ? `${oldPriceStr} so‘m` : undefined,
+          oldPriceNumber: oldPriceStr ? parseInt(oldPriceStr.replace(/\D/g, ''), 10) : undefined,
+          discount: discount > 0 ? discount : undefined,
           source: storeDisplayName,
           storeBadge: storeBadge,
-          link: link || `https://maxprofit.uz/search?q=${encodeURIComponent(title)}`,
+          storeLogo,
+          link,
+          directUrl: directUrl || link,
           thumbnail: img,
           images: [img],
-          snippet: `${storeDisplayName} do‘konida rasmiy kafolat bilan mavjud. Yetkazib berish xizmati bor.`,
+          snippet: `${storeDisplayName} do‘konida rasmiy kafolat bilan mavjud. ${delivery}.`,
           region: targetRegion,
           keySpecs: extractKeySpecs(title, '', catKey),
           warranty: catKey === 'konditsioner' ? '3 yil kompressor kafolati' : '12 oy rasmiy kafolat',
-          deliveryInfo: `${targetRegion} bo‘ylab 24 soatda yetkazish (${storeDisplayName})`,
+          deliveryInfo: `${targetRegion} bo‘ylab yetkazish (${storeDisplayName})`,
+          installment: installment || undefined,
           monthlyKwh: energy.monthlyKwh,
           monthlyCostUzs: energy.monthlyCostUzs,
           roiVerdict: regInsight,
           badges: discount > 0 ? [`-${discount}% Chegirma`, 'Eng sara narx', 'Rasmiy kafolat'] : ['Eng sara narx', 'Rasmiy kafolat', 'Tezkor yetkazish'],
+          isBestPrice: results.length === 0,
         });
       }
 
@@ -1142,12 +1250,13 @@ export async function searchMaxProfit(
 
           results.push({
             id: generateUniqueId(),
-            title: title.slice(0, 85),
+            title: title.slice(0, 95),
             price: `${priceNum.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m`,
             priceNumber: priceNum,
             source: 'MaxProfit Do‘konlari',
             storeBadge: 'Eng yaxshi narx',
             link: slug ? `https://maxprofit.uz${slug}` : `https://maxprofit.uz/search?q=${encodeURIComponent(title)}`,
+            directUrl: slug ? `https://maxprofit.uz${slug}` : undefined,
             thumbnail: img,
             images: [img],
             snippet: `Bir nechta yirik rasmiy do‘konlar narxlari taqqoslandi. Rasmiy kafolat bilan.`,
@@ -1165,7 +1274,10 @@ export async function searchMaxProfit(
 
       if (results.length > 0) {
         results.sort((a, b) => (a.priceNumber || 0) - (b.priceNumber || 0));
-        return results.slice(0, 8);
+        (results as any).priceInsight = priceInsight;
+        (results as any).bestBanner = bestBanner;
+        (results as any).totalResultsCount = totalResultsCount || results.length;
+        return results.slice(0, 24);
       }
     } catch (err) {
       console.warn('[MaxProfit Search error]:', err);
@@ -1190,7 +1302,7 @@ export async function searchLocalProducts(
   // 1-QADAM: MaxProfit Real-Time Aggregator Search (10x tezroq, 100% haqiqiy do'konlar va HD rasmlar)
   const maxProfitProducts = await searchMaxProfit(cleanSearchTerm, category, region);
   if (maxProfitProducts.length > 0) {
-    return maxProfitProducts.slice(0, 6);
+    return maxProfitProducts;
   }
 
   // 2-QADAM: Agar MaxProfit orqali topilmasa, SerpAPI (Google Search Multi-Store) zaxirasi
