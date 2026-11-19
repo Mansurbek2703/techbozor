@@ -13,6 +13,7 @@ import {
   Bell, 
   Check, 
   ChevronRight, 
+  ChevronLeft,
   X, 
   TrendingUp, 
   TrendingDown, 
@@ -47,10 +48,284 @@ interface ChatMessage {
   timestamp: string;
 }
 
+// =========================================================================
+// 1:1 MAXPROFIT AUTHENTIC KATALOG KATEGORIYALARI (15 TA ASOSIY GURUHLAR)
+// =========================================================================
+const CATALOG_CATEGORIES = [
+  {
+    id: 'smartfonlar',
+    title: 'Smartfonlar',
+    count: '441 ta mahsulot',
+    icon: '📱',
+    iconBg: 'bg-purple-50 text-purple-600',
+    query: 'smartfon',
+  },
+  {
+    id: 'noutbuklar',
+    title: 'Noutbuklar',
+    count: '951 ta mahsulot',
+    icon: '💻',
+    iconBg: 'bg-sky-50 text-sky-600',
+    query: 'noutbuk',
+  },
+  {
+    id: 'planshetlar',
+    title: 'Planshetlar',
+    count: '218 ta mahsulot',
+    icon: '📲',
+    iconBg: 'bg-indigo-50 text-indigo-600',
+    query: 'planshet',
+  },
+  {
+    id: 'televizorlar',
+    title: 'Televizorlar',
+    count: '789 ta mahsulot',
+    icon: '📺',
+    iconBg: 'bg-blue-50 text-blue-600',
+    query: 'televizor',
+  },
+  {
+    id: 'muzlatgichlar',
+    title: 'Muzlatgichlar',
+    count: '752 ta mahsulot',
+    icon: '🧊',
+    iconBg: 'bg-cyan-50 text-cyan-600',
+    query: 'muzlatgich',
+  },
+  {
+    id: 'kir-yuvish',
+    title: 'Kir yuvish mashinalari',
+    count: '906 ta mahsulot',
+    icon: '🫧',
+    iconBg: 'bg-violet-50 text-violet-600',
+    query: 'kir yuvish mashinasi',
+  },
+  {
+    id: 'konditsionerlar',
+    title: 'Konditsionerlar',
+    count: '849 ta mahsulot',
+    icon: '❄️',
+    iconBg: 'bg-sky-50 text-sky-600',
+    query: 'konditsioner inverter',
+  },
+  {
+    id: 'changyutgichlar',
+    title: 'Changyutgichlar',
+    count: '766 ta mahsulot',
+    icon: '🧹',
+    iconBg: 'bg-pink-50 text-pink-600',
+    query: 'changyutgich',
+  },
+  {
+    id: 'quloqchinlar',
+    title: 'Quloqchinlar',
+    count: '748 ta mahsulot',
+    icon: '🎧',
+    iconBg: 'bg-slate-100 text-slate-700',
+    query: 'simsiz quloqchin',
+  },
+  {
+    id: 'smart-soatlar',
+    title: 'Smart soatlar',
+    count: '296 ta mahsulot',
+    icon: '⌚',
+    iconBg: 'bg-indigo-50 text-indigo-600',
+    query: 'smart soat',
+  },
+  {
+    id: 'mikrotolqinli-pechlar',
+    title: 'Mikroto‘lqinli pechlar',
+    count: '452 ta mahsulot',
+    icon: '🍲',
+    iconBg: 'bg-amber-50 text-amber-600',
+    query: 'mikrotolqinli pech',
+  },
+  {
+    id: 'oyin-konsollari',
+    title: 'O‘yin konsollari',
+    count: '28 ta mahsulot',
+    icon: '🎮',
+    iconBg: 'bg-purple-50 text-purple-600',
+    query: 'playstation 5 konsol',
+  },
+  {
+    id: 'isitgichlar',
+    title: 'Isitgichlar',
+    count: '111 ta mahsulot',
+    icon: '🔥',
+    iconBg: 'bg-orange-50 text-orange-600',
+    query: 'isitgich konvektor',
+  },
+  {
+    id: 'tugmali-telefonlar',
+    title: 'Tugmali telefonlar',
+    count: '60 ta mahsulot',
+    icon: '☎️',
+    iconBg: 'bg-rose-50 text-rose-600',
+    query: 'tugmali telefon',
+  },
+  {
+    id: 'suv-isitgichlar',
+    title: 'Suv isitgichlar (boyler)',
+    count: '105 ta mahsulot',
+    icon: '🚿',
+    iconBg: 'bg-cyan-50 text-cyan-600',
+    query: 'boyler suv isitgich',
+  },
+];
+
+// OMMABOP MAHSULOTLAR SARALANMASI (KATALOG VIEW UCHUN)
+const FEATURED_CATALOG_SECTIONS = [
+  {
+    id: 'smartphones',
+    title: 'Smartfonlar',
+    icon: '📱',
+    query: 'smartfon',
+    items: [
+      {
+        title: 'Apple iPhone 15 128GB',
+        price: '10 240 000 so‘m dan',
+        stores: '14 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=400&q=80',
+        query: 'apple iphone 15 128gb'
+      },
+      {
+        title: 'Samsung Galaxy A55 5G 8/128GB',
+        price: '4 150 000 so‘m dan',
+        stores: '18 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=400&q=80',
+        query: 'samsung galaxy a55 5g'
+      },
+      {
+        title: 'Xiaomi Redmi Note 13 8/256GB',
+        price: '2 190 000 so‘m dan',
+        stores: '21 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=400&q=80',
+        query: 'xiaomi redmi note 13'
+      },
+      {
+        title: 'Samsung Galaxy S24 Ultra 12/256GB',
+        price: '13 890 000 so‘m dan',
+        stores: '12 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1580910051074-3eb694886505?auto=format&fit=crop&w=400&q=80',
+        query: 'samsung galaxy s24 ultra'
+      }
+    ]
+  },
+  {
+    id: 'laptops',
+    title: 'Noutbuklar',
+    icon: '💻',
+    query: 'noutbuk',
+    items: [
+      {
+        title: 'Apple MacBook Air M2 13.6" 8/256GB',
+        price: '11 800 000 so‘m dan',
+        stores: '11 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80',
+        query: 'macbook air m2'
+      },
+      {
+        title: 'ASUS TUF Gaming F15 Core i5 RTX 3050',
+        price: '8 450 000 so‘m dan',
+        stores: '9 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=400&q=80',
+        query: 'asus tuf gaming f15'
+      },
+      {
+        title: 'Lenovo IdeaPad 3 15.6" Core i3 8GB/256GB',
+        price: '3 890 000 so‘m dan',
+        stores: '15 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=400&q=80',
+        query: 'lenovo ideapad 3'
+      },
+      {
+        title: 'HP Pavilion 15 Core i5 16GB/512GB',
+        price: '6 200 000 so‘m dan',
+        stores: '14 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=400&q=80',
+        query: 'hp pavilion 15'
+      }
+    ]
+  },
+  {
+    id: 'tvs',
+    title: 'Televizorlar',
+    icon: '📺',
+    query: 'televizor',
+    items: [
+      {
+        title: 'Samsung 55" Crystal UHD 4K Smart TV',
+        price: '5 600 000 so‘m dan',
+        stores: '16 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=400&q=80',
+        query: 'samsung 55 crystal uhd 4k'
+      },
+      {
+        title: 'LG 50" 4K UHD Smart ThinQ TV',
+        price: '4 900 000 so‘m dan',
+        stores: '13 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1461151304267-38535e780c79?auto=format&fit=crop&w=400&q=80',
+        query: 'lg 50 4k smart tv'
+      },
+      {
+        title: 'Artel 43" Smart Android Full HD TV',
+        price: '2 750 000 so‘m dan',
+        stores: '19 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1552975084-6e027cd345c2?auto=format&fit=crop&w=400&q=80',
+        query: 'artel 43 smart tv'
+      },
+      {
+        title: 'TCL 55" QLED 4K Google TV HDR10+',
+        price: '4 800 000 so‘m dan',
+        stores: '12 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=400&q=80',
+        query: 'tcl 55 qled 4k'
+      }
+    ]
+  },
+  {
+    id: 'aircon',
+    title: 'Konditsionerlar',
+    icon: '❄️',
+    query: 'konditsioner inverter',
+    items: [
+      {
+        title: 'Shivaki 12 Inverter Smart WI-FI',
+        price: '4 300 000 so‘m dan',
+        stores: '14 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80',
+        query: 'shivaki 12 inverter'
+      },
+      {
+        title: 'Artel Grand Inverter 12 35 kv.m',
+        price: '4 100 000 so‘m dan',
+        stores: '17 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=400&q=80',
+        query: 'artel grand inverter 12'
+      },
+      {
+        title: 'LG Dual Inverter 12 Plasmaster Plus',
+        price: '6 700 000 so‘m dan',
+        stores: '10 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1517420704952-d9f39e95b43e?auto=format&fit=crop&w=400&q=80',
+        query: 'lg dual inverter 12'
+      },
+      {
+        title: 'Midea Blanc 09 Eco Inverter',
+        price: '3 500 000 so‘m dan',
+        stores: '12 ta do‘konda',
+        image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80',
+        query: 'midea blanc 09 inverter'
+      }
+    ]
+  }
+];
+
 export default function IqtisodchiSearchPage() {
-  // 1. Search Query State
-  const [searchQuery, setSearchQuery] = useState('televizor samsung 55');
-  const [activeQuery, setActiveQuery] = useState('televizor samsung 55');
+  // 1. Search Query State (Boshlang'ich holatda televizor qidirmaydi, foydalanuvchi yozganini qidiradi)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeQuery, setActiveQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // 2. Results Data
@@ -226,15 +501,28 @@ export default function IqtisodchiSearchPage() {
     }
   };
 
-  // Initial load on mount
+  // Initial load on mount (URL parametrlarini tekshirish, televizor avtomatik qidirmaydi)
   useEffect(() => {
-    executeSearch('televizor samsung 55');
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlQ = params.get('q');
+      if (urlQ && urlQ.trim()) {
+        const cleanQ = urlQ.trim();
+        setSearchQuery(cleanQ);
+        executeSearch(cleanQ);
+      }
+    }
   }, []);
 
-  // Form submit handler
+  // Form submit handler (foydalanuvchi yozgan narsani qidiradi)
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    executeSearch(searchQuery);
+    const clean = searchQuery.trim();
+    if (clean) {
+      executeSearch(clean);
+    } else {
+      setActiveQuery('');
+    }
   };
 
   // Chat message send inside AI drawer
@@ -357,12 +645,20 @@ export default function IqtisodchiSearchPage() {
     <div className="min-h-screen flex flex-col bg-[#F7F8FC] text-[#0F172A]">
       
       {/* =========================================================================
-          1. MAXPROFIT AUTHENTIC HEADER (1:1 with maxprofit.uz)
+          1. IQTISODCHI AUTHENTIC HEADER (1:1 with maxprofit.uz layout)
           ========================================================================= */}
       <header className="mp-header">
         <div className="container">
           {/* Logo */}
-          <Link href="/" className="mp-logo" aria-label="Iqtisodchi">
+          <button 
+            type="button"
+            onClick={() => {
+              setActiveQuery('');
+              setSearchQuery('');
+            }}
+            className="mp-logo bg-transparent border-0 p-0 text-left cursor-pointer" 
+            aria-label="Iqtisodchi"
+          >
             <div className="mp-logo-mark">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -376,16 +672,20 @@ export default function IqtisodchiSearchPage() {
                 intellektual xarid dasturi
               </span>
             </div>
-          </Link>
+          </button>
 
-          {/* Katalog Button */}
+          {/* Katalog Button (MaxProfit kabi faol holatda) */}
           <button 
             type="button" 
             onClick={() => {
-              setSearchQuery('konditsioner inverter');
-              executeSearch('konditsioner inverter');
+              setActiveQuery('');
+              setSearchQuery('');
             }}
-            className="mp-cat hidden sm:inline-flex"
+            className={`mp-cat hidden sm:inline-flex cursor-pointer transition-all ${
+              !activeQuery 
+                ? '!bg-[#6366F1] !text-white !border-transparent shadow-md shadow-indigo-500/25' 
+                : 'hover:bg-[#EEF0FF] text-[#4338CA]'
+            }`}
           >
             <svg className="mp-cat-ic" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
@@ -393,22 +693,25 @@ export default function IqtisodchiSearchPage() {
               <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
               <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="3.75" />
             </svg>
-            <span>Каталог</span>
+            <span>Katalog</span>
           </button>
 
-          {/* Deals Link */}
+          {/* Chegirmalar Link */}
           <button 
             type="button"
-            onClick={() => setSortBy('disc')}
-            className="mp-navlink hidden md:inline-flex text-rose-600 hover:text-rose-700 font-bold"
+            onClick={() => {
+              setSearchQuery('chegirmalar');
+              executeSearch('chegirmalar');
+            }}
+            className="mp-navlink hidden md:inline-flex text-rose-600 hover:text-rose-700 font-bold cursor-pointer"
           >
             <Flame className="w-4 h-4 text-rose-500 fill-rose-500" />
-            <span>Скидки</span>
+            <span>Chegirmalar</span>
           </button>
 
-          {/* Header Search Form */}
-          <form className="mp-header-search" onSubmit={handleSearchSubmit}>
-            <div className="search-box">
+          {/* Header Search Form (Foydalanuvchi yozgan narsani qidiradi) */}
+          <form className="mp-header-search flex items-center gap-2" onSubmit={handleSearchSubmit}>
+            <div className="search-box flex-1">
               <span className="text-[#64748B]">
                 <Search className="w-4 h-4" />
               </span>
@@ -417,19 +720,38 @@ export default function IqtisodchiSearchPage() {
                 name="q" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск товара..." 
+                placeholder="Mahsulot qidirish... (masalan: iPhone 15, televizor, muzlatgich)" 
                 autoComplete="off"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setActiveQuery('');
+                  }}
+                  className="text-[#94A3B8] hover:text-[#0F172A] p-1 text-xs"
+                  title="Tozalash"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button 
                 type="button" 
                 onClick={() => setIsPhotoModalOpen(true)}
                 className="btn-photo" 
-                aria-label="Поиск по фото" 
-                title="Поиск по фото"
+                aria-label="Foto orqali qidirish" 
+                title="Foto orqali qidirish"
               >
                 <Camera className="w-4 h-4" />
               </button>
             </div>
+            <button
+              type="submit"
+              className="hidden sm:inline-flex items-center justify-center px-4 h-[42px] rounded-full bg-[#6366F1] hover:bg-[#4F46E5] text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer shrink-0"
+            >
+              Qidirish
+            </button>
           </form>
 
           {/* Right Header Navigation */}
@@ -480,389 +802,518 @@ export default function IqtisodchiSearchPage() {
       )}
 
       {/* =========================================================================
-          2. MAIN CONTENT (1:1 with results-wrap on MaxProfit)
+          2. MAIN CONTENT: KATALOG (if !activeQuery) OR RESULTS (if activeQuery)
           ========================================================================= */}
       <main className="flex-1">
-        <div className="results-wrap">
-          
-          {/* Results Head */}
-          <div className="results-head flex flex-wrap items-center justify-between gap-2">
-            <h2>
-              Результатов: <span>{totalResultsCount || products.length}</span> — &ldquo;{activeQuery}&rdquo;
-            </h2>
-
-            {/* Quick Category / Dynamic Chips */}
-            {dynamicChips.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {dynamicChips.slice(0, 4).map((chip, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery(chip);
-                      executeSearch(chip);
-                    }}
-                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-[#E7E9F2] text-[#475569] hover:text-[#6366F1] hover:border-[#6366F1] transition cursor-pointer"
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Loading Indicator */}
-          {isLoading && (
-            <div className="my-6 p-6 rounded-2xl bg-white border border-[#E7E9F2] shadow-sm flex items-center justify-center gap-3">
-              <div className="w-5 h-5 border-2 border-[#6366F1] border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm font-bold text-[#6366F1]">O‘zbekiston rasmiy do‘konlaridan narxlar saralanmoqda...</span>
-            </div>
-          )}
-
-          {/* =====================================================================
-              A. BEST BANNER (Самая низкая цена с Короной)
-              ===================================================================== */}
-          {bestBanner && bestBanner.title && !isLoading && (
-            <div className="best-banner">
-              <div className="best-media">
-                <img 
-                  className="best-img" 
-                  src={bestBanner.image || 'https://via.placeholder.com/80'} 
-                  alt={bestBanner.title} 
-                  loading="lazy" 
-                  referrerPolicy="no-referrer"
-                />
-                <span className="best-crown" title="Eng arzon taklif">👑</span>
-              </div>
-              <div className="best-info">
-                <div className="t">Самая низкая цена</div>
-                <div className="n" title={bestBanner.title}>{bestBanner.title}</div>
-                <div className="best-store">
-                  <span className="w-3.5 h-3.5 flex items-center justify-center">
-                    {getStoreBrandConfig(bestBanner.store).logoSvg}
-                  </span>
-                  <span>{bestBanner.store}</span>
-                </div>
-              </div>
-              <div className="best-right">
-                <div className="p">{bestBanner.price}</div>
-                <a 
-                  className="btn-open" 
-                  href={bestBanner.link} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  <span>В магазин</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* =====================================================================
-              B. PRICE INSIGHT (История цен и график)
-              ===================================================================== */}
-          {priceInsight && !isLoading && (
-            <section className="pinsight" aria-label="История цен">
-              <div className="pi-head">
-                <div className="pi-title">
-                  <TrendingUp className="w-4 h-4 text-[#6366F1]" />
-                  <span>История цен</span>
-                  <span className="pi-sub">{priceInsight.sub}</span>
-                </div>
-                <span className={`pi-level ${priceInsight.level.includes('выгодная') || priceInsight.level.includes('Низкая') ? 'lvl-low' : ''}`}>
-                  {priceInsight.level}
-                </span>
-              </div>
-
-              <div className="pi-body">
-                {/* Interactive SVG Chart */}
-                <div className="pi-plot">
-                  <svg viewBox="0 0 600 140" preserveAspectRatio="none" className="w-full h-full">
-                    <defs>
-                      <linearGradient id="piFillGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366F1" stopOpacity="0.32" />
-                        <stop offset="100%" stopColor="#6366F1" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Background Fill Area */}
-                    <path
-                      d="M0,35 Q150,110 300,105 T600,30 L600,140 L0,140 Z"
-                      fill="url(#piFillGrad)"
-                    />
-
-                    {/* Trend Line Curve */}
-                    <path
-                      d="M0,35 Q150,110 300,105 T600,30"
-                      fill="none"
-                      stroke="#6366F1"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-
-                    {/* Current Price Dot */}
-                    <circle cx="590" cy="30" r="5" fill="#6366F1" stroke="#fff" strokeWidth="2" />
-                  </svg>
-
-                  {/* Y-axis Price Labels */}
-                  <div className="absolute top-1 left-2 text-[10px] font-bold text-[#64748B]">
-                    6.2 млн сум
-                  </div>
-                  <div className="absolute bottom-2 left-2 text-[10px] font-bold text-[#64748B]">
-                    1.6 млн сум
-                  </div>
-
-                  {/* X-axis Dates */}
-                  <div className="pi-x">
-                    <span>12 окт</span>
-                    <span>1 ноя</span>
-                    <span>Сегодня</span>
-                  </div>
-                </div>
-
-                {/* Facts Grid */}
-                <div className="pi-facts">
-                  {priceInsight.facts && priceInsight.facts.map((fact, fIdx) => (
-                    <div key={fIdx} className="pf">
-                      <span>{fact.label}</span>
-                      <b>{fact.value}</b>
-                      {fact.sub && <small>{fact.sub}</small>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Foot Note & Alert Button */}
-              <div className="pi-foot">
-                <p className="pi-note">
-                  {priceInsight.note || 'Bugungi narx do‘konlar bo‘yicha tahlil qilindi. Telegram orqali arzonlashganda xabar olishingiz mumkin.'}
-                </p>
-                <button 
-                  type="button" 
-                  onClick={() => setIsAlertModalOpen(true)}
-                  className={`btn-alert ${isAlertSubscribed ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : ''}`}
-                >
-                  <Bell className="w-3.5 h-3.5" />
-                  <span>
-                    {isAlertSubscribed 
-                      ? '✅ Отслеживается — отменить' 
-                      : '🔔 Сообщить о снижении цены в Telegram'
-                    }
-                  </span>
-                </button>
-              </div>
-            </section>
-          )}
-
-          {/* =====================================================================
-              C. FILTERS BAR (Pill buttons per store, min-max price, sort)
-              ===================================================================== */}
-          <div className="filters" id="filters">
-            {/* Store Pills */}
-            <div className="fstores">
-              <button
-                type="button"
-                onClick={() => setSelectedStore('all')}
-                className={`fpill ${selectedStore === 'all' ? 'active' : ''}`}
-              >
-                <span>Все</span>
-                <span className="n">{products.length}</span>
-              </button>
-
-              {Object.entries(storeCounts).map(([storeName, count]) => {
-                const brand = getStoreBrandConfig(storeName);
-                const isActive = selectedStore.toLowerCase() === storeName.toLowerCase();
-
-                return (
-                  <button
-                    key={storeName}
-                    type="button"
-                    onClick={() => setSelectedStore(isActive ? 'all' : storeName)}
-                    className={`fpill ${isActive ? 'active' : ''}`}
-                  >
-                    <span className="w-3.5 h-3.5 flex items-center justify-center">
-                      {brand.logoSvg}
-                    </span>
-                    <span>{storeName}</span>
-                    <span className="n">{count}</span>
-                  </button>
-                );
-              })}
+        {/* =====================================================================
+            A. KATALOG VIEW (MaxProfit 1:1 ko'rinishi) - activeQuery bo'lmaganda
+            ===================================================================== */}
+        {!activeQuery && (
+          <div className="max-w-[1180px] mx-auto px-4 py-8">
+            {/* Breadcrumb */}
+            <div className="text-xs font-semibold text-[#64748B] mb-2 flex items-center gap-1.5">
+              <span>Iqtisodchi</span>
+              <ChevronRight className="w-3 h-3 text-[#94A3B8]" />
+              <span className="text-[#0F172A] font-bold">Katalog</span>
             </div>
 
-            {/* Right: Min-Max Price & Sort Select */}
-            <div className="fright">
-              <div className="fprice">
-                <input 
-                  type="number" 
-                  id="fmin" 
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  placeholder="от" 
-                  inputMode="numeric"
-                />
-                <span>—</span>
-                <input 
-                  type="number" 
-                  id="fmax" 
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  placeholder="до" 
-                  inputMode="numeric"
-                />
-                <span className="text-[11px] font-bold text-[#64748B]">сум</span>
-              </div>
+            {/* Title & Description */}
+            <h1 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">Katalog</h1>
+            <p className="text-sm text-[#64748B] mt-1.5 font-medium">
+              Har bir mahsulot — bitta kartochka: barcha do‘konlardagi narxlar, narx tarixi va xususiyatlar.
+            </p>
 
-              <select 
-                id="fsort" 
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="fsort-select"
-              >
-                <option value="cheap">Сначала дешёвые</option>
-                <option value="exp">Сначала дорогие</option>
-                <option value="disc">По скидке</option>
-              </select>
-            </div>
-          </div>
-
-          {/* =====================================================================
-              D. PRODUCT ROWS LIST (1:1 with rlist & rrow on MaxProfit)
-              ===================================================================== */}
-          <div className="rlist" id="rlist">
-            {displayedProducts.length === 0 && !isLoading ? (
-              <div className="p-12 text-center bg-white rounded-2xl border border-[#E7E9F2]">
-                <p className="text-[#64748B] font-semibold text-sm">
-                  Ushbu filtrlar bo‘yicha tovar topilmadi. Filtr parametrlarini tozalab ko‘ring.
-                </p>
+            {/* 15 Ta Asosiy Kategoriya Kartochkalari (1:1 MaxProfit kabi) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 mt-6">
+              {CATALOG_CATEGORIES.map((cat) => (
                 <button
+                  key={cat.id}
                   type="button"
                   onClick={() => {
-                    setSelectedStore('all');
-                    setMinPrice('');
-                    setMaxPrice('');
+                    setSearchQuery(cat.query);
+                    executeSearch(cat.query);
                   }}
-                  className="mt-3 px-4 py-2 bg-[#EEF0FF] text-[#6366F1] font-bold text-xs rounded-xl hover:bg-[#6366F1] hover:text-white transition cursor-pointer"
+                  className="bg-white rounded-2xl p-4 border border-[#E7E9F2] hover:border-[#6366F1]/50 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between text-left group"
                 >
-                  Filtrlarni tozalash
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3 ${cat.iconBg} group-hover:scale-105 transition-transform`}>
+                    <span>{cat.icon}</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-[#0F172A] group-hover:text-[#6366F1] transition-colors leading-snug">
+                      {cat.title}
+                    </h3>
+                    <p className="text-xs text-[#94A3B8] font-medium mt-1">
+                      {cat.count}
+                    </p>
+                  </div>
                 </button>
-              </div>
-            ) : (
-              displayedProducts.map((prod, index) => {
-                const brand = getStoreBrandConfig(prod.source);
-                const isFav = !!favorites[prod.id];
-                const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+              ))}
+            </div>
 
-                return (
-                  <article 
-                    key={prod.id || index}
-                    onClick={() => setSelectedProduct(prod)}
-                    className={`rrow ${rankClass} cursor-pointer group`}
-                  >
-                    {/* 1. Image */}
-                    <div className="rimg">
-                      <img 
-                        src={prod.thumbnail || 'https://via.placeholder.com/80'} 
-                        alt={prod.title} 
-                        loading="lazy" 
-                        referrerPolicy="no-referrer"
-                        crossOrigin="anonymous"
-                        className="group-hover:scale-105 transition-transform duration-200"
-                        onError={(e: any) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=400&q=80';
+            {/* Ommabop Mahsulotlar Bo'limlari (Smartfonlar, Noutbuklar, TV, Konditsionerlar) */}
+            <div className="mt-12 space-y-10">
+              {FEATURED_CATALOG_SECTIONS.map((sec) => (
+                <section key={sec.id} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{sec.icon}</span>
+                      <h2 className="text-xl font-extrabold text-[#0F172A] tracking-tight">{sec.title}</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery(sec.query);
+                        executeSearch(sec.query);
+                      }}
+                      className="text-xs font-bold text-[#6366F1] hover:text-[#4F46E5] flex items-center gap-1 group cursor-pointer"
+                    >
+                      <span>Barchasi</span>
+                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {sec.items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setSearchQuery(item.query);
+                          executeSearch(item.query);
                         }}
+                        className="bg-white rounded-2xl p-4 border border-[#E7E9F2] hover:border-[#6366F1]/40 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group"
+                      >
+                        <div className="h-44 w-full rounded-xl bg-[#F8FAFC] flex items-center justify-center p-3 mb-3 overflow-hidden">
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-200"
+                            loading="lazy"
+                          />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-[#0F172A] group-hover:text-[#6366F1] transition-colors line-clamp-2 min-h-[40px]">
+                            {item.title}
+                          </h4>
+                          <div className="mt-3 flex items-baseline justify-between pt-2 border-t border-[#F1F3F9]">
+                            <div>
+                              <span className="text-[11px] text-[#64748B] block font-medium">Boshlang‘ich narx:</span>
+                              <span className="font-extrabold text-sm text-[#0F172A]">{item.price}</span>
+                            </div>
+                            <span className="text-[11px] font-bold text-[#6366F1] bg-[#EEF0FF] px-2 py-0.5 rounded-md">
+                              {item.stores}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================================
+            B. SEARCH RESULTS VIEW (Foydalanuvchi qidirganida ko'rinadi)
+            ===================================================================== */}
+        {activeQuery && (
+          <div className="results-wrap">
+            {/* Back to Catalog Breadcrumb */}
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-[#64748B]">
+              <button 
+                type="button" 
+                onClick={() => {
+                  setActiveQuery('');
+                  setSearchQuery('');
+                }}
+                className="hover:text-[#6366F1] flex items-center gap-1 cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Katalogga qaytish</span>
+              </button>
+              <span>/</span>
+              <span className="text-[#0F172A] font-bold truncate max-w-[200px] sm:max-w-none">&ldquo;{activeQuery}&rdquo;</span>
+            </div>
+
+            {/* Results Head */}
+            <div className="results-head flex flex-wrap items-center justify-between gap-2">
+              <h2>
+                Natijalar: <span>{totalResultsCount || products.length} ta rasmiy taklif</span> — &ldquo;{activeQuery}&rdquo;
+              </h2>
+
+              {/* Quick Category / Dynamic Chips */}
+              {dynamicChips.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {dynamicChips.slice(0, 4).map((chip, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery(chip);
+                        executeSearch(chip);
+                      }}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-[#E7E9F2] text-[#475569] hover:text-[#6366F1] hover:border-[#6366F1] transition cursor-pointer"
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Loading Indicator */}
+            {isLoading && (
+              <div className="my-6 p-6 rounded-2xl bg-white border border-[#E7E9F2] shadow-sm flex items-center justify-center gap-3">
+                <div className="w-5 h-5 border-2 border-[#6366F1] border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm font-bold text-[#6366F1]">O‘zbekiston rasmiy do‘konlaridan narxlar saralanmoqda...</span>
+              </div>
+            )}
+
+            {/* =================================================================
+                A. BEST BANNER (Eng arzon narx toj bilan)
+                ================================================================= */}
+            {bestBanner && bestBanner.title && !isLoading && (
+              <div className="best-banner">
+                <div className="best-media">
+                  <img 
+                    className="best-img" 
+                    src={bestBanner.image || 'https://via.placeholder.com/80'} 
+                    alt={bestBanner.title} 
+                    loading="lazy" 
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="best-crown" title="Eng arzon taklif">👑</span>
+                </div>
+                <div className="best-info">
+                  <div className="t">Eng arzon narx</div>
+                  <div className="n" title={bestBanner.title}>{bestBanner.title}</div>
+                  <div className="best-store">
+                    <span className="w-3.5 h-3.5 flex items-center justify-center">
+                      {getStoreBrandConfig(bestBanner.store).logoSvg}
+                    </span>
+                    <span>{bestBanner.store}</span>
+                  </div>
+                </div>
+                <div className="best-right">
+                  <div className="p">{bestBanner.price}</div>
+                  <a 
+                    className="btn-open" 
+                    href={bestBanner.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    <span>Do‘konga o‘tish</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================================
+                B. PRICE INSIGHT (Narxlar grafigi va tahlil)
+                ================================================================= */}
+            {priceInsight && !isLoading && (
+              <section className="pinsight" aria-label="Narxlar dinamikasi">
+                <div className="pi-head">
+                  <div className="pi-title">
+                    <TrendingUp className="w-4 h-4 text-[#6366F1]" />
+                    <span>Narxlar dinamikasi</span>
+                    <span className="pi-sub">{priceInsight.sub}</span>
+                  </div>
+                  <span className={`pi-level ${priceInsight.level.includes('выгодная') || priceInsight.level.includes('Низкая') || priceInsight.level.includes('solishtirildi') ? 'lvl-low' : ''}`}>
+                    {priceInsight.level}
+                  </span>
+                </div>
+
+                <div className="pi-body">
+                  {/* Interactive SVG Chart */}
+                  <div className="pi-plot">
+                    <svg viewBox="0 0 600 140" preserveAspectRatio="none" className="w-full h-full">
+                      <defs>
+                        <linearGradient id="piFillGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366F1" stopOpacity="0.32" />
+                          <stop offset="100%" stopColor="#6366F1" stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Background Fill Area */}
+                      <path
+                        d="M0,35 Q150,110 300,105 T600,30 L600,140 L0,140 Z"
+                        fill="url(#piFillGrad)"
                       />
+
+                      {/* Trend Line Curve */}
+                      <path
+                        d="M0,35 Q150,110 300,105 T600,30"
+                        fill="none"
+                        stroke="#6366F1"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                      />
+
+                      {/* Current Price Dot */}
+                      <circle cx="590" cy="30" r="5" fill="#6366F1" stroke="#fff" strokeWidth="2" />
+                    </svg>
+
+                    {/* Y-axis Price Labels */}
+                    <div className="absolute top-1 left-2 text-[10px] font-bold text-[#64748B]">
+                      Maksimal
+                    </div>
+                    <div className="absolute bottom-2 left-2 text-[10px] font-bold text-[#64748B]">
+                      Minimal
                     </div>
 
-                    {/* 2. Info */}
-                    <div className="rinfo">
-                      <div className="rtop">
-                        <span className="badge-store">
-                          <span className="w-3.5 h-3.5 flex items-center justify-center">
-                            {brand.logoSvg}
-                          </span>
-                          <span>{prod.source}</span>
-                        </span>
-                        {index === 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold flex items-center gap-1">
-                            👑 Eng past narx
-                          </span>
-                        )}
-                        {prod.storeBadge && index !== 0 && (
-                          <span className="text-[10px] text-[#64748B] font-semibold">
-                            {prod.storeBadge}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="rname group-hover:text-[#6366F1] transition-colors">
-                        {prod.title}
-                      </h3>
-
-                      <div className="rmeta">
-                        <span>🚚 Есть доставка</span>
-                        <span>🛡️ 12 oy kafolat</span>
-                      </div>
-
-                      <div className="rnasiya">
-                        <span className="nas-ico">💳 Рассрочка:</span>
-                        <span className="nas-chip">
-                          {prod.installment || "Alif Nasiya / Muddatli to'lov"}
-                        </span>
-                      </div>
+                    {/* X-axis Dates */}
+                    <div className="pi-x">
+                      <span>12 okt</span>
+                      <span>1 noy</span>
+                      <span>Bugun</span>
                     </div>
+                  </div>
 
-                    {/* 3. Price */}
-                    <div className="rprice">
-                      <div className="price">
-                        {prod.price.replace(" so'm", '').replace(" so‘m", '')}
-                        <span className="cur">сум</span>
+                  {/* Facts Grid */}
+                  <div className="pi-facts">
+                    {priceInsight.facts && priceInsight.facts.map((fact, fIdx) => (
+                      <div key={fIdx} className="pf">
+                        <span>{fact.label}</span>
+                        <b>{fact.value}</b>
+                        {fact.sub && <small>{fact.sub}</small>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Foot Note & Alert Button */}
+                <div className="pi-foot">
+                  <p className="pi-note">
+                    {priceInsight.note || 'Bugungi narx do‘konlar bo‘yicha tahlil qilindi. Telegram orqali arzonlashganda xabar olishingiz mumkin.'}
+                  </p>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsAlertModalOpen(true)}
+                    className={`btn-alert ${isAlertSubscribed ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : ''}`}
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>
+                      {isAlertSubscribed 
+                        ? '✅ Narx kuzatilmoqda — bekor qilish' 
+                        : '🔔 Narx tushganda Telegramda xabar berish'
+                      }
+                    </span>
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* =================================================================
+                C. FILTERS BAR (Do'konlar, narx oralig'i, saralash)
+                ================================================================= */}
+            <div className="filters" id="filters">
+              {/* Store Pills */}
+              <div className="fstores">
+                <button
+                  type="button"
+                  onClick={() => setSelectedStore('all')}
+                  className={`fpill ${selectedStore === 'all' ? 'active' : ''}`}
+                >
+                  <span>Barchasi</span>
+                  <span className="n">{products.length}</span>
+                </button>
+
+                {Object.entries(storeCounts).map(([storeName, count]) => {
+                  const brand = getStoreBrandConfig(storeName);
+                  const isActive = selectedStore.toLowerCase() === storeName.toLowerCase();
+
+                  return (
+                    <button
+                      key={storeName}
+                      type="button"
+                      onClick={() => setSelectedStore(isActive ? 'all' : storeName)}
+                      className={`fpill ${isActive ? 'active' : ''}`}
+                    >
+                      <span className="w-3.5 h-3.5 flex items-center justify-center">
+                        {brand.logoSvg}
+                      </span>
+                      <span>{storeName}</span>
+                      <span className="n">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right: Min-Max Price & Sort Select */}
+              <div className="fright">
+                <div className="fprice">
+                  <input 
+                    type="number" 
+                    id="fmin" 
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    placeholder="dan" 
+                    inputMode="numeric"
+                  />
+                  <span>—</span>
+                  <input 
+                    type="number" 
+                    id="fmax" 
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    placeholder="gacha" 
+                    inputMode="numeric"
+                  />
+                  <span className="text-[11px] font-bold text-[#64748B]">so‘m</span>
+                </div>
+
+                <select 
+                  id="fsort" 
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="fsort-select"
+                >
+                  <option value="cheap">Avval arzonlari</option>
+                  <option value="exp">Avval qimmatlari</option>
+                  <option value="disc">Chegirma bo‘yicha</option>
+                </select>
+              </div>
+            </div>
+
+            {/* =================================================================
+                D. PRODUCT ROWS LIST (1:1 with rlist & rrow on MaxProfit)
+                ================================================================= */}
+            <div className="rlist" id="rlist">
+              {displayedProducts.length === 0 && !isLoading ? (
+                <div className="p-12 text-center bg-white rounded-2xl border border-[#E7E9F2]">
+                  <p className="text-[#64748B] font-semibold text-sm">
+                    Ushbu filtrlar bo‘yicha tovar topilmadi. Filtr parametrlarini tozalab ko‘ring.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStore('all');
+                      setMinPrice('');
+                      setMaxPrice('');
+                    }}
+                    className="mt-3 px-4 py-2 bg-[#EEF0FF] text-[#6366F1] font-bold text-xs rounded-xl hover:bg-[#6366F1] hover:text-white transition cursor-pointer"
+                  >
+                    Filtrlarni tozalash
+                  </button>
+                </div>
+              ) : (
+                displayedProducts.map((prod, index) => {
+                  const brand = getStoreBrandConfig(prod.source);
+                  const isFav = !!favorites[prod.id];
+                  const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+
+                  return (
+                    <article 
+                      key={prod.id || index}
+                      onClick={() => setSelectedProduct(prod)}
+                      className={`rrow ${rankClass} cursor-pointer group`}
+                    >
+                      {/* 1. Image */}
+                      <div className="rimg">
+                        <img 
+                          src={prod.thumbnail || 'https://via.placeholder.com/80'} 
+                          alt={prod.title} 
+                          loading="lazy" 
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          className="group-hover:scale-105 transition-transform duration-200"
+                          onError={(e: any) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=400&q=80';
+                          }}
+                        />
                       </div>
 
-                      {prod.oldPrice && (
-                        <div className="pold">
-                          <span className="old">{prod.oldPrice.replace(" so'm", '')}</span>
-                          {prod.discount && prod.discount > 0 && (
-                            <span className="disc">−{prod.discount}%</span>
+                      {/* 2. Info */}
+                      <div className="rinfo">
+                        <div className="rtop">
+                          <span className="badge-store">
+                            <span className="w-3.5 h-3.5 flex items-center justify-center">
+                              {brand.logoSvg}
+                            </span>
+                            <span>{prod.source}</span>
+                          </span>
+                          {index === 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold flex items-center gap-1">
+                              👑 Eng past narx
+                            </span>
+                          )}
+                          {prod.storeBadge && index !== 0 && (
+                            <span className="text-[10px] text-[#64748B] font-semibold">
+                              {prod.storeBadge}
+                            </span>
                           )}
                         </div>
-                      )}
 
-                      {prod.installment && (
-                        <div className="inst">
-                          {prod.installment}
+                        <h3 className="rname group-hover:text-[#6366F1] transition-colors">
+                          {prod.title}
+                        </h3>
+
+                        <div className="rmeta">
+                          <span>🚚 Yetkazib berish mavjud</span>
+                          <span>🛡️ 12 oy kafolat</span>
                         </div>
-                      )}
-                    </div>
 
-                    {/* 4. Action */}
-                    <div className="ract" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={(e) => toggleFavorite(prod, e)}
-                        className={`btn-fav ${isFav ? 'on' : ''}`}
-                        title={isFav ? "Sevimlilardan o'chirish" : "Sevimlilarga qo'shish"}
-                      >
-                        <Heart className={`w-4 h-4 ${isFav ? 'text-[#F43F5E] fill-[#F43F5E]' : 'text-[#94A3B8]'}`} />
-                      </button>
+                        <div className="rnasiya">
+                          <span className="nas-ico">💳 Muddatli to‘lov:</span>
+                          <span className="nas-chip">
+                            {prod.installment || "Alif Nasiya / Muddatli to'lov"}
+                          </span>
+                        </div>
+                      </div>
 
-                      <a
-                        href={prod.directUrl || prod.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-open"
-                      >
-                        <span>В магазин</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  </article>
-                );
-              })
-            )}
+                      {/* 3. Price */}
+                      <div className="rprice">
+                        <div className="price">
+                          {prod.price.replace(" so'm", '').replace(" so‘m", '')}
+                          <span className="cur">so‘m</span>
+                        </div>
+
+                        {prod.oldPrice && (
+                          <div className="pold">
+                            <span className="old">{prod.oldPrice.replace(" so'm", '').replace(" so‘m", '')}</span>
+                            {prod.discount && prod.discount > 0 && (
+                              <span className="disc">−{prod.discount}%</span>
+                            )}
+                          </div>
+                        )}
+
+                        {prod.installment && (
+                          <div className="inst">
+                            {prod.installment}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. Action */}
+                      <div className="ract" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => toggleFavorite(prod, e)}
+                          className={`btn-fav ${isFav ? 'on' : ''}`}
+                          title={isFav ? "Sevimlilardan o'chirish" : "Sevimlilarga qo'shish"}
+                        >
+                          <Heart className={`w-4 h-4 ${isFav ? 'text-[#F43F5E] fill-[#F43F5E]' : 'text-[#94A3B8]'}`} />
+                        </button>
+
+                        <a
+                          href={prod.directUrl || prod.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-open"
+                        >
+                          <span>Do‘konga o‘tish</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </main>
 
       {/* =========================================================================
