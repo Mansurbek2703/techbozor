@@ -153,10 +153,20 @@ button, input, select, textarea, a {
   display: flex;
   align-items: center;
   gap: 16px;
-  height: 66px;
+  min-height: 66px;
   max-width: var(--mp-maxw);
   margin: 0 auto;
   padding: 0 16px;
+}
+
+@media (max-width: 767px) {
+  .mp-header .container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-height: auto;
+    padding: 8px 12px;
+  }
 }
 
 .mp-logo {

@@ -374,7 +374,14 @@ export default function IqtisodchiSearchPage() {
   const [alertSuccessToast, setAlertSuccessToast] = useState(false);
 
   // 10. AI Chat inside Drawer
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome_iqtisodchi',
+      role: 'model',
+      content: 'Assalomu alaykum! Men "Iqtisodchi" erkin intellektual xarid maslahatchisiman (GPT-4o-mini). Sizga har qanday mahsulot narxlari, texnik taqqoslovlar, yetkazib berish yoki erkin savollaringiz bo‘yicha yordam berishga tayyorman. Qanday savolingiz bor?',
+      timestamp: 'Hozir'
+    }
+  ]);
   const [chatInput, setChatInput] = useState('');
   const [isChatThinking, setIsChatThinking] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -675,16 +682,16 @@ export default function IqtisodchiSearchPage() {
     }
   };
 
-  // Chat message send inside AI drawer
-  const handleSendChatMessage = async () => {
-    if (!chatInput.trim() || isChatThinking) return;
+  // Chat message send inside AI drawer (Erkin kuchli GPT-4o-mini Maslahatchi)
+  const handleSendChatMessage = async (presetText?: string | React.MouseEvent) => {
+    const textToSend = (typeof presetText === 'string' ? presetText : chatInput).trim();
+    if (!textToSend || isChatThinking) return;
 
-    const userText = chatInput.trim();
-    setChatInput('');
+    if (typeof presetText !== 'string') setChatInput('');
     const newMsg: ChatMessage = {
       id: 'user_' + Date.now(),
       role: 'user',
-      content: userText,
+      content: textToSend,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -692,18 +699,20 @@ export default function IqtisodchiSearchPage() {
     setIsChatThinking(true);
 
     try {
-      const res = await fetch('/api/ai/agent', {
+      const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `${activeQuery} haqida savol: ${userText}`,
-          turn_count: 2
+          message: textToSend,
+          history: chatMessages,
+          region: selectedRegion,
+          activeQuery: activeQuery
         })
       });
 
       if (res.ok) {
         const data = await res.json();
-        const reply = data.ai_reply || data.message || 'Sizga eng mos do‘kon narxlarini tanlashda yordam berishdan mamnunman!';
+        const reply = data.reply || data.ai_reply || data.message || 'Sizga eng mos do‘kon narxlarini tanlashda yordam berishdan mamnunman!';
         setChatMessages(prev => [
           ...prev,
           {
@@ -713,14 +722,16 @@ export default function IqtisodchiSearchPage() {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
         ]);
+      } else {
+        throw new Error('Chat API returned error');
       }
     } catch {
       setChatMessages(prev => [
         ...prev,
         {
-          id: 'bot_err',
+          id: 'bot_err_' + Date.now(),
           role: 'model',
-          content: 'Kechirasiz, javob olishda xatolik yuz berdi. Iltimos qayta urinib ko‘ring.',
+          content: 'Kechirasiz, javob olishda vaqtinchalik uzilish yuz berdi. Iltimos yana bir bor yozib ko‘ring.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -795,149 +806,273 @@ export default function IqtisodchiSearchPage() {
     <div className="min-h-screen flex flex-col bg-[#F7F8FC] text-[#0F172A]">
       
       {/* =========================================================================
-          1. IQTISODCHI AUTHENTIC HEADER (1:1 with maxprofit.uz layout)
+          1. IQTISODCHI AUTHENTIC HEADER (RESPONSIVE & PROMINENT SEARCH)
           ========================================================================= */}
       <header className="mp-header">
         <div className="container">
-          {/* Logo */}
-          <button 
-            type="button"
-            onClick={() => {
-              setActiveQuery('');
-              setSearchQuery('');
-            }}
-            className="mp-logo bg-transparent border-0 p-0 text-left cursor-pointer" 
-            aria-label="Iqtisodchi"
-          >
-            <div className="mp-logo-mark">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          {/* DESKTOP VIEW (md:flex) */}
+          <div className="hidden md:flex items-center justify-between gap-3 w-full">
+            {/* Logo */}
+            <button 
+              type="button"
+              onClick={() => {
+                setActiveQuery('');
+                setSearchQuery('');
+              }}
+              className="mp-logo bg-transparent border-0 p-0 text-left cursor-pointer shrink-0" 
+              aria-label="Iqtisodchi"
+            >
+              <div className="mp-logo-mark">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-extrabold text-[19px] tracking-tight text-[#0F172A] leading-none">
+                  Iqtisod<span className="text-[#6366F1]">chi</span>
+                </span>
+                <span className="text-[9px] uppercase tracking-wider font-bold text-[#64748B]">
+                  intellektual xarid dasturi
+                </span>
+              </div>
+            </button>
+
+            {/* Katalog Button */}
+            <button 
+              type="button" 
+              onClick={() => {
+                setActiveQuery('');
+                setSearchQuery('');
+              }}
+              className={`mp-cat cursor-pointer transition-all shrink-0 ${
+                !activeQuery 
+                  ? '!bg-[#6366F1] !text-white !border-transparent shadow-md shadow-indigo-500/25' 
+                  : 'hover:bg-[#EEF0FF] text-[#4338CA]'
+              }`}
+            >
+              <svg className="mp-cat-ic" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+                <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
+                <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
+                <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="3.75" />
               </svg>
+              <span>Katalog</span>
+            </button>
+
+            {/* Hudud Tanlash Button */}
+            <button 
+              type="button" 
+              onClick={() => setIsRegionModalOpen(true)}
+              className="mp-navlink text-[#475569] hover:text-[#6366F1] font-bold cursor-pointer shrink-0"
+              title="Yetkazib berish hududini o‘zgartirish"
+            >
+              <MapPin className="w-4 h-4 text-[#6366F1]" />
+              <span>{selectedRegion}</span>
+              <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
+            </button>
+
+            {/* Desktop Search Form (ASOSIY KATTA KOMPONENT) */}
+            <form className="mp-header-search flex-1 max-w-[560px] flex items-center gap-2" onSubmit={handleSearchSubmit}>
+              <div className="search-box flex-1 shadow-sm hover:shadow-md transition">
+                <span className="text-[#64748B]">
+                  <Search className="w-4 h-4 text-[#6366F1]" />
+                </span>
+                <input 
+                  type="text" 
+                  name="q" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Mahsulot qidirish... (masalan: iPhone 15, televizor, muzlatgich)" 
+                  autoComplete="off"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setActiveQuery('');
+                    }}
+                    className="text-[#94A3B8] hover:text-[#0F172A] p-1 text-xs"
+                    title="Tozalash"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => setIsPhotoModalOpen(true)}
+                  className="btn-photo" 
+                  aria-label="Foto orqali qidirish" 
+                  title="Foto orqali qidirish"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center px-4 h-[42px] rounded-full bg-[#6366F1] hover:bg-[#4F46E5] text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer shrink-0"
+              >
+                Qidirish
+              </button>
+            </form>
+
+            {/* Desktop Right Header Navigation */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsFavoritesOpen(true)}
+                className="relative p-2 text-[#64748B] hover:text-[#0F172A] rounded-xl hover:bg-[#EEF0FF] transition cursor-pointer"
+                title="Sevimlilar"
+              >
+                <Heart className={`w-5 h-5 ${Object.keys(favorites).length > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
+                {Object.keys(favorites).length > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {Object.keys(favorites).length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsAiDrawerOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white text-xs font-bold shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition active:scale-95 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                <span>AI Maslahatchi</span>
+              </button>
+
+              <Link
+                href="/seller/dashboard"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#334155] hover:text-[#6366F1] border border-[#E7E9F2] rounded-xl hover:bg-white transition"
+              >
+                <Store className="w-3.5 h-3.5" />
+                <span>Sotuvchi</span>
+              </Link>
             </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-[19px] tracking-tight text-[#0F172A] leading-none">
-                Iqtisod<span className="text-[#6366F1]">chi</span>
-              </span>
-              <span className="text-[9px] uppercase tracking-wider font-bold text-[#64748B]">
-                intellektual xarid dasturi
-              </span>
-            </div>
-          </button>
+          </div>
 
-          {/* Katalog Button (MaxProfit kabi faol holatda) */}
-          <button 
-            type="button" 
-            onClick={() => {
-              setActiveQuery('');
-              setSearchQuery('');
-            }}
-            className={`mp-cat hidden sm:inline-flex cursor-pointer transition-all ${
-              !activeQuery 
-                ? '!bg-[#6366F1] !text-white !border-transparent shadow-md shadow-indigo-500/25' 
-                : 'hover:bg-[#EEF0FF] text-[#4338CA]'
-            }`}
-          >
-            <svg className="mp-cat-ic" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
-              <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
-              <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
-              <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="3.75" />
-            </svg>
-            <span>Katalog</span>
-          </button>
+          {/* MOBILE & TELEGRAM MINI APP VIEW (< md) - HECH QACHON SIG'MAY QOLMAYDI */}
+          <div className="md:hidden flex flex-col w-full gap-2 py-1">
+            {/* Top Bar: Logo + Compact Action Buttons */}
+            <div className="flex items-center justify-between w-full">
+              {/* Logo */}
+              <button 
+                type="button"
+                onClick={() => {
+                  setActiveQuery('');
+                  setSearchQuery('');
+                }}
+                className="flex items-center gap-1.5 bg-transparent border-0 p-0 text-left cursor-pointer" 
+                aria-label="Iqtisodchi"
+              >
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#6366F1] to-[#8B5CF6] text-white flex items-center justify-center shadow-xs">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                </div>
+                <span className="font-extrabold text-base tracking-tight text-[#0F172A] leading-none">
+                  Iqtisod<span className="text-[#6366F1]">chi</span>
+                </span>
+              </button>
 
-          {/* Hudud Tanlash Button (Yetkazib berish hududi) */}
-          <button 
-            type="button" 
-            onClick={() => setIsRegionModalOpen(true)}
-            className="mp-navlink hidden md:inline-flex text-[#475569] hover:text-[#6366F1] font-bold cursor-pointer"
-            title="Yetkazib berish hududini o‘zgartirish"
-          >
-            <MapPin className="w-4 h-4 text-[#6366F1]" />
-            <span>{selectedRegion}</span>
-            <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
-          </button>
+              {/* Mobile Actions: Katalog, Hudud, AI, Sevimlilar */}
+              <div className="flex items-center gap-1.5">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setActiveQuery('');
+                    setSearchQuery('');
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition ${
+                    !activeQuery 
+                      ? 'bg-[#6366F1] text-white' 
+                      : 'bg-[#EEF0FF] text-[#4338CA]'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Katalog</span>
+                </button>
 
-          {/* Header Search Form (Foydalanuvchi yozgan narsani qidiradi) */}
-          <form className="mp-header-search flex items-center gap-2" onSubmit={handleSearchSubmit}>
-            <div className="search-box flex-1">
-              <span className="text-[#64748B]">
-                <Search className="w-4 h-4" />
-              </span>
-              <input 
-                type="text" 
-                name="q" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Mahsulot qidirish... (masalan: iPhone 15, televizor, muzlatgich)" 
-                autoComplete="off"
-              />
-              {searchQuery && (
+                <button 
+                  type="button" 
+                  onClick={() => setIsRegionModalOpen(true)}
+                  className="flex items-center gap-0.5 px-2 py-1 rounded-lg text-xs font-bold text-[#475569] bg-white border border-[#E7E9F2] max-w-[90px] truncate"
+                  title="Yetkazib berish hududi"
+                >
+                  <MapPin className="w-3 h-3 text-[#6366F1] shrink-0" />
+                  <span className="truncate">{selectedRegion.replace(' shahri', '').replace(' viloyati', '')}</span>
+                </button>
+
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setActiveQuery('');
-                  }}
-                  className="text-[#94A3B8] hover:text-[#0F172A] p-1 text-xs"
-                  title="Tozalash"
+                  onClick={() => setIsAiDrawerOpen(true)}
+                  className="p-1.5 rounded-lg bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white shadow-xs"
+                  title="AI Maslahatchi"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5" />
                 </button>
-              )}
-              <button 
-                type="button" 
-                onClick={() => setIsPhotoModalOpen(true)}
-                className="btn-photo" 
-                aria-label="Foto orqali qidirish" 
-                title="Foto orqali qidirish"
-              >
-                <Camera className="w-4 h-4" />
-              </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsFavoritesOpen(true)}
+                  className="relative p-1.5 text-[#64748B] hover:text-[#0F172A] rounded-lg bg-white border border-[#E7E9F2]"
+                  title="Sevimlilar"
+                >
+                  <Heart className={`w-3.5 h-3.5 ${Object.keys(favorites).length > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
+                  {Object.keys(favorites).length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center">
+                      {Object.keys(favorites).length}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
-            <button
-              type="submit"
-              className="hidden sm:inline-flex items-center justify-center px-4 h-[42px] rounded-full bg-[#6366F1] hover:bg-[#4F46E5] text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer shrink-0"
-            >
-              Qidirish
-            </button>
-          </form>
 
-          {/* Right Header Navigation */}
-          <div className="flex items-center gap-2">
-            {/* Favorites Icon */}
-            <button
-              type="button"
-              onClick={() => setIsFavoritesOpen(true)}
-              className="relative p-2 text-[#64748B] hover:text-[#0F172A] rounded-xl hover:bg-[#EEF0FF] transition cursor-pointer"
-              title="Sevimlilar"
-            >
-              <Heart className={`w-5 h-5 ${Object.keys(favorites).length > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
-              {Object.keys(favorites).length > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
-                  {Object.keys(favorites).length}
+            {/* Row 2: 100% Full Width Hero Search Bar on Mobile */}
+            <form className="flex items-center gap-1.5 w-full" onSubmit={handleSearchSubmit}>
+              <div className="search-box flex-1 w-full !max-w-none !m-0 !py-1.5 !px-3 shadow-xs">
+                <span className="text-[#64748B]">
+                  <Search className="w-4 h-4 text-[#6366F1]" />
                 </span>
-              )}
-            </button>
-
-            {/* AI Advisor Floating Action Header Pill */}
-            <button
-              type="button"
-              onClick={() => setIsAiDrawerOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white text-xs font-bold shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition active:scale-95 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-              <span className="hidden sm:inline">AI Maslahatchi</span>
-            </button>
-
-            {/* Seller Cabinet Link */}
-            <Link
-              href="/seller/dashboard"
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#334155] hover:text-[#6366F1] border border-[#E7E9F2] rounded-xl hover:bg-white transition"
-            >
-              <Store className="w-3.5 h-3.5" />
-              <span>Sotuvchi</span>
-            </Link>
+                <input 
+                  type="text" 
+                  name="q" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Mahsulot qidirish... (iPhone, TV, konditsioner)" 
+                  autoComplete="off"
+                  className="!text-xs"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setActiveQuery('');
+                    }}
+                    className="text-[#94A3B8] hover:text-[#0F172A] p-0.5 text-xs"
+                    title="Tozalash"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => setIsPhotoModalOpen(true)}
+                  className="btn-photo !w-7 !h-7" 
+                  aria-label="Foto orqali qidirish" 
+                  title="Foto orqali qidirish"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <button
+                type="submit"
+                className="px-3.5 h-[38px] rounded-full bg-[#6366F1] hover:bg-[#4F46E5] text-white font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer shrink-0"
+              >
+                Qidirish
+              </button>
+            </form>
           </div>
         </div>
       </header>
@@ -971,6 +1106,77 @@ export default function IqtisodchiSearchPage() {
             <p className="text-sm text-[#64748B] mt-1.5 font-medium">
               Har bir mahsulot — bitta kartochka: barcha do‘konlardagi narxlar, narx tarixi va xususiyatlar.
             </p>
+
+            {/* Asosiy Qidiruv Markazi (Hero Search Engine - Asosiy Katta Komponent) */}
+            <div className="mt-5 mb-8 bg-gradient-to-br from-white via-[#F8F9FE] to-[#EFF2FE] border-2 border-[#6366F1]/25 rounded-3xl p-4 sm:p-7 shadow-lg shadow-indigo-500/5">
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-[#4338CA] text-xs font-bold">
+                    <Sparkles className="w-3.5 h-3.5 text-[#6366F1]" />
+                    <span>Aqlli Qidiruv va Rasmiy Do‘konlar Tahlili</span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-[#64748B]">
+                    📍 {selectedRegion}
+                  </span>
+                </div>
+                
+                {/* Big Search Bar */}
+                <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row items-center gap-2">
+                  <div className="relative flex-1 w-full flex items-center bg-white rounded-2xl border-2 border-[#DDE2FB] focus-within:border-[#6366F1] focus-within:ring-4 focus-within:ring-[#6366F1]/15 transition-all shadow-sm px-3.5 py-3">
+                    <Search className="w-5 h-5 text-[#6366F1] shrink-0 mr-2.5" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Qanday mahsulot qidiryapsiz? (iPhone 15, inverter konditsioner, 55 TV...)"
+                      className="w-full bg-transparent border-0 outline-none text-sm sm:text-base text-[#0F172A] placeholder:text-[#94A3B8] font-medium"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="p-1 text-[#94A3B8] hover:text-[#0F172A] mr-1"
+                        title="Tozalash"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsPhotoModalOpen(true)}
+                      className="p-1.5 text-[#6366F1] hover:bg-indigo-50 rounded-xl transition"
+                      title="Foto orqali qidirish"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white font-extrabold text-sm sm:text-base shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer shrink-0"
+                  >
+                    Qidirish
+                  </button>
+                </form>
+
+                {/* Popular Search Suggestions */}
+                <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider mr-1">Tavsiya:</span>
+                  {['iPhone 15 128GB', 'Inverter konditsioner', 'Samsung 55" UHD', 'MacBook Air M2', 'PlayStation 5', 'Shivaki muzlatgich'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery(tag);
+                        executeSearch(tag);
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-white hover:bg-indigo-50 border border-[#E7E9F2] hover:border-[#6366F1] text-xs font-semibold text-[#475569] hover:text-[#4338CA] transition cursor-pointer shadow-2xs"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             {/* 15 Ta Asosiy Kategoriya Kartochkalari (1:1 MaxProfit kabi) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 mt-6">
@@ -1574,7 +1780,7 @@ export default function IqtisodchiSearchPage() {
                 <span>Bosh Iqtisodchi Ekspertizasi (450 so‘m/kVt bazaviy tarif):</span>
               </div>
               <p className="text-[#334155] leading-relaxed font-medium">
-                {aiAdvice || `${activeQuery} uchun rasmiy do‘konlar (Texnomart, Olcha, Idea, BeeMarket) narxlari solishtirildi. Eng arzon variantda rasmiy servis kafolati mavjud.`}
+                {aiAdvice || (activeQuery ? `${activeQuery} uchun rasmiy do‘konlar (Texnomart, Olcha, Idea, BeeMarket) narxlari solishtirildi. Eng arzon variantda rasmiy servis kafolati mavjud.` : `Assalomu alaykum! Men sizning intellektual xarid maslahatchisingizman. Narxlar tahlili, rasmiy do‘konlar yoki texnik parametrlar bo‘yicha savollaringizga erkin javob berishga tayyorman.`)}
               </p>
             </div>
 
@@ -1617,9 +1823,9 @@ export default function IqtisodchiSearchPage() {
                   key={idx}
                   type="button"
                   onClick={() => {
-                    setChatInput(q);
+                    handleSendChatMessage(q);
                   }}
-                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-white border border-[#E7E9F2] text-[#475569] hover:border-[#6366F1] hover:text-[#6366F1] transition cursor-pointer"
+                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-white border border-[#E7E9F2] text-[#475569] hover:border-[#6366F1] hover:text-[#6366F1] transition cursor-pointer active:scale-95"
                 >
                   {q}
                 </button>
@@ -1638,7 +1844,7 @@ export default function IqtisodchiSearchPage() {
               />
               <button
                 type="button"
-                onClick={handleSendChatMessage}
+                onClick={() => handleSendChatMessage()}
                 className="w-9 h-9 rounded-xl bg-[#6366F1] text-white flex items-center justify-center hover:bg-[#5457E5] transition cursor-pointer"
               >
                 <Send className="w-4 h-4" />
