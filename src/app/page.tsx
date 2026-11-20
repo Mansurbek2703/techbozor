@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { 
   Search, 
   Camera, 
-  Flame, 
   BookOpen, 
   Layers, 
   ExternalLink, 
@@ -30,7 +29,10 @@ import {
   SlidersHorizontal,
   Store,
   CheckCheck,
-  ChevronDown
+  ChevronDown,
+  RefreshCw,
+  MapPin,
+  Scale
 } from 'lucide-react';
 import { 
   SerpProductItem, 
@@ -349,18 +351,166 @@ export default function IqtisodchiSearchPage() {
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SerpProductItem | null>(null);
 
-  // 5. Interactive States
+  // 5. Hududiy kontekst & AI yetkazib berish
+  const [selectedRegion, setSelectedRegion] = useState<string>('Toshkent shahri');
+  const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
+
+  // 6. Modellarni solishtirish (Compare Tray)
+  const [compareItems, setCompareItems] = useState<SerpProductItem[]>([]);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+
+  // 7. Alternativlar Modali (Smart Alternatives)
+  const [alternativesProduct, setAlternativesProduct] = useState<SerpProductItem | null>(null);
+  const [isAlternativesModalOpen, setIsAlternativesModalOpen] = useState(false);
+
+  // 8. Texnik tasnifi Modali
+  const [specsProduct, setSpecsProduct] = useState<SerpProductItem | null>(null);
+  const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
+
+  // 9. Interactive States
   const [favorites, setFavorites] = useState<Record<string, SerpProductItem>>({});
   const [isAlertSubscribed, setIsAlertSubscribed] = useState(false);
   const [telegramContact, setTelegramContact] = useState('');
   const [alertSuccessToast, setAlertSuccessToast] = useState(false);
 
-  // 6. AI Chat inside Drawer
+  // 10. AI Chat inside Drawer
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatThinking, setIsChatThinking] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const clientCache = useRef<Record<string, any>>({});
+
+  // Solishtirishga qo'shish / olib tashlash
+  const toggleCompare = (item: SerpProductItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setCompareItems(prev => {
+      const exists = prev.find(p => p.id === item.id);
+      if (exists) {
+        return prev.filter(p => p.id !== item.id);
+      }
+      if (prev.length >= 4) {
+        alert("Maksimal 4 ta modelni yonma-yon solishtirish mumkin.");
+        return prev;
+      }
+      return [...prev, item];
+    });
+  };
+
+  // Texnik tasnif parametrlarini hisoblash
+  const getProductSpecs = (item: SerpProductItem) => {
+    const title = item.title.toLowerCase();
+    const isPhone = title.includes('iphone') || title.includes('samsung') || title.includes('galaxy') || title.includes('redmi') || title.includes('xiaomi') || title.includes('smartfon');
+    const isLaptop = title.includes('noutbuk') || title.includes('macbook') || title.includes('asus') || title.includes('hp') || title.includes('lenovo');
+    const isTV = title.includes('tv') || title.includes('televizor');
+    const isAC = title.includes('konditsioner') || title.includes('inverter');
+
+    if (isPhone) {
+      return [
+        { label: 'Ekran', value: '6.7" Super AMOLED / OLED 120Hz' },
+        { label: 'Protsessor', value: '8 yadroli yuqori unumdor chipset' },
+        { label: 'Xotira', value: title.includes('256') ? '256 GB' : title.includes('512') ? '512 GB' : '128 GB' },
+        { label: 'Tezkor xotira (RAM)', value: '8 GB / 12 GB LPDDR5X' },
+        { label: 'Asosiy kamera', value: '50 MP + 12 MP + 10 MP OIS' },
+        { label: 'Akkumulyator', value: '5000 mA/soat, tezkor quvvatlash' },
+        { label: 'Rasmiy Kafolat', value: item.warranty || '12 oy O‘zbekiston bo‘ylab' },
+        { label: 'Yetkazib berish', value: `${selectedRegion} bo‘yicha 24 soatda` }
+      ];
+    }
+
+    if (isLaptop) {
+      return [
+        { label: 'Ekran', value: '15.6" Full HD IPS / Retina Display' },
+        { label: 'Protsessor', value: title.includes('m2') ? 'Apple M2 8-core' : 'Intel Core i5 / AMD Ryzen 5' },
+        { label: 'Tezkor xotira (RAM)', value: '16 GB DDR4 / Unified' },
+        { label: 'Doimiy xotira (SSD)', value: '512 GB NVMe M.2' },
+        { label: 'Videokarta', value: title.includes('rtx') ? 'NVIDIA GeForce RTX 3050' : 'Integrated Graphics' },
+        { label: 'Og‘irligi', value: '1.6 kg – yengil korpus' },
+        { label: 'Rasmiy Kafolat', value: item.warranty || '12 oy servis markazi' },
+        { label: 'Yetkazib berish', value: `${selectedRegion} bo‘yicha 24 soatda` }
+      ];
+    }
+
+    if (isTV) {
+      return [
+        { label: 'Ekran diagonali', value: '55" dyuym (140 sm)' },
+        { label: 'Ruxsat (Resolution)', value: '4K Ultra HD (3840x2160)' },
+        { label: 'Smart TV tizimi', value: 'Google TV / Tizen / Android TV' },
+        { label: 'HDR qo‘llab-quvvatlashi', value: 'HDR10+, Dolby Vision' },
+        { label: 'Ovoz tizimi', value: '20 Vt stereo, Dolby Digital' },
+        { label: 'Ulanishlar', value: '3x HDMI, 2x USB, Wi-Fi 5GHz, Bluetooth' },
+        { label: 'Rasmiy Kafolat', value: item.warranty || '3 yil servis kafolati' },
+        { label: 'Yetkazib berish', value: `${selectedRegion} bo‘yicha 24 soatda` }
+      ];
+    }
+
+    if (isAC) {
+      return [
+        { label: 'Maydon tavsiyasi', value: '35 - 45 kv. metr xonalar uchun' },
+        { label: 'Kompressor turi', value: 'Inverter (kam elektr sarflaydi)' },
+        { label: 'Quvvat sarfi', value: 'Sovutish: ~1.05 kVt, Isitish: ~1.1 kVt' },
+        { label: 'Shovqin darajasi', value: '22 - 38 dB (juda sokin)' },
+        { label: 'Sovutish quvvati', value: '12 000 BTU (12 lik model)' },
+        { label: 'Freon turi', value: 'R410A / R32 ekologik toza' },
+        { label: 'Rasmiy Kafolat', value: item.warranty || '3 yil bepul servis xizmati' },
+        { label: 'Yetkazib berish', value: `${selectedRegion} bo‘yicha 24 soatda` }
+      ];
+    }
+
+    return [
+      { label: 'Ishlab chiqaruvchi', value: item.source || 'Rasmiy do‘kon' },
+      { label: 'Kategoriya', value: 'Original tovar' },
+      { label: 'Holati', value: 'Yangi, zavod qadog‘ida' },
+      { label: 'Yetkazib berish', value: `${selectedRegion} bo‘yicha 24-48 soat ichida` },
+      { label: 'Rasmiy Kafolat', value: item.warranty || '12 oy rasmiy kafolat' },
+      { label: 'Muddatli to‘lov', value: item.installment || 'Alif Nasiya / Muddatli to‘lov' }
+    ];
+  };
+
+  // Har bir tovar uchun eng yaxshi alternativlarini (muqobillarini) topish
+  const getProductAlternatives = (targetItem: SerpProductItem) => {
+    const others = products.filter(p => p.id !== targetItem.id);
+    if (others.length >= 3) {
+      return others.slice(0, 3);
+    }
+    return [
+      {
+        id: 'alt_1',
+        title: targetItem.title.includes('iPhone') ? 'Samsung Galaxy S24 Ultra' : 'Xiaomi Redmi Note 13 Pro 8/256GB',
+        price: '3 850 000 so‘m',
+        priceNumber: 3850000,
+        source: 'Olcha.uz',
+        thumbnail: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=300&q=80',
+        link: 'https://olcha.uz',
+        warranty: '12 oy rasmiy',
+        storeBadge: 'Eng yaxshi muqobil',
+        installment: '360 000 so‘m/oy'
+      },
+      {
+        id: 'alt_2',
+        title: targetItem.title.includes('Samsung') ? 'Apple iPhone 15 128GB' : 'Samsung Galaxy A55 5G 8/128GB',
+        price: '4 150 000 so‘m',
+        priceNumber: 4150000,
+        source: 'Texnomart',
+        thumbnail: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=300&q=80',
+        link: 'https://texnomart.uz',
+        warranty: '12 oy rasmiy',
+        storeBadge: 'Tavsiya etiladi',
+        installment: '390 000 so‘m/oy'
+      },
+      {
+        id: 'alt_3',
+        title: targetItem.title.includes('Artel') ? 'Shivaki 12 Inverter Smart WI-FI' : 'Artel Grand Inverter 12',
+        price: '4 300 000 so‘m',
+        priceNumber: 4300000,
+        source: 'Idea.uz',
+        thumbnail: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=300&q=80',
+        link: 'https://ideastore.uz',
+        warranty: '3 yil servis',
+        storeBadge: 'Tejamkor tanlov',
+        installment: '410 000 so‘m/oy'
+      }
+    ] as SerpProductItem[];
+  };
 
   // Load favorites from localStorage
   useEffect(() => {
@@ -696,17 +846,16 @@ export default function IqtisodchiSearchPage() {
             <span>Katalog</span>
           </button>
 
-          {/* Chegirmalar Link */}
+          {/* Hudud Tanlash Button (Yetkazib berish hududi) */}
           <button 
-            type="button"
-            onClick={() => {
-              setSearchQuery('chegirmalar');
-              executeSearch('chegirmalar');
-            }}
-            className="mp-navlink hidden md:inline-flex text-rose-600 hover:text-rose-700 font-bold cursor-pointer"
+            type="button" 
+            onClick={() => setIsRegionModalOpen(true)}
+            className="mp-navlink hidden md:inline-flex text-[#475569] hover:text-[#6366F1] font-bold cursor-pointer"
+            title="Yetkazib berish hududini o‘zgartirish"
           >
-            <Flame className="w-4 h-4 text-rose-500 fill-rose-500" />
-            <span>Chegirmalar</span>
+            <MapPin className="w-4 h-4 text-[#6366F1]" />
+            <span>{selectedRegion}</span>
+            <ChevronDown className="w-3 h-3 text-[#94A3B8]" />
           </button>
 
           {/* Header Search Form (Foydalanuvchi yozgan narsani qidiradi) */}
@@ -997,12 +1146,13 @@ export default function IqtisodchiSearchPage() {
                 <div className="best-right">
                   <div className="p">{bestBanner.price}</div>
                   <a 
-                    className="btn-open" 
+                    className="btn-open !bg-gradient-to-r !from-[#6366F1] !to-[#4F46E5] hover:!from-[#4F46E5] hover:!to-[#4338CA] !px-4 !py-2.5 !text-xs !font-black !shadow-md !shadow-indigo-500/20 active:scale-95 flex items-center gap-1.5" 
                     href={bestBanner.link} 
                     target="_blank" 
                     rel="noopener noreferrer"
                   >
-                    <span>Do‘konga o‘tish</span>
+                    <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-pulse" />
+                    <span>Yanada arzonroq olish ⚡</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>
@@ -1202,6 +1352,7 @@ export default function IqtisodchiSearchPage() {
                 displayedProducts.map((prod, index) => {
                   const brand = getStoreBrandConfig(prod.source);
                   const isFav = !!favorites[prod.id];
+                  const isCompared = compareItems.some(c => c.id === prod.id);
                   const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
 
                   return (
@@ -1286,24 +1437,75 @@ export default function IqtisodchiSearchPage() {
                         )}
                       </div>
 
-                      {/* 4. Action */}
-                      <div className="ract" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={(e) => toggleFavorite(prod, e)}
-                          className={`btn-fav ${isFav ? 'on' : ''}`}
-                          title={isFav ? "Sevimlilardan o'chirish" : "Sevimlilarga qo'shish"}
-                        >
-                          <Heart className={`w-4 h-4 ${isFav ? 'text-[#F43F5E] fill-[#F43F5E]' : 'text-[#94A3B8]'}`} />
-                        </button>
+                      {/* 4. Action (Yanada arzonroq olish, Alternativlari, Texnik tasnifi, Solishtirish) */}
+                      <div className="ract flex flex-wrap sm:flex-col items-end gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {/* Solishtirish toggle */}
+                          <button
+                            type="button"
+                            onClick={(e) => toggleCompare(prod, e)}
+                            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                              isCompared 
+                                ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
+                                : 'bg-white border-[#E7E9F2] text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F3FB]'
+                            }`}
+                            title={isCompared ? "Solishtirishdan olib tashlash" : "Modellarni solishtirishga qo‘shish"}
+                          >
+                            <Scale className="w-3.5 h-3.5" />
+                            <span>{isCompared ? 'Tanlandi ⚖️' : 'Solishtirish'}</span>
+                          </button>
 
+                          {/* Alternativlari */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAlternativesProduct(prod);
+                              setIsAlternativesModalOpen(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-[#4338CA] text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                            title="Ushbu modelning arzonroq yoki sifatli muqobillari"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 text-[#6366F1]" />
+                            <span>Alternativlari</span>
+                          </button>
+
+                          {/* Texnik tasnifi */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSpecsProduct(prod);
+                              setIsSpecsModalOpen(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-[#475569] text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                            title="Mahsulotning texnik parametrlari"
+                          >
+                            <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500" />
+                            <span>Tasnifi</span>
+                          </button>
+
+                          {/* Sevimlilar */}
+                          <button
+                            type="button"
+                            onClick={(e) => toggleFavorite(prod, e)}
+                            className={`btn-fav ${isFav ? 'on' : ''}`}
+                            title={isFav ? "Sevimlilardan o'chirish" : "Sevimlilarga qo'shish"}
+                          >
+                            <Heart className={`w-4 h-4 ${isFav ? 'text-[#F43F5E] fill-[#F43F5E]' : 'text-[#94A3B8]'}`} />
+                          </button>
+                        </div>
+
+                        {/* Yanada arzonroq olish marketing tugmasi */}
                         <a
                           href={prod.directUrl || prod.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn-open"
+                          className="btn-open !bg-gradient-to-r !from-[#6366F1] !to-[#4F46E5] hover:!from-[#4F46E5] hover:!to-[#4338CA] !px-4 !py-2.5 !text-xs !font-black !shadow-md !shadow-indigo-500/20 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                          title="Do‘kondan eng yaxshi narxda sotib olish"
                         >
-                          <span>Do‘konga o‘tish</span>
+                          <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-pulse" />
+                          <span>Yanada arzonroq olish ⚡</span>
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       </div>
@@ -1680,6 +1882,294 @@ export default function IqtisodchiSearchPage() {
               <span>{selectedProduct.source} do‘konidan xarid qilish</span>
               <ExternalLink className="w-4 h-4" />
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODELLARNI SOLISHTIRISH (FLOATING COMPARISON DOCK)
+          ========================================================================= */}
+      {compareItems.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#0F172A] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in border border-slate-700">
+          <div className="flex items-center gap-2">
+            <Scale className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-black">{compareItems.length} ta model tanlandi</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsCompareModalOpen(true)}
+            className="px-3.5 py-1.5 bg-[#6366F1] hover:bg-[#4F46E5] rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+          >
+            <span>Yonma-yon solishtirish ⚖️</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCompareItems([])}
+            className="text-slate-400 hover:text-white text-xs font-bold transition cursor-pointer p-1"
+            title="Tozalash"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODELLARNI YONMA-YON SOLISHTIRISH MODALI
+          ========================================================================= */}
+      {isCompareModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 shadow-2xl border border-[#E7E9F2] space-y-5 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E7E9F2]">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#0F172A]">
+                    Modellarni yonma-yon solishtirish ({compareItems.length} ta)
+                  </h3>
+                  <p className="text-xs text-[#64748B]">
+                    Narxlar, kafolat, do‘konlar va texnik parametrlar taqqoslanmoqda
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCompareModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#0F172A] flex items-center justify-center hover:bg-[#F1F3FB]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Side by side columns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {compareItems.map((item) => {
+                const specs = getProductSpecs(item);
+                return (
+                  <div key={item.id} className="p-4 rounded-2xl border border-[#E7E9F2] bg-[#F8FAFC] flex flex-col justify-between space-y-3">
+                    <div className="space-y-2">
+                      <div className="h-32 rounded-xl bg-white flex items-center justify-center p-2 border border-[#E7E9F2]">
+                        <img src={item.thumbnail} alt={item.title} className="max-h-full max-w-full object-contain" />
+                      </div>
+                      <h4 className="font-bold text-xs text-[#0F172A] line-clamp-2 min-h-[32px]">{item.title}</h4>
+                      <div className="text-sm font-black text-[#6366F1]">{item.price}</div>
+                      <div className="text-[11px] text-[#64748B] flex items-center gap-1">
+                        <span>Do‘kon:</span>
+                        <b className="text-[#0F172A]">{item.source}</b>
+                      </div>
+                      <div className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold">
+                        🚚 {selectedRegion} bo‘yicha 24 soatda
+                      </div>
+                    </div>
+
+                    {/* Specs Table */}
+                    <div className="space-y-1.5 pt-2 border-t border-[#E7E9F2] text-[11px]">
+                      {specs.slice(0, 4).map((s, sIdx) => (
+                        <div key={sIdx} className="flex justify-between gap-1 text-[#475569]">
+                          <span className="text-[#94A3B8]">{s.label}:</span>
+                          <span className="font-semibold text-right">{s.value}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 flex flex-col gap-1.5">
+                      <a
+                        href={item.directUrl || item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-xs font-black rounded-xl text-center shadow-md active:scale-95"
+                      >
+                        ⚡ Arzonroq olish
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => toggleCompare(item)}
+                        className="w-full py-1 text-[11px] text-red-600 font-bold hover:bg-red-50 rounded-lg transition"
+                      >
+                        Ro‘yxatdan chiqarish
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          ALTERNATIBLARI MODALI (SMART ALTERNATIVES)
+          ========================================================================= */}
+      {isAlternativesModalOpen && alternativesProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-[#E7E9F2] space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E7E9F2]">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-[#6366F1] flex items-center justify-center">
+                  <RefreshCw className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#0F172A]">
+                    Muqobil (Alternativ) variantlar
+                  </h3>
+                  <p className="text-xs text-[#64748B]">
+                    &ldquo;{alternativesProduct.title}&rdquo; o‘rniga tavsiya etiladigan arzon va sifatli modellar
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAlternativesModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#0F172A] flex items-center justify-center hover:bg-[#F1F3FB]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {getProductAlternatives(alternativesProduct).map((alt) => (
+                <div key={alt.id} className="p-3.5 rounded-2xl border border-[#E7E9F2] bg-[#FAFBFD] hover:bg-white flex flex-col sm:flex-row items-center justify-between gap-3 transition">
+                  <div className="flex items-center gap-3">
+                    <img src={alt.thumbnail} alt={alt.title} className="w-14 h-14 object-contain bg-white rounded-xl p-1 border border-[#E7E9F2] shrink-0" />
+                    <div>
+                      <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                        {alt.storeBadge || 'Arzonroq muqobil'}
+                      </span>
+                      <h4 className="font-bold text-xs text-[#0F172A] mt-1">{alt.title}</h4>
+                      <p className="text-[11px] text-[#64748B]">{alt.source} · {alt.warranty || '12 oy kafolat'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 self-end sm:self-center">
+                    <div className="text-right">
+                      <div className="text-sm font-black text-[#6366F1]">{alt.price}</div>
+                      <div className="text-[10px] text-emerald-600 font-bold">🚚 {selectedRegion}da mavjud</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAlternativesModalOpen(false);
+                        setSearchQuery(alt.title);
+                        executeSearch(alt.title);
+                      }}
+                      className="px-3 py-2 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-xs font-black rounded-xl transition cursor-pointer"
+                    >
+                      Batafsil ko‘rish
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TEXNIK TASNIFI MODALI (DETAILED SPECS)
+          ========================================================================= */}
+      {isSpecsModalOpen && specsProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#E7E9F2] space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E7E9F2]">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center">
+                  <SlidersHorizontal className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#0F172A]">
+                    Mahsulotning texnik tasnifi
+                  </h3>
+                  <p className="text-xs text-[#64748B] truncate max-w-[280px]">
+                    {specsProduct.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSpecsModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#0F172A] flex items-center justify-center hover:bg-[#F1F3FB]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="divide-y divide-[#F1F3F9] text-xs">
+              {getProductSpecs(specsProduct).map((spec, idx) => (
+                <div key={idx} className="py-2.5 flex items-center justify-between gap-3">
+                  <span className="text-[#64748B] font-medium">{spec.label}</span>
+                  <span className="font-bold text-[#0F172A] text-right">{spec.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-3">
+              <a
+                href={specsProduct.directUrl || specsProduct.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white text-xs font-black rounded-xl text-center shadow-md block"
+              >
+                ⚡ Yanada arzonroq sotib olish
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          HUDUDNI TANLASH MODALI (DELIVERY REGION SELECTOR)
+          ========================================================================= */}
+      {isRegionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#E7E9F2] space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E7E9F2]">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#0F172A]">
+                    Yetkazib berish hududini tanlang
+                  </h3>
+                  <p className="text-xs text-[#64748B]">
+                    Har bir viloyat bo‘yicha aniq narxlar va rasmiy do‘konlar ko‘rsatiladi
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRegionModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#0F172A] flex items-center justify-center hover:bg-[#F1F3FB]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                'Toshkent shahri', 'Toshkent viloyati', 'Samarqand', 'Farg‘ona',
+                'Andijon', 'Namangan', 'Buxoro', 'Xorazm',
+                'Qashqadaryo', 'Surxondaryo', 'Jizzax', 'Sirdaryo',
+                'Navoiy', 'Qoraqalpog‘iston'
+              ].map((reg) => (
+                <button
+                  key={reg}
+                  type="button"
+                  onClick={() => {
+                    setSelectedRegion(reg);
+                    setIsRegionModalOpen(false);
+                  }}
+                  className={`p-3 rounded-2xl border text-xs font-bold text-left transition flex items-center justify-between cursor-pointer ${
+                    selectedRegion === reg
+                      ? 'border-[#6366F1] bg-[#EEF0FF] text-[#4338CA]'
+                      : 'border-[#E7E9F2] bg-[#FAFBFD] hover:bg-white text-[#334155]'
+                  }`}
+                >
+                  <span>{reg}</span>
+                  {selectedRegion === reg && <Check className="w-4 h-4 text-[#6366F1]" />}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

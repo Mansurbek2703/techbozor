@@ -79,10 +79,13 @@ def main():
     run_command(ssh, f"cd {APP_DIR} && npm install")
     run_command(ssh, f"cd {APP_DIR} && npm run build")
 
-    # 5. PM2 yoki Systemd servisini qayta ishga tushirish
+    # 5. PM2 yoki Systemd servisini qayta ishga tushirish (Web App + Telegram Bot)
     pm2_status = run_command(ssh, f"cd {APP_DIR} && npx pm2 restart techbozor || npx pm2 start npm --name 'techbozor' -- start")
     if pm2_status != 0:
         run_command(ssh, "systemctl restart techbozor", sudo=True)
+
+    # 6. Telegram Bot (@arzonoling_bot) servisini PM2 da ishga tushirish
+    run_command(ssh, f"cd {APP_DIR} && npx pm2 restart arzonoling-bot || npx pm2 start telegram_bot.js --name 'arzonoling-bot'")
 
     print("\n[SUCCESS] Deploy muvaffaqiyatli yakunlandi!")
     ssh.close()
