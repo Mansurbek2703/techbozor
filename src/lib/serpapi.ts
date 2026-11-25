@@ -1671,7 +1671,22 @@ export async function searchLocalProducts(
       expandedQuery = `${cleanSearchTerm} (${sitesPart})`;
     }
 
-    const serpProducts = await fetchAndEnrichStores(expandedQuery, category, targetRegion, cleanSearchTerm);
+    const ruMap: Record<string, string> = {
+      "qo'lqop": 'перчатки',
+      "paypoq": 'носки',
+      "qo'l soati": 'часы',
+      "soat": 'часы',
+      "kurtka": 'куртка',
+      "krossovka": 'кроссовки',
+    };
+    const normQ = normalizeUzText(cleanSearchTerm);
+    const ruAlt = Object.entries(ruMap).find(([k]) => normQ.includes(k))?.[1];
+
+    const [serpProducts, olchaAlt] = await Promise.all([
+      fetchAndEnrichStores(expandedQuery, category, targetRegion, cleanSearchTerm),
+      ruAlt ? searchOlchaDirect(ruAlt, catKey, targetRegion) : Promise.resolve([]),
+    ]);
+    addItems(olchaAlt);
     addItems(serpProducts);
   }
 
