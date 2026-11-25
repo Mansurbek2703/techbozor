@@ -1683,7 +1683,7 @@ export async function searchLocalProducts(
       if (!byStore.has(st)) byStore.set(st, []);
       byStore.get(st)!.push(item);
     }
-    for (const list of byStore.values()) {
+    for (const list of Array.from(byStore.values())) {
       list.sort((a, b) => (a.priceNumber || 999999999) - (b.priceNumber || 999999999));
     }
     const queues = Array.from(byStore.values()).sort(
