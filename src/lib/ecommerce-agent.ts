@@ -1311,6 +1311,97 @@ QAT'IY QOIDALAR:
   };
 }
 
+/**
+ * 🧠 AI Mazmuniy Qidiruv Tushunuvchisi (Semantic Query Expander)
+ * "bosh kiyimi" -> ["kepka", "shapka"] (ilgich/avtomobilni chiqarib tashlaydi)
+ */
+async function understandSearchQueryWithAI(rawQuery: string): Promise<{
+  queries: string[];
+  mustExclude: string[];
+}> {
+  const norm = rawQuery.toLowerCase().replace(/['‘’ʻ`]/g, "'").trim();
+
+  // 1. Tezkor 0ms ma'noviy lug'at (eng ko'p uchraydigan o'zbekcha iboralar)
+  const semanticDict: Array<{ match: RegExp; queries: string[]; exclude: string[] }> = [
+    {
+      match: /\bbosh\s*kiyim/i,
+      queries: ['kepka', 'shapka', 'panama'],
+      exclude: ['avtomobil', 'ilgich', 'podgolovnik', "o'rindiq", 'suyag', 'veshalka'],
+    },
+    {
+      match: /\boyoq\s*kiyim/i,
+      queries: ['krossovka', 'tufli', 'botinka'],
+      exclude: ['avtomobil', 'gilam', 'kovrik', 'ilgich'],
+    },
+    {
+      match: /\bqo'l\s*soat/i,
+      queries: ['soat', 'smart soat'],
+      exclude: ['akkumulyator', 'a/soat', 'blender', 'plitka'],
+    },
+    {
+      match: /\bichki\s*kiyim/i,
+      queries: ['futbolka', 'mayka'],
+      exclude: ['avtomobil', 'ilgich'],
+    },
+  ];
+
+  for (const rule of semanticDict) {
+    if (rule.match.test(norm)) {
+      return { queries: rule.queries, mustExclude: rule.exclude };
+    }
+  }
+
+  // Agar aniq brend/model bo'lsa (masalan: iphone 15, samsung a55, lg konditsioner), LLM kutmaymiz
+  if (/\b(iphone|samsung|xiaomi|redmi|macbook|asus|lenovo|hp|lg|artel|shivaki|huawei|sony|playstation)\b/i.test(norm)) {
+    return { queries: [rawQuery], mustExclude: [] };
+  }
+
+  // 2. Noma'lum yoki murakkab iboralar uchun tezkor GPT-4o-mini tushunishi (~450ms)
+  const key = getOpenAIApiKey();
+  if (!key) return { queries: [rawQuery], mustExclude: [] };
+
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 2200);
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0,
+        max_tokens: 120,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You understand Uzbek/Russian e-commerce search intent. Convert a user phrase into 2 concrete product search keywords used in Uzbekistan online stores (e.g. "bosh kiyimi" -> ["kepka","shapka"], "uy tozalash texnikasi" -> ["changyutgich","robot changyutgich"]) and list unrelated trap words to exclude. Return JSON: {"queries":["q1","q2"],"must_exclude":["bad1"]}',
+          },
+          { role: 'user', content: rawQuery },
+        ],
+      }),
+    });
+    clearTimeout(tid);
+    if (res.ok) {
+      const d = await res.json();
+      const parsed = JSON.parse(d.choices?.[0]?.message?.content || '{}');
+      const queries = Array.isArray(parsed.queries) && parsed.queries.length > 0
+        ? parsed.queries.slice(0, 2).map((s: any) => String(s).trim()).filter(Boolean)
+        : [rawQuery];
+      const mustExclude = Array.isArray(parsed.must_exclude)
+        ? parsed.must_exclude.map((s: any) => String(s).toLowerCase().trim()).filter(Boolean)
+        : [];
+      return { queries, mustExclude };
+    }
+  } catch {}
+
+  return { queries: [rawQuery], mustExclude: [] };
+}
+
 export async function runEcommerceAgentPipeline(
   userMessage: string,
   history: ChatMessage[] = [],
@@ -1325,14 +1416,39 @@ export async function runEcommerceAgentPipeline(
   const currentTurn = (params?.turn_count || 1);
   const targetRegion = params?.region || 'Toshkent';
 
-  // ⚡ FAST-TRACK QIDIRUV (currentTurn >= 2): Foydalanuvchi qidiruv satriga yozganda
-  // 4 ta ketma-ket OpenAI so'rovisiz TO'G'RIDAN-TO'G'RI parallel do'kon qidiruvi (~0.8 - 1.5s!)
+  // ⚡ AI MAZMUNIY QIDIRUV (currentTurn >= 2): Avval AI so'rov ma'nosini tushunadi, keyin parallel qidiradi
   if (currentTurn >= 2) {
     const searchQuery = stripRegionFromQuery(userMessage);
     const categoryKey = detectCategoryKey(searchQuery);
     const isElectronic = ['konditsioner', 'televizor', 'muzlatgich', 'kir_yuvish', 'elektr_choynak', 'telefon', 'noutbuk'].includes(categoryKey);
 
-    let cleanProducts = await searchLocalProducts(searchQuery, categoryKey, targetRegion);
+    const { queries: semanticQueries, mustExclude } = await understandSearchQueryWithAI(searchQuery);
+    const batchResults = await Promise.all(
+      semanticQueries.map(q => searchLocalProducts(q, categoryKey, targetRegion, mustExclude))
+    );
+
+    // Natijalarni do'konlar bo'yicha aralashtirib birlashtirish
+    let cleanProducts: SerpProductItem[] = [];
+    const seen = new Set<string>();
+    const maxLen = Math.max(0, ...batchResults.map(b => b.length));
+    for (let i = 0; i < maxLen && cleanProducts.length < 24; i++) {
+      for (const b of batchResults) {
+        if (i < b.length) {
+          const item = b[i];
+          const k = `${item.title.toLowerCase()}__${item.source.toLowerCase()}`;
+          if (!seen.has(k)) {
+            seen.add(k);
+            cleanProducts.push(item);
+          }
+        }
+      }
+    }
+    if (batchResults[0] && (batchResults[0] as any).priceInsight) {
+      (cleanProducts as any).priceInsight = (batchResults[0] as any).priceInsight;
+    }
+    if (batchResults[0] && (batchResults[0] as any).bestBanner) {
+      (cleanProducts as any).bestBanner = (batchResults[0] as any).bestBanner;
+    }
 
     // Agar o'zbekcha so'z bilan topilmasa, ruscha/soddalashtirilgan sinonim bilan tezkor 1 ta urinish
     if (cleanProducts.length === 0) {

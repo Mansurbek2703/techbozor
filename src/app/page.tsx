@@ -1845,12 +1845,12 @@ export default function IqtisodchiSearchPage() {
       </main>
 
       {/* =========================================================================
-          3. FLOATING COGNITIVE AI ADVISOR TRIGGER (Ongli Maslahatchi)
+          3. FLOATING COGNITIVE AI ADVISOR TRIGGER (Desktop; mobilda headerda bor)
           ========================================================================= */}
       <button
         type="button"
         onClick={() => setIsAiDrawerOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white font-extrabold text-sm shadow-2xl shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        className="hidden md:flex fixed bottom-6 right-6 z-40 items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white font-extrabold text-sm shadow-2xl shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
       >
         <span className="relative flex h-3 w-3">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>

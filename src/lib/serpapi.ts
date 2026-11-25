@@ -1601,7 +1601,8 @@ async function searchLocalSellerDb(query: string, catKey: string, targetRegion: 
 export async function searchLocalProducts(
   query: string,
   category?: string,
-  region?: string
+  region?: string,
+  mustExclude: string[] = []
 ): Promise<SerpProductItem[]> {
   const cleanSearchTerm = stripRegionFromQuery(
     query.replace(/\(.*?\)/g, '').replace(/site:[\w.]+/gi, '').trim()
@@ -1635,6 +1636,12 @@ export async function searchLocalProducts(
   const seen = new Set<string>();
   const addItems = (list: SerpProductItem[]) => {
     for (const item of list) {
+      if (mustExclude.length > 0) {
+        const normTitle = normalizeUzText(item.title);
+        if (mustExclude.some(bad => normTitle.includes(normalizeUzText(bad)))) {
+          continue;
+        }
+      }
       const k = `${item.title.toLowerCase()}__${item.source.toLowerCase()}`;
       if (!seen.has(k)) {
         seen.add(k);
