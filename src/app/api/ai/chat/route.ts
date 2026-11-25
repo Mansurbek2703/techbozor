@@ -30,32 +30,90 @@ export async function POST(request: Request) {
     }
 
     const systemPrompt = 
-`Siz "Iqtisodchi" platformasining o'ta aqlli, erkin va kuchli sun'iy intellekt maslahatchisisiz (GPT-4o-mini).
+`Siz "Iqtisodchi" platformasining o'ta aqlli, erkin va jonli internet qidiruviga ega sun'iy intellekt maslahatchisisiz (GPT-4o-mini + Live Web Search).
 
 ASOSIY QOIDALAR VA QOBILIYATLAR:
-1. ERKIN VA MUTLAQ BILIMDON AI: Siz umumiy kuchli GPT modelisiz. Har qanday savolga (salomlashish, "sen kimsan", falsafiy, ilmiy, hisob-kitob, solishtirish yoki erkin muloqot) ochiq, samimiy va erkin javob bering. Hech qachon "mahsulot topilmadi" yoki "savol bo'yicha tovar yo'q" deb qotib qolmang!
-2. O'ZBEKISTON BOZORI EKSPERTI: O'zbekistonning barcha rasmiy do'konlari (Uzum, Texnomart, Olcha, Idea, Asaxiy, Mediapark, BeeMarket), narxlar, chegirmalar, muddatli to'lov (Alif, Anor, Zoodpay) va rasmiy kafolat shartlarini chuqur bilasiz.
-3. HUDUDIY KONTEKST: Foydalanuvchining hozirgi tanlangan hududi: "${region}". Agar mavzu yetkazib berish yoki do'konlarga tegishli bo'lsa, ushbu hududga mos rasmiy yetkazib berish (24-48 soat) va servis shartlarini inobatga oling.
-${activeQuery ? `4. JORIY QIDIRUV MAVZUSI: Foydalanuvchi hozirda "${activeQuery}" mahsuloti bo'yicha qidiruvda turibdi. Agar savol shu mahsulotga oid bo'lsa, xolis va iqtisodiy jihatdan foydali maslahat bering.` : ''}
-5. TIL VA USLUB: Javoblarni chiroyli o'zbek tilida (lotin alifbosida), qisqa paragraflar, emojilar va aniq faktlar bilan yozing. Doim do'stona va professional bo'ling.`;
+1. ERKIN VA BILIMDON AI: Har qanday savolga (salomlashish, "sen kimsan", taqqoslash, maslahat, hisob-kitob) ochiq va samimiy javob bering.
+2. AQLLI ANIQLASHTIRISH (CLARIFICATION): Agar foydalanuvchi umumiy xarid istagini bildirsa (masalan: "men qo'lqop sotib olmoqchiman", "noutbuk olmoqchiman"), avval aniq va tartibli aniqlashtiruvchi savollar bering (masalan: 1. Turi / maqsadi, 2. Kim uchun / o'lchami, 3. Budjet).
+3. JONLI INTERNET QIDIRUVI (WEB SEARCH): Foydalanuvchi parametrlar bersa yoki aniq mahsulot/narx/link so'rasa, ALBATTA web_search vositasi orqali O'zbekiston do'konlaridan (uzum.uz, market.yandex.uz, olcha.uz, asaxiy.uz, texnomart.uz, terrapro.uz, extremal-shop.uz va b.) haqiqiy, amaldagi mahsulotlarni toping!
+   - Har bir topilgan mahsulot uchun: aniq nomi, haqiqiy narxi (so'mda), 2-3 ta asosiy xususiyati va bosiladigan Markdown havolasi [Do'kon nomi – xarid qilish](URL) ni bering.
+   - Yakunda o'z xolis tavsiyangizni (Mening tavsiyam) qo'shing.
+4. HUDUDIY KONTEKST: Foydalanuvchining tanlangan hududi: "${region}". Yetkazib berish shartlarida shu hududni inobatga oling.
+${activeQuery ? `5. JORIY QIDIRUV MAVZUSI: Foydalanuvchi hozirda "${activeQuery}" bo'yicha qidiruvda turibdi.` : ''}
+6. TIL VA USLUB: Javoblarni chiroyli o'zbek tilida (lotin alifbosida), tartibli ro'yxatlar bilan yozing. Hech qachon yolg'on yoki o'ylab topilgan narx/link bermang!`;
 
     const openAiKey = getOpenAIApiKey();
 
-    // 1-USUL: OpenAI GPT-4o-mini orqali javob olish (Eng yuqori aql va erkinlik)
+    // 1-USUL: OpenAI Responses API + Live Web Search (ChatGPT darajasidagi jonli O'zbekiston qidiruvi)
     if (openAiKey) {
       try {
+        const inputMessages: Array<{ role: string; content: string }> = [
+          { role: 'developer', content: systemPrompt }
+        ];
+
+        history.slice(-8).forEach((item: any) => {
+          const role = item.role === 'model' || item.role === 'assistant' ? 'assistant' : 'user';
+          if (item.content && typeof item.content === 'string') {
+            inputMessages.push({ role, content: item.content });
+          }
+        });
+
+        inputMessages.push({ role: 'user', content: userMessage });
+
+        const respRes = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openAiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            tools: [
+              {
+                type: 'web_search_preview',
+                user_location: {
+                  type: 'approximate',
+                  country: 'UZ',
+                  city: region.replace(/\s*(shahri|viloyati)/gi, '').trim() || 'Tashkent',
+                },
+              },
+            ],
+            input: inputMessages,
+          }),
+        });
+
+        if (respRes.ok) {
+          const respJson = await respRes.json();
+          const outputArr: any[] = Array.isArray(respJson.output) ? respJson.output : [];
+          const replyText = outputArr
+            .filter((o) => o.type === 'message')
+            .flatMap((o) => o.content || [])
+            .filter((c) => c.type === 'output_text' && c.text)
+            .map((c) => c.text)
+            .join('\n')
+            .trim();
+
+          if (replyText) {
+            return NextResponse.json({
+              success: true,
+              reply: replyText,
+              provider: 'gpt-4o-mini-web-search'
+            });
+          }
+        } else {
+          console.warn('[OpenAI Responses failed, trying chat/completions]:', await respRes.text());
+        }
+
+        // Zaxira: standart chat/completions
         const messages: Array<{ role: string; content: string }> = [
           { role: 'system', content: systemPrompt }
         ];
-
-        // Format history
         history.slice(-8).forEach((item: any) => {
           const role = item.role === 'model' || item.role === 'assistant' ? 'assistant' : 'user';
           if (item.content && typeof item.content === 'string') {
             messages.push({ role, content: item.content });
           }
         });
-
         messages.push({ role: 'user', content: userMessage });
 
         const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -68,7 +126,7 @@ ${activeQuery ? `4. JORIY QIDIRUV MAVZUSI: Foydalanuvchi hozirda "${activeQuery}
             model: 'gpt-4o-mini',
             messages,
             temperature: 0.7,
-            max_tokens: 800,
+            max_tokens: 900,
           }),
         });
 
@@ -82,8 +140,6 @@ ${activeQuery ? `4. JORIY QIDIRUV MAVZUSI: Foydalanuvchi hozirda "${activeQuery}
               provider: 'gpt-4o-mini'
             });
           }
-        } else {
-          console.warn('[OpenAI Chat failed, switching to Gemini]:', await openAiRes.text());
         }
       } catch (err) {
         console.warn('[OpenAI Chat error]:', err);

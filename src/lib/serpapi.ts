@@ -68,7 +68,8 @@ export const ALLOWED_DOMAINS = [
   "stroycenter.uz", "dombrabotnik.uz", "mebel.uz", "home24.uz", "karcher.uz",
   
   // 4. Kiyim-kechak va sport
-  "terrapro.uz", "urbanstore.uz", "sportmaster.uz", "redtag.uz",
+  "terrapro.uz", "urbanstore.uz", "sportmaster.uz", "redtag.uz", "extremal-shop.uz", "paypo.uz",
+  "market.yandex.uz", "yandex.uz",
   
   // 5. Avto, shina va maxsus texnika
   "autotuning.uz", "shina.uz", "avtoelon.uz"
@@ -109,6 +110,9 @@ export const ALLOWED_ECOMMERCE_STORES: Record<string, { name: string; badge: str
   "urbanstore.uz": { name: "Urban Store", badge: "Moda", domain: "urbanstore.uz" },
   "sportmaster.uz": { name: "Sportmaster", badge: "Sport mahsulotlari", domain: "sportmaster.uz" },
   "redtag.uz": { name: "REDTAG", badge: "Kiyim-kechak", domain: "redtag.uz" },
+  "extremal-shop.uz": { name: "Extremal Shop", badge: "Turizm va sport", domain: "extremal-shop.uz" },
+  "paypo.uz": { name: "Paypo", badge: "Paypoqlar", domain: "paypo.uz" },
+  "market.yandex.uz": { name: "Yandex Market", badge: "Tezkor yetkazish", domain: "market.yandex.uz" },
 
   // 5. Avto, shina va maxsus texnika
   "autotuning.uz": { name: "Autotuning", badge: "Avto tovarlar", domain: "autotuning.uz" },
@@ -740,9 +744,9 @@ export function sanitizeAggregatedResults(
     });
   }
 
-  // Narx bo'yicha saralash va eng sara 4 ta natijani ajratish
+  // Narx bo'yicha saralash va eng sara 12 ta natijani ajratish
   cleanResults.sort((a, b) => (a.priceNumber || 0) - (b.priceNumber || 0));
-  return cleanResults.slice(0, 4);
+  return cleanResults.slice(0, 12);
 }
 
 /**
@@ -1584,7 +1588,7 @@ export async function searchLocalProducts(
       if (isDish || catKey === 'oshxona_anjomlari') {
         domains = ['uzum.uz', 'olcha.uz', 'asaxiy.uz', 'texnomart.uz', 'home24.uz'];
       } else if (catKey === 'apparel' || catKey === 'kurtka') {
-        domains = ['uzum.uz', 'terrapro.uz', 'urbanstore.uz', 'sportmaster.uz', 'redtag.uz', 'olcha.uz'];
+        domains = ['uzum.uz', 'market.yandex.uz', 'terrapro.uz', 'sportmaster.uz', 'extremal-shop.uz', 'olcha.uz'];
       } else if (catKey === 'materials') {
         domains = ['uzum.uz', 'stroycenter.uz', 'dombrabotnik.uz', 'mebel.uz', 'home24.uz', 'karcher.uz'];
       } else if (catKey === 'auto') {

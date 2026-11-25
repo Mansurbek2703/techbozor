@@ -1570,14 +1570,14 @@ export default function IqtisodchiSearchPage() {
                       {/* 1. Image */}
                       <div className="rimg">
                         <img 
-                          src={prod.thumbnail || 'https://via.placeholder.com/80'} 
+                          src={prod.thumbnail || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%236366F1' stroke-width='1.5'%3E%3Cpath d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/%3E%3Cline x1='3' y1='6' x2='21' y2='6'/%3E%3Cpath d='M16 10a4 4 0 0 1-8 0'/%3E%3C/svg%3E"} 
                           alt={prod.title} 
                           loading="lazy" 
                           referrerPolicy="no-referrer"
-                          crossOrigin="anonymous"
                           className="group-hover:scale-105 transition-transform duration-200"
                           onError={(e: any) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=400&q=80';
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='1.5'%3E%3Cpath d='M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z'/%3E%3Cline x1='3' y1='6' x2='21' y2='6'/%3E%3Cpath d='M16 10a4 4 0 0 1-8 0'/%3E%3C/svg%3E";
                           }}
                         />
                       </div>
@@ -1797,13 +1797,36 @@ export default function IqtisodchiSearchPage() {
                     </div>
                   )}
                   <div
-                    className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed font-medium ${
+                    className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed font-medium whitespace-pre-line ${
                       msg.role === 'user'
                         ? 'bg-[#6366F1] text-white rounded-tr-none'
                         : 'bg-[#F1F3FB] text-[#0F172A] rounded-tl-none'
                     }`}
                   >
-                    {msg.content}
+                    {msg.content.split(/(\[[^\]]+\]\(https?:\/\/[^\s)]+\)|\*\*[^*]+\*\*)/g).map((part, i) => {
+                      const linkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+                      if (linkMatch) {
+                        return (
+                          <a
+                            key={i}
+                            href={linkMatch[2]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`inline-flex items-center gap-1 font-bold underline ${
+                              msg.role === 'user' ? 'text-white' : 'text-[#4F46E5] hover:text-[#3730A3]'
+                            }`}
+                          >
+                            <span>{linkMatch[1]}</span>
+                            <ExternalLink className="w-3 h-3 inline" />
+                          </a>
+                        );
+                      }
+                      const boldMatch = part.match(/^\*\*([^*]+)\*\*$/);
+                      if (boldMatch) {
+                        return <strong key={i} className="font-extrabold">{boldMatch[1]}</strong>;
+                      }
+                      return <React.Fragment key={i}>{part}</React.Fragment>;
+                    })}
                   </div>
                 </div>
               ))}
