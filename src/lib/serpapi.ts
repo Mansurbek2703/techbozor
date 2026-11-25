@@ -70,6 +70,7 @@ export const ALLOWED_DOMAINS = [
   "elmakon.uz", "radius.uz", "macbro.uz", "arenamarkaz.uz", "goodzone.uz", "joybox.uz",
   "stroycenter.uz", "dombrabotnik.uz", "mebel.uz", "home24.uz", "karcher.uz",
   "terrapro.uz", "urbanstore.uz", "sportmaster.uz", "redtag.uz", "extremal-shop.uz", "paypo.uz",
+  "farq.uz", "watchz.tech", "alijahon.uz",
   "market.yandex.uz", "yandex.uz",
   "autotuning.uz", "shina.uz", "avtoelon.uz",
 
@@ -128,6 +129,9 @@ export const ALLOWED_ECOMMERCE_STORES: Record<string, { name: string; badge: str
   "redtag.uz": { name: "REDTAG", badge: "Kiyim-kechak", domain: "redtag.uz", location: "O‘zbekiston" },
   "extremal-shop.uz": { name: "Extremal Shop", badge: "Turizm va sport", domain: "extremal-shop.uz", location: "O‘zbekiston" },
   "paypo.uz": { name: "Paypo", badge: "Paypoqlar", domain: "paypo.uz", location: "O‘zbekiston" },
+  "farq.uz": { name: "Farq.uz", badge: "Narx taqqoslash", domain: "farq.uz", location: "O‘zbekiston" },
+  "watchz.tech": { name: "Watchz.tech", badge: "Original soatlar", domain: "watchz.tech", location: "O‘zbekiston" },
+  "alijahon.uz": { name: "Alijahon", badge: "O‘zbekiston", domain: "alijahon.uz", location: "O‘zbekiston" },
   "market.yandex.uz": { name: "Yandex Market", badge: "Tezkor yetkazish", domain: "market.yandex.uz", location: "O‘zbekiston" },
 
   // 5. Avto, shina va maxsus texnika
@@ -1361,24 +1365,51 @@ export async function searchMaxProfit(
   return [];
 }
 
+function normalizeUzText(s: string): string {
+  return (s || '')
+    .replace(/&lsquo;|&rsquo;|&#039;|&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&amp;/gi, '&')
+    .replace(/['‘’ʻ`]/g, "'")
+    .toLowerCase()
+    .trim();
+}
+
+function stemUzToken(tok: string): string {
+  if (tok.length > 4 && tok.endsWith('lari')) return tok.slice(0, -4);
+  if (tok.length > 4 && tok.endsWith('lar')) return tok.slice(0, -3);
+  if (tok.length > 4 && (tok.endsWith('si') || tok.endsWith('ni') || tok.endsWith('ga') || tok.endsWith('da'))) return tok.slice(0, -2);
+  if (tok.length > 4 && tok.endsWith('i')) return tok.slice(0, -1);
+  return tok;
+}
+
 /**
- * 🔍 Sarlavha qidiruv so'ziga mosligini tekshirish (fuzzy axlat va aksessuarlarni chetlatish)
+ * 🔍 Sarlavha qidiruv so'ziga mosligini tekshirish (o'zbekcha apostrof, qo'shimcha va aksessuarlarni aqlli tahlil)
  */
 function isRelevantDirectMatch(title: string, query: string, catKey: string): boolean {
-  const t = title.toLowerCase();
-  const q = query.toLowerCase().trim();
-  const tokens = q.split(/\s+/).filter(w => w.length >= 2);
-  if (tokens.length === 0) return true;
+  const t = normalizeUzText(title);
+  const q = normalizeUzText(query);
+  const rawTokens = q.split(/\s+/).filter(w => w.length >= 2);
+  if (rawTokens.length === 0) return true;
 
-  // Barcha asosiy so'zlar sarlavhada bo'lishi kerak (yoki kamida birinchi asosiy so'z)
-  const hasMatch = tokens.every(tok => t.includes(tok));
+  // Umumiy sifat/aniqlovchi so'zlarni majburiy ro'yxatdan chiqarish (asosiy tovar so'zi qolsa)
+  const optionalModifiers = new Set(["qo'l", "erkaklar", "ayollar", "bolalar", "qishki", "yozgi", "uchun", "arzon", "yangi", "original", "sifatli"]);
+  const coreTokens = rawTokens.filter(w => !optionalModifiers.has(w));
+  const checkTokens = (coreTokens.length > 0 ? coreTokens : rawTokens).map(stemUzToken);
+
+  const hasMatch = checkTokens.every(tok => t.includes(tok));
   if (!hasMatch) return false;
+
+  // Soat qidirganda akkumulyator (A/soat) yoki blender/kesgichlarni chiqarmaslik
+  if (checkTokens.some(tok => tok === 'soat' || tok === 'watch')) {
+    if (/\b(a\/soat|akkumulyator|blender|kesgich|plitka)\b/i.test(t)) return false;
+  }
 
   // Telefon / Noutbuk / Televizor qidirganda chexol/oyna/pultlarni chiqarmaslik
   const isDeviceCat = catKey === 'telefon' || catKey === 'noutbuk' || catKey === 'televizor';
   const userWantsAccessory = /\b(chexol|g'ilof|oyna|steklo|pult|kabel|zaryadka|sumka|kronshteyn)\b/i.test(q);
   if (isDeviceCat && !userWantsAccessory) {
-    if (/\b(chexol|g['‘’]ilof|himoya oynasi|steklo|pult|kronshteyn|shisha|plyonka|кабель|чехол|стекло)\b/i.test(t)) {
+    if (/\b(chexol|g'ilof|himoya oynasi|steklo|pult|kronshteyn|shisha|plyonka|кабель|чехол|стекло)\b/i.test(t)) {
       return false;
     }
   }
@@ -1467,7 +1498,8 @@ async function searchAsaxiyDirect(query: string, catKey: string, targetRegion: s
 
     for (const c of cards) {
       const titleM = c.match(/product__item__info-title[^>]*>([\s\S]*?)<\/span>/);
-      const title = (titleM ? titleM[1].replace(/<[^>]+>/g, '') : '').replace(/&lsquo;|&rsquo;/g, '‘').trim();
+      const rawTitle = (titleM ? titleM[1].replace(/<[^>]+>/g, '') : '').trim();
+      const title = rawTitle.replace(/&lsquo;|&rsquo;|&#039;/gi, '‘').replace(/&quot;/gi, '"').replace(/&amp;/gi, '&');
       if (!title) continue;
       if (!isRelevantDirectMatch(title, query, catKey)) continue;
 

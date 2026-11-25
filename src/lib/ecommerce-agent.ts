@@ -1334,10 +1334,15 @@ export async function runEcommerceAgentPipeline(
 
     let cleanProducts = await searchLocalProducts(searchQuery, categoryKey, targetRegion);
 
-    // Agar o'zbekcha so'z bilan topilmasa, ruscha sinonim bilan tezkor 1 ta urinish (masalan: paypoq -> носки)
+    // Agar o'zbekcha so'z bilan topilmasa, ruscha/soddalashtirilgan sinonim bilan tezkor 1 ta urinish
     if (cleanProducts.length === 0) {
-      const uzToRuSynonyms: Record<string, string> = {
+      const uzToAltSynonyms: Record<string, string> = {
+        "qo'l soati": 'soat',
+        "qo‘l soati": 'soat',
+        soati: 'soat',
         paypoq: 'носки',
+        "qo'lqop": 'перчатки',
+        "qo‘lqop": 'перчатки',
         kurtka: 'куртка',
         krossovka: 'кроссовки',
         "ko'ylak": 'рубашка',
@@ -1350,10 +1355,10 @@ export async function runEcommerceAgentPipeline(
         televizor: 'телевизор',
         konditsioner: 'кондиционер',
       };
-      const lowerQ = searchQuery.toLowerCase();
-      for (const [uz, ru] of Object.entries(uzToRuSynonyms)) {
+      const lowerQ = searchQuery.toLowerCase().replace(/['‘’ʻ`]/g, "'");
+      for (const [uz, alt] of Object.entries(uzToAltSynonyms)) {
         if (lowerQ.includes(uz)) {
-          const altQuery = lowerQ.replace(uz, ru);
+          const altQuery = lowerQ.replace(uz, alt);
           cleanProducts = await searchLocalProducts(altQuery, categoryKey, targetRegion);
           if (cleanProducts.length > 0) break;
         }
