@@ -1321,6 +1321,30 @@ export async function searchMaxProfit(
 }
 
 /**
+ * 🔍 Sarlavha qidiruv so'ziga mosligini tekshirish (fuzzy axlat va aksessuarlarni chetlatish)
+ */
+function isRelevantDirectMatch(title: string, query: string, catKey: string): boolean {
+  const t = title.toLowerCase();
+  const q = query.toLowerCase().trim();
+  const tokens = q.split(/\s+/).filter(w => w.length >= 2);
+  if (tokens.length === 0) return true;
+
+  // Barcha asosiy so'zlar sarlavhada bo'lishi kerak (yoki kamida birinchi asosiy so'z)
+  const hasMatch = tokens.every(tok => t.includes(tok));
+  if (!hasMatch) return false;
+
+  // Telefon / Noutbuk / Televizor qidirganda chexol/oyna/pultlarni chiqarmaslik
+  const isDeviceCat = catKey === 'telefon' || catKey === 'noutbuk' || catKey === 'televizor';
+  const userWantsAccessory = /\b(chexol|g'ilof|oyna|steklo|pult|kabel|zaryadka|sumka|kronshteyn)\b/i.test(q);
+  if (isDeviceCat && !userWantsAccessory) {
+    if (/\b(chexol|g['‘’]ilof|himoya oynasi|steklo|pult|kronshteyn|shisha|plyonka|кабель|чехол|стекло)\b/i.test(t)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * ⚡ Olcha.uz Tezkor To'g'ridan-to'g'ri API Qidiruvi (~400ms)
  */
 async function searchOlchaDirect(query: string, catKey: string, targetRegion: string): Promise<SerpProductItem[]> {
@@ -1339,10 +1363,11 @@ async function searchOlchaDirect(query: string, catKey: string, targetRegion: st
     const rawList: any[] = data?.data?.products || [];
     const results: SerpProductItem[] = [];
 
-    for (const p of rawList.slice(0, 10)) {
+    for (const p of rawList.slice(0, 15)) {
       const title = (p.name_oz || p.name_uz || p.name_ru || p.name || '').trim();
       const priceNum = parseInt(String(p.total_price || p.price || '0').replace(/\D/g, ''), 10);
       if (!title || !priceNum || priceNum < 1000) continue;
+      if (!isRelevantDirectMatch(title, query, catKey)) continue;
 
       const oldPriceNum = parseInt(String(p.old_price || '0').replace(/\D/g, ''), 10);
       const img = p.main_image || p.image || '';
@@ -1401,8 +1426,9 @@ async function searchAsaxiyDirect(query: string, catKey: string, targetRegion: s
 
     for (const c of cards) {
       const titleM = c.match(/product__item__info-title[^>]*>([\s\S]*?)<\/span>/);
-      const title = (titleM ? titleM[1].replace(/<[^>]+>/g, '') : '').trim();
+      const title = (titleM ? titleM[1].replace(/<[^>]+>/g, '') : '').replace(/&lsquo;|&rsquo;/g, '‘').trim();
       if (!title) continue;
+      if (!isRelevantDirectMatch(title, query, catKey)) continue;
 
       const priceM = c.match(/product__item-price[^>]*>([\s\S]*?)<\/span>/);
       const priceStr = priceM ? priceM[1].replace(/<[^>]+>/g, '').trim() : '';
