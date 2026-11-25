@@ -1648,8 +1648,10 @@ export async function searchLocalProducts(
   addItems(olchaItems);
   addItems(asaxiyItems);
 
-  // 2-QADAM: Agar tezkor parallel manbalardan 3 tadan kam topilsa, SerpAPI (Google Search Multi-Store) ishlatamiz
-  if (combined.length < 3) {
+  // 2-QADAM: Agar tezkor parallel manbalardan 3 tadan kam topilsa YOKI faqat 1 ta do'kondan chiqsa,
+  // boshqa do'konlarni ham qo'shish uchun SerpAPI (Uzum, Yandex Market, Texnomart, Olcha, ...) ni ishga tushiramiz
+  const uniqueStores = new Set(combined.map(i => i.source)).size;
+  if (combined.length < 3 || uniqueStores < 2) {
     const isDish = isDishwareQuery(cleanSearchTerm, category) || catKey === 'chinni_idishlar' || catKey === 'oshxona_anjomlari';
     let expandedQuery = cleanSearchTerm;
     if (!expandedQuery.toLowerCase().includes('.uz') && !expandedQuery.toLowerCase().includes('site:')) {
@@ -1663,7 +1665,7 @@ export async function searchLocalProducts(
       } else if (catKey === 'auto') {
         domains = ['uzum.uz', 'autotuning.uz', 'shina.uz', 'avtoelon.uz'];
       } else {
-        domains = ['texnomart.uz', 'mediapark.uz', 'ishonch.uz', 'uzum.uz', 'olcha.uz', 'asaxiy.uz', 'creditasia.uz'];
+        domains = ['uzum.uz', 'market.yandex.uz', 'texnomart.uz', 'mediapark.uz', 'ishonch.uz', 'olcha.uz', 'asaxiy.uz', 'alifshop.uz'];
       }
       const sitesPart = domains.join(' OR ');
       expandedQuery = `${cleanSearchTerm} (${sitesPart})`;
@@ -1674,8 +1676,34 @@ export async function searchLocalProducts(
   }
 
   if (combined.length > 0) {
-    combined.sort((a, b) => (a.priceNumber || 999999999) - (b.priceNumber || 999999999));
-    combined = combined.slice(0, 24);
+    // Do'konlar bo'yicha aralashtirish (Round-Robin): bitta do'kon mahsulotlari ketma-ket tiqilib qolmasligi uchun
+    const byStore = new Map<string, SerpProductItem[]>();
+    for (const item of combined) {
+      const st = item.source || 'Boshqa';
+      if (!byStore.has(st)) byStore.set(st, []);
+      byStore.get(st)!.push(item);
+    }
+    for (const list of byStore.values()) {
+      list.sort((a, b) => (a.priceNumber || 999999999) - (b.priceNumber || 999999999));
+    }
+    const queues = Array.from(byStore.values()).sort(
+      (a, b) => (a[0]?.priceNumber || 999999999) - (b[0]?.priceNumber || 999999999)
+    );
+    const mixed: SerpProductItem[] = [];
+    let round = 0;
+    while (mixed.length < 24) {
+      let added = false;
+      for (const q of queues) {
+        if (round < q.length && mixed.length < 24) {
+          mixed.push(q[round]);
+          added = true;
+        }
+      }
+      if (!added) break;
+      round++;
+    }
+    combined = mixed;
+
     // Agar MaxProfit metadata bo'lsa saqlab qolish
     if ((mpItems as any).priceInsight) (combined as any).priceInsight = (mpItems as any).priceInsight;
     if ((mpItems as any).bestBanner) (combined as any).bestBanner = (mpItems as any).bestBanner;
