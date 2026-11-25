@@ -1325,6 +1325,146 @@ export async function runEcommerceAgentPipeline(
   const currentTurn = (params?.turn_count || 1);
   const targetRegion = params?.region || 'Toshkent';
 
+  // ⚡ FAST-TRACK QIDIRUV (currentTurn >= 2): Foydalanuvchi qidiruv satriga yozganda
+  // 4 ta ketma-ket OpenAI so'rovisiz TO'G'RIDAN-TO'G'RI parallel do'kon qidiruvi (~0.8 - 1.5s!)
+  if (currentTurn >= 2) {
+    const searchQuery = stripRegionFromQuery(userMessage);
+    const categoryKey = detectCategoryKey(searchQuery);
+    const isElectronic = ['konditsioner', 'televizor', 'muzlatgich', 'kir_yuvish', 'elektr_choynak', 'telefon', 'noutbuk'].includes(categoryKey);
+
+    let cleanProducts = await searchLocalProducts(searchQuery, categoryKey, targetRegion);
+
+    // Agar o'zbekcha so'z bilan topilmasa, ruscha sinonim bilan tezkor 1 ta urinish (masalan: paypoq -> носки)
+    if (cleanProducts.length === 0) {
+      const uzToRuSynonyms: Record<string, string> = {
+        paypoq: 'носки',
+        kurtka: 'куртка',
+        krossovka: 'кроссовки',
+        "ko'ylak": 'рубашка',
+        shim: 'брюки',
+        sumka: 'сумка',
+        soat: 'часы',
+        quloqchin: 'наушники',
+        changyutgich: 'пылесос',
+        muzlatgich: 'холодильник',
+        televizor: 'телевизор',
+        konditsioner: 'кондиционер',
+      };
+      const lowerQ = searchQuery.toLowerCase();
+      for (const [uz, ru] of Object.entries(uzToRuSynonyms)) {
+        if (lowerQ.includes(uz)) {
+          const altQuery = lowerQ.replace(uz, ru);
+          cleanProducts = await searchLocalProducts(altQuery, categoryKey, targetRegion);
+          if (cleanProducts.length > 0) break;
+        }
+      }
+    }
+
+    const priceInsight = (cleanProducts as any)?.priceInsight || null;
+    const bestBanner = (cleanProducts as any)?.bestBanner || null;
+    const totalResultsCount = (cleanProducts as any)?.totalResultsCount || cleanProducts.length;
+
+    if (cleanProducts.length > 0) {
+      const energy = calculateEnergyMetrics(categoryKey);
+      const cheapest = cleanProducts[0];
+      const rule = CATEGORY_RULES[categoryKey] || CATEGORY_RULES['boshqa'];
+      const regNote = rule.regional_insight[targetRegion] || rule.regional_insight['default'];
+      const headline = `${searchQuery} bo‘yicha ${cleanProducts.length} ta rasmiy taklif topildi. Eng arzon narx ${cheapest.source} do‘konida — ${cheapest.price}.`;
+
+      const economistInsight: EconomistInsight = {
+        headline,
+        monthly_kwh: isElectronic ? energy.monthlyKwh : 0,
+        monthly_cost_uzs: isElectronic ? energy.monthlyCostUzs : 0,
+        tariff_rate: 450,
+        regional_compatibility: regNote,
+        roi_summary: regNote,
+      };
+
+      return {
+        type: 'SEARCH',
+        ui_mode: 'PRODUCT_RESULTS',
+        ai_reply: headline,
+        message: headline,
+        state: 'PRODUCT_SEARCH',
+        status: 'READY_TO_SEARCH',
+        turn_count: currentTurn,
+        category: rule.name || 'Mahsulotlar',
+        category_key: categoryKey,
+        dynamic_chips: [],
+        extracted_data: {
+          category: categoryKey,
+          product_name: searchQuery,
+          location: targetRegion,
+          is_electronic: isElectronic,
+          attributes: {},
+        },
+        is_electronic: isElectronic,
+        normalized_params: { region: targetRegion },
+        clarification_data: null,
+        economist_insight: economistInsight,
+        search_payload: { query: searchQuery, category_key: categoryKey },
+        products: cleanProducts,
+        comparison_table: buildComparisonTable(cleanProducts),
+        short_advice_uz: headline,
+        smartChips: [],
+        cleanQuery: searchQuery,
+        replyMessage: headline,
+        price_insight: priceInsight,
+        best_banner: bestBanner,
+        total_results_count: totalResultsCount,
+        step: 'ready',
+        is_ready_to_search: true,
+        normalized_query: searchQuery,
+        ui_form_data: {
+          regions: ["Toshkent", "Xorazm", "Samarqand", "Buxoro", "Farg'ona", "Andijon"],
+          budget_ranges: ["Hamyonbop", "O‘rta toifa", "Premium"],
+          features: [],
+        },
+        extracted_filters: { budget_max: null, region: targetRegion, specific_feature: null },
+        expanded_serpapi_query: searchQuery,
+        dynamic_facets: generateAdaptiveFacets(cleanProducts),
+      };
+    }
+
+    // Agar fast-track ham topa olmasa, chiroyli xabar
+    const notFoundMsg = `${targetRegion} bo‘yicha rasmiy do‘konlarda "${searchQuery}" hozircha topilmadi. Kalit so‘zni soddalashtirib yoki boshqa nom bilan izlab ko‘ring.`;
+    return {
+      type: 'CHAT',
+      ui_mode: 'CONVERSATION_ONLY',
+      ai_reply: notFoundMsg,
+      message: notFoundMsg,
+      state: 'NEED_CLARIFICATION',
+      status: 'NEED_CLARIFICATION',
+      turn_count: currentTurn,
+      category: categoryKey,
+      category_key: categoryKey,
+      dynamic_chips: ['🔍 Boshqa nom bilan izlash', '🏷️ Ommabop tovarlar'],
+      extracted_data: { category: categoryKey, product_name: searchQuery, location: targetRegion, is_electronic: isElectronic, attributes: {} },
+      is_electronic: isElectronic,
+      normalized_params: { region: targetRegion },
+      clarification_data: null,
+      economist_insight: null,
+      search_payload: { query: searchQuery, category_key: categoryKey },
+      products: [],
+      comparison_table: [],
+      short_advice_uz: notFoundMsg,
+      smartChips: [],
+      cleanQuery: '',
+      replyMessage: notFoundMsg,
+      step: 'needs_params',
+      is_ready_to_search: false,
+      normalized_query: searchQuery,
+      ui_form_data: {
+        regions: ["Toshkent", "Xorazm", "Samarqand", "Buxoro", "Farg'ona", "Andijon"],
+        budget_ranges: ["Hamyonbop", "O‘rta toifa", "Premium"],
+        features: [],
+      },
+      extracted_filters: { budget_max: null, region: targetRegion, specific_feature: null },
+      expanded_serpapi_query: null,
+      dynamic_facets: [],
+    };
+  }
+
   // 1-QATLAM: OpenAI GPT-4o-mini Structured Outputs (Open-World AI Maslahatchisi)
   let structured = await callOpenAIStructured(userMessage, history, { turnCount: currentTurn, region: targetRegion });
   if (!structured) {

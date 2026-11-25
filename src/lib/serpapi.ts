@@ -322,12 +322,24 @@ export const CATEGORY_RULES: Record<string, CategoryRule> = {
       "default": "Rasmiy servis markazi mavjud va kuchlanish tebranishlariga chidamli quvvatlagichli modellar ma'qul."
     }
   },
+  "apparel": {
+    key: "apparel",
+    name: "Kiyim-kechak va poyabzal",
+    required_tokens: [],
+    forbidden_tokens: ["telefon", "noutbuk", "televizor", "konditsioner", "muzlatgich", "kompressor"],
+    min_price: 1_000,
+    max_price: 50_000_000,
+    monthly_kwh_est: 0,
+    regional_insight: {
+      "default": "O‘lcham, mato tarkibi (paxta/sintetika) va yetkazib berish shartlariga e’tibor bering."
+    }
+  },
   "boshqa": {
     key: "boshqa",
     name: "Mahsulot",
     required_tokens: [],
     forbidden_tokens: [],
-    min_price: 10_000,
+    min_price: 1_000,
     max_price: 100_000_000,
     monthly_kwh_est: 0,
     regional_insight: {
@@ -364,6 +376,9 @@ export function detectCategoryKey(query?: string, categoryHint?: string | null):
   }
   if (/\b(chashka|idish|serviz|piyola|tarelka|likopcha|likopchalar|lagan|tovoq|farfor|chinni|qozon|tova)\b/i.test(text)) {
     return 'chinni_idishlar';
+  }
+  if (/\b(paypoq|noski|носки|socks|kurtka|krossovka|futbolka|shim|ko'ylak|kiyim|tufli|botinka|kepka|shapka|krasovka)\b/i.test(text)) {
+    return 'apparel';
   }
   if (categoryHint && CATEGORY_RULES[categoryHint]) {
     return categoryHint;
@@ -528,11 +543,11 @@ export function isStrictValidProduct(item: any, categoryKey: string): boolean {
  */
 export function extractPriceFromText(text: string): number | null {
   if (!text) return null;
-  const match = text.match(/(\d{1,3}(?:[\s.,]\d{3})+(?:\s*(?:so['’`]?m|сум|uzs))?|\d{5,9}\s*(?:so['’`]?m|сум|uzs))/i);
+  const match = text.match(/(\d{1,3}(?:[\s.,]\d{3})+(?:\s*(?:so['’`]?m|сум|uzs))?|\d{4,9}\s*(?:so['’`]?m|сум|uzs))/i);
   if (match) {
     const rawDigits = match[1].replace(/[^\d]/g, '');
     const num = parseInt(rawDigits, 10);
-    if (!isNaN(num) && num >= 10000 && num <= 100000000) {
+    if (!isNaN(num) && num >= 1000 && num <= 100000000) {
       return num;
     }
   }
@@ -648,7 +663,7 @@ export function sanitizeAggregatedResults(
   categoryKey: string,
   targetRegion: string = 'Toshkent'
 ): SerpProductItem[] {
-  const rule = CATEGORY_RULES[categoryKey] || CATEGORY_RULES['konditsioner'];
+  const rule = CATEGORY_RULES[categoryKey] || CATEGORY_RULES['boshqa'];
   if (!rule) return [];
 
   const cleanResults: SerpProductItem[] = [];
@@ -679,12 +694,12 @@ export function sanitizeAggregatedResults(
     }
 
     // 2. Taqiqlangan so'zlar tekshiruvi (Anti-Mismatch)
-    if (rule.forbidden_tokens.some(neg => fullContent.includes(neg.toLowerCase()))) {
+    if (rule.forbidden_tokens.length > 0 && rule.forbidden_tokens.some(neg => fullContent.includes(neg.toLowerCase()))) {
       continue;
     }
 
-    // 3. Majburiy tovar belgilari mavjudligi
-    if (!rule.required_tokens.some(req => fullContent.includes(req.toLowerCase()))) {
+    // 3. Majburiy tovar belgilari mavjudligi (faqat agar kategoriya uchun belgilangan bo'lsa)
+    if (rule.required_tokens.length > 0 && !rule.required_tokens.some(req => fullContent.includes(req.toLowerCase()))) {
       continue;
     }
 
@@ -1168,7 +1183,7 @@ export async function searchMaxProfit(
         // Narx
         const priceM = art.match(/data-price="(\d+)"/);
         const priceNum = priceM ? parseInt(priceM[1], 10) : 0;
-        if (!priceNum || priceNum < 10000) continue;
+        if (!priceNum || priceNum < 1000) continue;
 
         // Eski narx
         const oldM = art.match(/<span class="old">([^<]+)<\/span>/);
@@ -1306,7 +1321,183 @@ export async function searchMaxProfit(
 }
 
 /**
- * Qidiruv yordamchisi (MaxProfit Engine + SerpAPI Fallback)
+ * ⚡ Olcha.uz Tezkor To'g'ridan-to'g'ri API Qidiruvi (~400ms)
+ */
+async function searchOlchaDirect(query: string, catKey: string, targetRegion: string): Promise<SerpProductItem[]> {
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 3000);
+    const url = `https://api.olcha.uz/api/v2/products?q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+    });
+    clearTimeout(tid);
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const rawList: any[] = data?.data?.products || [];
+    const results: SerpProductItem[] = [];
+
+    for (const p of rawList.slice(0, 10)) {
+      const title = (p.name_oz || p.name_uz || p.name_ru || p.name || '').trim();
+      const priceNum = parseInt(String(p.total_price || p.price || '0').replace(/\D/g, ''), 10);
+      if (!title || !priceNum || priceNum < 1000) continue;
+
+      const oldPriceNum = parseInt(String(p.old_price || '0').replace(/\D/g, ''), 10);
+      const img = p.main_image || p.image || '';
+      if (!img) continue;
+
+      const productUrl = p.slug
+        ? `https://olcha.uz/oz/product/${p.slug}`
+        : `https://olcha.uz/oz/search?q=${encodeURIComponent(title)}`;
+
+      results.push({
+        id: generateUniqueId(),
+        title: title.slice(0, 95),
+        price: `${priceNum.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m`,
+        priceNumber: priceNum,
+        oldPrice: oldPriceNum > priceNum ? `${oldPriceNum.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m` : undefined,
+        oldPriceNumber: oldPriceNum > priceNum ? oldPriceNum : undefined,
+        discount: oldPriceNum > priceNum ? Math.round(((oldPriceNum - priceNum) / oldPriceNum) * 100) : undefined,
+        source: 'Olcha',
+        storeBadge: 'Rasmiy kafolat',
+        link: productUrl,
+        directUrl: productUrl,
+        thumbnail: img,
+        images: [img],
+        snippet: `Olcha do‘konida rasmiy kafolat bilan mavjud. ${targetRegion} bo‘ylab yetkazib beriladi.`,
+        region: targetRegion,
+        keySpecs: extractKeySpecs(title, '', catKey),
+        warranty: '12 oy rasmiy kafolat',
+        deliveryInfo: `${targetRegion} bo‘ylab yetkazish (Olcha)`,
+        badges: ['Rasmiy kafolat', 'Tezkor yetkazish'],
+      });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * ⚡ Asaxiy.uz Tezkor To'g'ridan-to'g'ri Qidiruvi (~900ms)
+ */
+async function searchAsaxiyDirect(query: string, catKey: string, targetRegion: string): Promise<SerpProductItem[]> {
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 3200);
+    const url = `https://asaxiy.uz/product?key=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0.0.0 Safari/537.36' },
+    });
+    clearTimeout(tid);
+    if (!res.ok) return [];
+
+    const html = await res.text();
+    const cards = html.split('product__item d-flex flex-column justify-content-between').slice(1, 13);
+    const results: SerpProductItem[] = [];
+
+    for (const c of cards) {
+      const titleM = c.match(/product__item__info-title[^>]*>([\s\S]*?)<\/span>/);
+      const title = (titleM ? titleM[1].replace(/<[^>]+>/g, '') : '').trim();
+      if (!title) continue;
+
+      const priceM = c.match(/product__item-price[^>]*>([\s\S]*?)<\/span>/);
+      const priceStr = priceM ? priceM[1].replace(/<[^>]+>/g, '').trim() : '';
+      const priceNum = parseInt(priceStr.replace(/\D/g, ''), 10);
+      if (!priceNum || priceNum < 1000) continue;
+
+      // Real product image (skip heart/compare/cart svg icons)
+      const imgM =
+        c.match(/itemprop="image"[\s\S]*?src="(https?:\/\/[^"]+)"/) ||
+        c.match(/src="(https?:\/\/cdn\.asaxiy\.uz\/asaxiy-content\/product\/[^"]+)"/) ||
+        c.match(/data-fallback="(https?:\/\/assets\.asaxiy\.uz\/product\/[^"]+)"/);
+      const img = imgM ? imgM[1] : '';
+      if (!img) continue;
+
+      const hrefM = c.match(/href="([^"]*\/product\/[^"]+)"/);
+      const productUrl = hrefM
+        ? (hrefM[1].startsWith('http') ? hrefM[1] : `https://asaxiy.uz${hrefM[1]}`)
+        : `https://asaxiy.uz/product?key=${encodeURIComponent(title)}`;
+
+      results.push({
+        id: generateUniqueId(),
+        title: title.slice(0, 95),
+        price: `${priceNum.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m`,
+        priceNumber: priceNum,
+        source: 'Asaxiy',
+        storeBadge: 'Yetkazib berish',
+        link: productUrl,
+        directUrl: productUrl,
+        thumbnail: img,
+        images: [img],
+        snippet: `Asaxiy internet do‘konida mavjud. ${targetRegion} bo‘ylab yetkazib beriladi.`,
+        region: targetRegion,
+        keySpecs: extractKeySpecs(title, '', catKey),
+        warranty: '12 oy rasmiy kafolat',
+        deliveryInfo: `${targetRegion} bo‘ylab yetkazish (Asaxiy)`,
+        badges: ['Yetkazib berish', 'Rasmiy kafolat'],
+      });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 🏪 Mahalliy Sotuvchilar Bazasi (Telegram Bot orqali ro'yxatdan o'tgan sotuvchilar)
+ */
+async function searchLocalSellerDb(query: string, catKey: string, targetRegion: string): Promise<SerpProductItem[]> {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dbPath = path.join(process.cwd(), 'data', 'techbozor_db.json');
+    if (!fs.existsSync(dbPath)) return [];
+
+    const raw = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
+    const products: any[] = Array.isArray(raw.products) ? raw.products : [];
+    const sellers: any[] = Array.isArray(raw.sellers) ? raw.sellers : [];
+    const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length >= 2);
+    if (tokens.length === 0) return [];
+
+    const results: SerpProductItem[] = [];
+    for (const p of products) {
+      const text = `${p.name || p.title || ''} ${p.category || ''} ${p.description || ''}`.toLowerCase();
+      if (!tokens.some(t => text.includes(t))) continue;
+
+      const seller = sellers.find(s => s.id === p.sellerId);
+      const priceNum = Number(p.price || 0);
+      if (!priceNum || priceNum < 1000) continue;
+
+      results.push({
+        id: p.id || generateUniqueId(),
+        title: (p.name || p.title || '').slice(0, 95),
+        price: `${priceNum.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m`,
+        priceNumber: priceNum,
+        source: seller?.shopName || seller?.name || 'Hamkor Sotuvchi',
+        storeBadge: 'Hamkor do‘kon',
+        link: seller?.phone ? `tel:${seller.phone}` : '#seller',
+        thumbnail: p.image || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=400&q=80',
+        images: p.image ? [p.image] : [],
+        snippet: p.description || `${seller?.region || targetRegion} bo‘ylab tezkor yetkazib berish.`,
+        region: seller?.region || targetRegion,
+        keySpecs: extractKeySpecs(p.name || p.title || '', p.description, catKey),
+        warranty: 'Sotuvchi kafolati',
+        deliveryInfo: `${seller?.region || targetRegion} bo‘ylab yetkazish`,
+        badges: ['Hamkor sotuvchi', 'Tezkor yetkazish'],
+      });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Qidiruv yordamchisi (Parallel Multi-Store Engine + 15m Memory Cache + SerpAPI Fallback)
  */
 export async function searchLocalProducts(
   query: string,
@@ -1316,35 +1507,86 @@ export async function searchLocalProducts(
   const cleanSearchTerm = stripRegionFromQuery(
     query.replace(/\(.*?\)/g, '').replace(/site:[\w.]+/gi, '').trim()
   );
+  if (!cleanSearchTerm) return [];
 
-  // 1-QADAM: MaxProfit Real-Time Aggregator Search (10x tezroq, 100% haqiqiy do'konlar va HD rasmlar)
-  const maxProfitProducts = await searchMaxProfit(cleanSearchTerm, category, region);
-  if (maxProfitProducts.length > 0) {
-    return maxProfitProducts;
-  }
-
-  // 2-QADAM: Agar MaxProfit orqali topilmasa, SerpAPI (Google Search Multi-Store) zaxirasi
+  const targetRegion = region || 'Toshkent';
   const catKey = detectCategoryKey(cleanSearchTerm, category);
-  const isDish = isDishwareQuery(cleanSearchTerm, category) || catKey === 'chinni_idishlar' || catKey === 'oshxona_anjomlari';
+  const fullCacheKey = `local_v2__${cleanSearchTerm.toLowerCase()}__${targetRegion.toLowerCase()}`;
 
-  let expandedQuery = cleanSearchTerm;
-  if (!expandedQuery.toLowerCase().includes('.uz') && !expandedQuery.toLowerCase().includes('site:')) {
-    let domains: string[] = [];
-    if (isDish || catKey === 'oshxona_anjomlari') {
-      domains = ['uzum.uz', 'olcha.uz', 'asaxiy.uz', 'texnomart.uz', 'home24.uz'];
-    } else if (catKey === 'apparel' || catKey === 'kurtka') {
-      domains = ['uzum.uz', 'terrapro.uz', 'urbanstore.uz', 'sportmaster.uz', 'redtag.uz', 'olcha.uz'];
-    } else if (catKey === 'materials') {
-      domains = ['uzum.uz', 'stroycenter.uz', 'dombrabotnik.uz', 'mebel.uz', 'home24.uz', 'karcher.uz'];
-    } else if (catKey === 'auto') {
-      domains = ['uzum.uz', 'autotuning.uz', 'shina.uz', 'avtoelon.uz'];
-    } else {
-      domains = ['texnomart.uz', 'mediapark.uz', 'ishonch.uz', 'uzum.uz', 'olcha.uz', 'asaxiy.uz', 'creditasia.uz'];
-    }
-    const sitesPart = domains.join(' OR ');
-    expandedQuery = `${cleanSearchTerm} (${sitesPart})`;
+  // ⚡ 0ms Memory Cache
+  const cached = searchMemoryCache.get(fullCacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
   }
 
-  const products = await fetchAndEnrichStores(expandedQuery, category, region, cleanSearchTerm);
-  return products;
+  // 1-QADAM: MaxProfit + Olcha + Asaxiy + LocalSellerDB PARALLEL ravishda (~0.7 - 1.5s)
+  const [mpRes, olchaRes, asaxiyRes, sellerRes] = await Promise.allSettled([
+    searchMaxProfit(cleanSearchTerm, category, targetRegion),
+    searchOlchaDirect(cleanSearchTerm, catKey, targetRegion),
+    searchAsaxiyDirect(cleanSearchTerm, catKey, targetRegion),
+    searchLocalSellerDb(cleanSearchTerm, catKey, targetRegion),
+  ]);
+
+  const mpItems = mpRes.status === 'fulfilled' ? mpRes.value : [];
+  const olchaItems = olchaRes.status === 'fulfilled' ? olchaRes.value : [];
+  const asaxiyItems = asaxiyRes.status === 'fulfilled' ? asaxiyRes.value : [];
+  const sellerItems = sellerRes.status === 'fulfilled' ? sellerRes.value : [];
+
+  let combined: SerpProductItem[] = [];
+  const seen = new Set<string>();
+  const addItems = (list: SerpProductItem[]) => {
+    for (const item of list) {
+      const k = `${item.title.toLowerCase()}__${item.source.toLowerCase()}`;
+      if (!seen.has(k)) {
+        seen.add(k);
+        combined.push(item);
+      }
+    }
+  };
+
+  addItems(sellerItems);
+  addItems(mpItems);
+  addItems(olchaItems);
+  addItems(asaxiyItems);
+
+  // 2-QADAM: Agar tezkor parallel manbalardan 3 tadan kam topilsa, SerpAPI (Google Search Multi-Store) ishlatamiz
+  if (combined.length < 3) {
+    const isDish = isDishwareQuery(cleanSearchTerm, category) || catKey === 'chinni_idishlar' || catKey === 'oshxona_anjomlari';
+    let expandedQuery = cleanSearchTerm;
+    if (!expandedQuery.toLowerCase().includes('.uz') && !expandedQuery.toLowerCase().includes('site:')) {
+      let domains: string[] = [];
+      if (isDish || catKey === 'oshxona_anjomlari') {
+        domains = ['uzum.uz', 'olcha.uz', 'asaxiy.uz', 'texnomart.uz', 'home24.uz'];
+      } else if (catKey === 'apparel' || catKey === 'kurtka') {
+        domains = ['uzum.uz', 'terrapro.uz', 'urbanstore.uz', 'sportmaster.uz', 'redtag.uz', 'olcha.uz'];
+      } else if (catKey === 'materials') {
+        domains = ['uzum.uz', 'stroycenter.uz', 'dombrabotnik.uz', 'mebel.uz', 'home24.uz', 'karcher.uz'];
+      } else if (catKey === 'auto') {
+        domains = ['uzum.uz', 'autotuning.uz', 'shina.uz', 'avtoelon.uz'];
+      } else {
+        domains = ['texnomart.uz', 'mediapark.uz', 'ishonch.uz', 'uzum.uz', 'olcha.uz', 'asaxiy.uz', 'creditasia.uz'];
+      }
+      const sitesPart = domains.join(' OR ');
+      expandedQuery = `${cleanSearchTerm} (${sitesPart})`;
+    }
+
+    const serpProducts = await fetchAndEnrichStores(expandedQuery, category, targetRegion, cleanSearchTerm);
+    addItems(serpProducts);
+  }
+
+  if (combined.length > 0) {
+    combined.sort((a, b) => (a.priceNumber || 999999999) - (b.priceNumber || 999999999));
+    combined = combined.slice(0, 24);
+    // Agar MaxProfit metadata bo'lsa saqlab qolish
+    if ((mpItems as any).priceInsight) (combined as any).priceInsight = (mpItems as any).priceInsight;
+    if ((mpItems as any).bestBanner) (combined as any).bestBanner = (mpItems as any).bestBanner;
+    (combined as any).totalResultsCount = (mpItems as any).totalResultsCount || combined.length;
+
+    searchMemoryCache.set(fullCacheKey, {
+      data: combined,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+    });
+  }
+
+  return combined;
 }
