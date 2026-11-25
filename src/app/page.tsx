@@ -367,6 +367,14 @@ export default function IqtisodchiSearchPage() {
   const [specsProduct, setSpecsProduct] = useState<SerpProductItem | null>(null);
   const [isSpecsModalOpen, setIsSpecsModalOpen] = useState(false);
 
+  // 8b. Yanada arzonroq olish (Admin / Tadbirkor talab yuborish + Telegram Auto Phone)
+  const [cheaperModalProduct, setCheaperModalProduct] = useState<SerpProductItem | null>(null);
+  const [tgUser, setTgUser] = useState<{ id?: string; firstName?: string; username?: string }>({});
+  const [userPhone, setUserPhone] = useState('');
+  const [requestNote, setRequestNote] = useState('');
+  const [isSendingRequest, setIsSendingRequest] = useState(false);
+  const [requestSuccessToast, setRequestSuccessToast] = useState('');
+
   // 9. Interactive States
   const [favorites, setFavorites] = useState<Record<string, SerpProductItem>>({});
   const [isAlertSubscribed, setIsAlertSubscribed] = useState(false);
@@ -658,7 +666,7 @@ export default function IqtisodchiSearchPage() {
     }
   };
 
-  // Initial load on mount (URL parametrlarini tekshirish, televizor avtomatik qidirmaydi)
+  // Initial load on mount (URL parametrlarini tekshirish + Telegram Mini App Auto-Phone)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -668,8 +676,107 @@ export default function IqtisodchiSearchPage() {
         setSearchQuery(cleanQ);
         executeSearch(cleanQ);
       }
+
+      try {
+        const savedPhone = localStorage.getItem('iqtisodchi_user_phone');
+        if (savedPhone) setUserPhone(savedPhone);
+
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg) {
+          tg.ready?.();
+          tg.expand?.();
+          const u = tg.initDataUnsafe?.user;
+          if (u?.id) {
+            const tgIdStr = String(u.id);
+            setTgUser({
+              id: tgIdStr,
+              firstName: [u.first_name, u.last_name].filter(Boolean).join(' ') || 'Mijoz',
+              username: u.username || '',
+            });
+            fetch(`/api/user/contact?tgId=${encodeURIComponent(tgIdStr)}`)
+              .then(r => r.json())
+              .then(d => {
+                if (d?.phone) {
+                  setUserPhone(d.phone);
+                  localStorage.setItem('iqtisodchi_user_phone', d.phone);
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      } catch {}
     }
   }, []);
+
+  const handleRequestTelegramPhone = () => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg && typeof tg.requestContact === 'function') {
+      tg.requestContact((ok: boolean, res: any) => {
+        const phone = res?.responseUnsafe?.contact?.phone_number || res?.contact?.phone_number;
+        if (ok && phone) {
+          const normalized = phone.startsWith('+') ? phone : `+${phone}`;
+          setUserPhone(normalized);
+          try { localStorage.setItem('iqtisodchi_user_phone', normalized); } catch {}
+          if (tgUser.id) {
+            fetch('/api/user/contact', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tgId: tgUser.id,
+                phone: normalized,
+                username: tgUser.username,
+                firstName: tgUser.firstName,
+              }),
+            }).catch(() => {});
+          }
+        }
+      });
+    } else {
+      alert("Iltimos, telefon raqamingizni quyidagi maydonga kiriting (masalan: +998901234567).");
+    }
+  };
+
+  const handleSubmitCheaperRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cheaperModalProduct || !userPhone.trim()) return;
+    setIsSendingRequest(true);
+    try {
+      localStorage.setItem('iqtisodchi_user_phone', userPhone.trim());
+      const res = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          buyerName: tgUser.firstName || 'Mijoz',
+          buyerPhone: userPhone.trim(),
+          telegramUserId: tgUser.id,
+          telegramUsername: tgUser.username,
+          productTitle: cheaperModalProduct.title,
+          currentPrice: cheaperModalProduct.price,
+          currentStore: cheaperModalProduct.source,
+          productUrl: cheaperModalProduct.directUrl || cheaperModalProduct.link,
+          region: selectedRegion,
+          category: 'other',
+          description: requestNote.trim()
+            ? `${cheaperModalProduct.title} — ${requestNote.trim()}`
+            : `${cheaperModalProduct.title} (${cheaperModalProduct.price}) uchun yanada arzonroq taklif so‘rovi`,
+          budget: cheaperModalProduct.priceNumber || 0,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCheaperModalProduct(null);
+        setRequestNote('');
+        setRequestSuccessToast(data.message || 'Talabingiz adminga yuborildi!');
+        setTimeout(() => setRequestSuccessToast(''), 5000);
+      } else {
+        alert(data.error || 'Xatolik yuz berdi');
+      }
+    } catch {
+      alert('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsSendingRequest(false);
+    }
+  };
 
   // Form submit handler (foydalanuvchi yozgan narsani qidiradi)
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -1351,16 +1458,28 @@ export default function IqtisodchiSearchPage() {
                 </div>
                 <div className="best-right">
                   <div className="p">{bestBanner.price}</div>
-                  <a 
-                    className="btn-open !bg-gradient-to-r !from-[#6366F1] !to-[#4F46E5] hover:!from-[#4F46E5] hover:!to-[#4338CA] !px-4 !py-2.5 !text-xs !font-black !shadow-md !shadow-indigo-500/20 active:scale-95 flex items-center gap-1.5" 
-                    href={bestBanner.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                  >
-                    <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-pulse" />
-                    <span>Yanada arzonroq olish ⚡</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  <div className="flex flex-wrap items-center gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAiDrawerOpen(true);
+                        handleSendChatMessage(`${activeQuery} mahsulotini O'zbekiston (Uzum, Olcha, Asaxiy, Wildberries) hamda MDH/Global gigantlar (Ozon, Kaspi, Amazon, AliExpress, Temu, Trendyol) narxlari bilan solishtirib tahlil qilib ber.`);
+                      }}
+                      className="px-3 py-2 rounded-xl bg-white hover:bg-indigo-50 border border-indigo-200 text-[#4338CA] font-bold text-xs shadow-xs transition cursor-pointer"
+                    >
+                      🌍 Global & MDH tahlil
+                    </button>
+                    <a 
+                      className="btn-open !bg-gradient-to-r !from-[#6366F1] !to-[#4F46E5] hover:!from-[#4F46E5] hover:!to-[#4338CA] !px-4 !py-2.5 !text-xs !font-black !shadow-md !shadow-indigo-500/20 active:scale-95 flex items-center gap-1.5" 
+                      href={bestBanner.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-pulse" />
+                      <span>Do‘kondan olish</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
@@ -1702,18 +1821,19 @@ export default function IqtisodchiSearchPage() {
                           </button>
                         </div>
 
-                        {/* Yanada arzonroq olish marketing tugmasi */}
-                        <a
-                          href={prod.directUrl || prod.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        {/* Yanada arzonroq olish (Talab yuborish / Do'konga o'tish) */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCheaperModalProduct(prod);
+                          }}
                           className="btn-open !bg-gradient-to-r !from-[#6366F1] !to-[#4F46E5] hover:!from-[#4F46E5] hover:!to-[#4338CA] !px-4 !py-2.5 !text-xs !font-black !shadow-md !shadow-indigo-500/20 active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                          title="Do‘kondan eng yaxshi narxda sotib olish"
+                          title="Do‘kondan olish yoki Admindan yanada arzonroq taklif so‘rash"
                         >
                           <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 animate-pulse" />
                           <span>Yanada arzonroq olish ⚡</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
+                        </button>
                       </div>
                     </article>
                   );
@@ -2399,6 +2519,113 @@ export default function IqtisodchiSearchPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Request Success Toast */}
+      {requestSuccessToast && (
+        <div className="fixed top-20 right-4 left-4 sm:left-auto sm:max-w-md z-50 bg-[#16A34A] text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs sm:text-sm font-bold animate-fade-in">
+          <Check className="w-5 h-5 shrink-0" />
+          <span>{requestSuccessToast}</span>
+        </div>
+      )}
+
+      {/* =========================================================================
+          8b. YANADA ARZONROQ OLISH (TALAB YUBORISH / DO'KONDAN OLISH MODALI)
+          ========================================================================= */}
+      {cheaperModalProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-[#E7E9F2] space-y-4">
+            <div className="flex items-start justify-between gap-2 border-b border-[#EEF0FF] pb-3">
+              <div>
+                <h3 className="font-extrabold text-base text-[#0F172A] flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  <span>Yanada arzonroq olish</span>
+                </h3>
+                <p className="text-[11px] text-[#64748B] mt-0.5">
+                  Do‘kondan to‘g‘ridan-to‘g‘ri xarid qiling yoki Admindan eng arzon maxsus taklif so‘rang
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCheaperModalProduct(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-[#64748B] hover:bg-[#EEF0FF]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Tanlangan mahsulot */}
+            <div className="p-3 rounded-2xl bg-[#F7F8FC] border border-[#E7E9F2] flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs font-extrabold text-[#0F172A] truncate">{cheaperModalProduct.title}</div>
+                <div className="text-[11px] text-[#64748B] mt-0.5">
+                  {cheaperModalProduct.source} · <span className="font-bold text-[#4338CA]">{cheaperModalProduct.price}</span>
+                </div>
+              </div>
+              <a
+                href={cheaperModalProduct.directUrl || cheaperModalProduct.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-xl bg-white border border-[#DDE2FB] hover:border-[#6366F1] text-[#4338CA] text-[11px] font-extrabold shrink-0 flex items-center gap-1"
+              >
+                <span>Do‘kon</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* Talab yuborish formasi (Admin & Tadbirkorlar uchun) */}
+            <form onSubmit={handleSubmitCheaperRequest} className="space-y-3">
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#EEF0FF] to-[#F5F3FF] border border-[#DDE2FB] space-y-2.5">
+                <div className="text-xs font-extrabold text-[#4338CA]">
+                  🔥 Bundan ham arzonroq narx topib berish uchun talab yuboring!
+                </div>
+                <p className="text-[11px] text-[#475569] leading-relaxed">
+                  Admin tadbirkorlarimiz barcha ulgurji va hamkor omborlardan tekshirib, sizga Telegram bot orqali yoki qo‘ng‘iroq qilib eng yaxshi narxni yuboradi.
+                </p>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-[#334155]">Telefon raqamingiz</label>
+                    <button
+                      type="button"
+                      onClick={handleRequestTelegramPhone}
+                      className="text-[10px] font-extrabold text-[#4F46E5] hover:underline cursor-pointer"
+                    >
+                      📱 Telegramdan avtomatik ulash
+                    </button>
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    value={userPhone}
+                    onChange={(e) => setUserPhone(e.target.value)}
+                    placeholder="+998 90 123 45 67"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#DDE2FB] focus:border-[#6366F1] text-sm font-bold text-[#0F172A] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[#334155] mb-1">Qo‘shimcha istak (ixtiyoriy)</label>
+                  <input
+                    type="text"
+                    value={requestNote}
+                    onChange={(e) => setRequestNote(e.target.value)}
+                    placeholder="Masalan: o‘lchami L, rangi qora, bugun yetkazish kerak"
+                    className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#DDE2FB] focus:border-[#6366F1] text-xs font-medium text-[#0F172A] outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSendingRequest}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white font-extrabold text-sm shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 active:scale-95 transition cursor-pointer"
+              >
+                {isSendingRequest ? 'Yuborilmoqda...' : '🚀 Talab yuborish (Eng arzon taklif olish)'}
+              </button>
+            </form>
           </div>
         </div>
       )}

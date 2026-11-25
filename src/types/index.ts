@@ -79,6 +79,13 @@ export interface PurchaseRequest {
   expiresAt: string; // ISO
   status: 'active' | 'closed' | 'expired' | 'fulfilled';
   smsConsent: boolean;
+  telegramUserId?: string;
+  telegramUsername?: string;
+  productTitle?: string;
+  currentPrice?: string;
+  currentStore?: string;
+  productUrl?: string;
+  adminOfferNote?: string;
   aiExtracted?: {
     category: string;
     budget: number;

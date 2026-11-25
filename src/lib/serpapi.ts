@@ -41,6 +41,11 @@ export interface SerpProductItem {
   monthlyCostUzs?: number;
   roiVerdict?: string;
   category?: string;
+  brand?: string;
+  currency?: string;
+  availability?: string;
+  location?: string;
+  collectedAt?: string;
   badges?: string[];
   isBestPrice?: boolean;
 }
@@ -57,67 +62,99 @@ export function getSerpApiKey(): string {
  * Butun respublika bo'ylab (jumladan Xorazm, Samarqand va barcha viloyatlarda) yetkazib beradigan yoki filiallari mavjud tarmoqlar
  */
 export const ALLOWED_DOMAINS = [
-  // 1. Umumiy va yirik marketpleyslar (Butun O'zbekiston bo'ylab)
-  "uzum.uz", "olcha.uz", "zoodmall.uz", "sello.uz", "asaxiy.uz", 
-  
-  // 2. Maishiy texnika va elektronika tarmoqlari (Viloyatlarda filiallari bor)
-  "texnomart.uz", "mediapark.uz", "ishonch.uz", "ideastore.uz", "idea.uz", "creditasia.uz", 
+  // 1. O'zbekiston - 16 ta asosiy platforma
+  "uzum.uz", "wildberries.uz", "zoodmall.uz", "sello.uz", "asaxiy.uz", "olcha.uz",
+  "texnomart.uz", "mediapark.uz", "alifshop.uz", "olx.uz", "glotr.uz", "tovar.uz",
+  "kmall.uz", "sierra.uz", "korzinka.uz", "makromarket.uz",
+  "ishonch.uz", "ideastore.uz", "idea.uz", "creditasia.uz",
   "elmakon.uz", "radius.uz", "macbro.uz", "arenamarkaz.uz", "goodzone.uz", "joybox.uz",
-  
-  // 3. Qurilish, mebel va uy-ro'zg'or
   "stroycenter.uz", "dombrabotnik.uz", "mebel.uz", "home24.uz", "karcher.uz",
-  
-  // 4. Kiyim-kechak va sport
   "terrapro.uz", "urbanstore.uz", "sportmaster.uz", "redtag.uz", "extremal-shop.uz", "paypo.uz",
   "market.yandex.uz", "yandex.uz",
-  
-  // 5. Avto, shina va maxsus texnika
-  "autotuning.uz", "shina.uz", "avtoelon.uz"
+  "autotuning.uz", "shina.uz", "avtoelon.uz",
+
+  // 2. MDH va qo'shni davlatlar - 10 ta platforma
+  "ozon.ru", "market.yandex.ru", "kaspi.kz", "rozetka.com.ua", "prom.ua",
+  "trendyol.com", "hepsiburada.com", "allegro.pl", "kaufland.de", "jumia.com",
+
+  // 3. Xalqaro global gigantlar - 14 ta platforma
+  "amazon.com", "ebay.com", "walmart.com", "aliexpress.com", "alibaba.com",
+  "taobao.com", "jd.com", "temu.com", "shein.com", "etsy.com",
+  "mercadolibre.com", "shopee.com", "lazada.com", "rakuten.com"
 ];
 
-export const ALLOWED_ECOMMERCE_STORES: Record<string, { name: string; badge: string; domain: string }> = {
-  // 1. Umumiy va yirik marketpleyslar
-  "uzum.uz": { name: "Uzum Market", badge: "Tezkor yetkazish", domain: "uzum.uz" },
-  "olcha.uz": { name: "Olcha", badge: "Rasmiy kafolat", domain: "olcha.uz" },
-  "zoodmall.uz": { name: "Zoodmall", badge: "Bozor narxi", domain: "zoodmall.uz" },
-  "zoodmall.com": { name: "Zoodmall", badge: "Bozor narxi", domain: "zoodmall.com" },
-  "sello.uz": { name: "Sello", badge: "Yetkazib berish", domain: "sello.uz" },
-  "asaxiy.uz": { name: "Asaxiy", badge: "Yetkazib berish", domain: "asaxiy.uz" },
+export const ALLOWED_ECOMMERCE_STORES: Record<string, { name: string; badge: string; domain: string; location?: string }> = {
+  // 1. O'zbekiston platformalari
+  "uzum.uz": { name: "Uzum Market", badge: "Tezkor yetkazish", domain: "uzum.uz", location: "O‘zbekiston" },
+  "wildberries.uz": { name: "Wildberries UZ", badge: "Keng tanlov", domain: "wildberries.uz", location: "O‘zbekiston" },
+  "olcha.uz": { name: "Olcha", badge: "Rasmiy kafolat", domain: "olcha.uz", location: "O‘zbekiston" },
+  "zoodmall.uz": { name: "ZoodMall", badge: "Muddatli to‘lov", domain: "zoodmall.uz", location: "O‘zbekiston" },
+  "zoodmall.com": { name: "ZoodMall", badge: "Muddatli to‘lov", domain: "zoodmall.com", location: "O‘zbekiston" },
+  "sello.uz": { name: "Sello", badge: "Yetkazib berish", domain: "sello.uz", location: "O‘zbekiston" },
+  "asaxiy.uz": { name: "Asaxiy", badge: "Yetkazib berish", domain: "asaxiy.uz", location: "O‘zbekiston" },
+  "alifshop.uz": { name: "Alif Shop", badge: "Nasiya savdo", domain: "alifshop.uz", location: "O‘zbekiston" },
+  "glotr.uz": { name: "Glotr", badge: "B2B/B2C", domain: "glotr.uz", location: "O‘zbekiston" },
+  "tovar.uz": { name: "Tovar.uz", badge: "O‘zbekiston", domain: "tovar.uz", location: "O‘zbekiston" },
+  "kmall.uz": { name: "Kmall", badge: "Onlayn savdo", domain: "kmall.uz", location: "O‘zbekiston" },
+  "sierra.uz": { name: "Sierra", badge: "Chakana savdo", domain: "sierra.uz", location: "O‘zbekiston" },
+  "korzinka.uz": { name: "Korzinka", badge: "Supermarket", domain: "korzinka.uz", location: "O‘zbekiston" },
+  "makromarket.uz": { name: "Makro", badge: "Supermarket", domain: "makromarket.uz", location: "O‘zbekiston" },
 
-  // 2. Maishiy texnika va elektronika tarmoqlari (Viloyatlarda filiallari bor)
-  "texnomart.uz": { name: "Texnomart", badge: "Muddatli to'lov", domain: "texnomart.uz" },
-  "mediapark.uz": { name: "Mediapark", badge: "Keng tarmoq", domain: "mediapark.uz" },
-  "ishonch.uz": { name: "Ishonch", badge: "Keng tarmoq", domain: "ishonch.uz" },
-  "ideastore.uz": { name: "Idea Store", badge: "Rasmiy diler", domain: "ideastore.uz" },
-  "idea.uz": { name: "Idea", badge: "Mavjud", domain: "idea.uz" },
-  "creditasia.uz": { name: "Credit Asia", badge: "Kafolatli", domain: "creditasia.uz" },
-  "elmakon.uz": { name: "Elmakon", badge: "Rasmiy do'kon", domain: "elmakon.uz" },
-  "radius.uz": { name: "Radius", badge: "Tezkor", domain: "radius.uz" },
-  "macbro.uz": { name: "MacBro", badge: "Original", domain: "macbro.uz" },
-  "arenamarkaz.uz": { name: "Arena Markaz", badge: "Rasmiy", domain: "arenamarkaz.uz" },
-  "goodzone.uz": { name: "Goodzone", badge: "Rasmiy kafolat", domain: "goodzone.uz" },
-  "joybox.uz": { name: "Joybox", badge: "Tezkor xarid", domain: "joybox.uz" },
+  // 2. Maishiy texnika va elektronika tarmoqlari
+  "texnomart.uz": { name: "Texnomart", badge: "Muddatli to‘lov", domain: "texnomart.uz", location: "O‘zbekiston" },
+  "mediapark.uz": { name: "MediaPark", badge: "Keng tarmoq", domain: "mediapark.uz", location: "O‘zbekiston" },
+  "ishonch.uz": { name: "Ishonch", badge: "Keng tarmoq", domain: "ishonch.uz", location: "O‘zbekiston" },
+  "ideastore.uz": { name: "Idea Store", badge: "Rasmiy diler", domain: "ideastore.uz", location: "O‘zbekiston" },
+  "idea.uz": { name: "Idea", badge: "Mavjud", domain: "idea.uz", location: "O‘zbekiston" },
+  "creditasia.uz": { name: "Credit Asia", badge: "Kafolatli", domain: "creditasia.uz", location: "O‘zbekiston" },
+  "elmakon.uz": { name: "Elmakon", badge: "Rasmiy do‘kon", domain: "elmakon.uz", location: "O‘zbekiston" },
+  "radius.uz": { name: "Radius", badge: "Tezkor", domain: "radius.uz", location: "O‘zbekiston" },
+  "macbro.uz": { name: "MacBro", badge: "Original", domain: "macbro.uz", location: "O‘zbekiston" },
+  "arenamarkaz.uz": { name: "Arena Markaz", badge: "Rasmiy", domain: "arenamarkaz.uz", location: "O‘zbekiston" },
+  "goodzone.uz": { name: "Goodzone", badge: "Rasmiy kafolat", domain: "goodzone.uz", location: "O‘zbekiston" },
+  "joybox.uz": { name: "Joybox", badge: "Tezkor xarid", domain: "joybox.uz", location: "O‘zbekiston" },
 
   // 3. Qurilish, mebel va uy-ro'zg'or
-  "stroycenter.uz": { name: "Stroy Center", badge: "Qurilish mollari", domain: "stroycenter.uz" },
-  "dombrabotnik.uz": { name: "Dombrabotnik", badge: "Uy mollari", domain: "dombrabotnik.uz" },
-  "mebel.uz": { name: "Mebel.uz", badge: "Mebel", domain: "mebel.uz" },
-  "home24.uz": { name: "Home24", badge: "Uy anjomlari", domain: "home24.uz" },
-  "karcher.uz": { name: "Kärcher", badge: "Nemis sifati", domain: "karcher.uz" },
+  "stroycenter.uz": { name: "Stroy Center", badge: "Qurilish mollari", domain: "stroycenter.uz", location: "O‘zbekiston" },
+  "dombrabotnik.uz": { name: "Dombrabotnik", badge: "Uy mollari", domain: "dombrabotnik.uz", location: "O‘zbekiston" },
+  "mebel.uz": { name: "Mebel.uz", badge: "Mebel", domain: "mebel.uz", location: "O‘zbekiston" },
+  "home24.uz": { name: "Home24", badge: "Uy anjomlari", domain: "home24.uz", location: "O‘zbekiston" },
+  "karcher.uz": { name: "Kärcher", badge: "Nemis sifati", domain: "karcher.uz", location: "O‘zbekiston" },
 
   // 4. Kiyim-kechak va sport
-  "terrapro.uz": { name: "Terra Pro", badge: "Brend kiyim", domain: "terrapro.uz" },
-  "urbanstore.uz": { name: "Urban Store", badge: "Moda", domain: "urbanstore.uz" },
-  "sportmaster.uz": { name: "Sportmaster", badge: "Sport mahsulotlari", domain: "sportmaster.uz" },
-  "redtag.uz": { name: "REDTAG", badge: "Kiyim-kechak", domain: "redtag.uz" },
-  "extremal-shop.uz": { name: "Extremal Shop", badge: "Turizm va sport", domain: "extremal-shop.uz" },
-  "paypo.uz": { name: "Paypo", badge: "Paypoqlar", domain: "paypo.uz" },
-  "market.yandex.uz": { name: "Yandex Market", badge: "Tezkor yetkazish", domain: "market.yandex.uz" },
+  "terrapro.uz": { name: "Terra Pro", badge: "Brend kiyim", domain: "terrapro.uz", location: "O‘zbekiston" },
+  "urbanstore.uz": { name: "Urban Store", badge: "Moda", domain: "urbanstore.uz", location: "O‘zbekiston" },
+  "sportmaster.uz": { name: "Sportmaster", badge: "Sport mahsulotlari", domain: "sportmaster.uz", location: "O‘zbekiston" },
+  "redtag.uz": { name: "REDTAG", badge: "Kiyim-kechak", domain: "redtag.uz", location: "O‘zbekiston" },
+  "extremal-shop.uz": { name: "Extremal Shop", badge: "Turizm va sport", domain: "extremal-shop.uz", location: "O‘zbekiston" },
+  "paypo.uz": { name: "Paypo", badge: "Paypoqlar", domain: "paypo.uz", location: "O‘zbekiston" },
+  "market.yandex.uz": { name: "Yandex Market", badge: "Tezkor yetkazish", domain: "market.yandex.uz", location: "O‘zbekiston" },
 
   // 5. Avto, shina va maxsus texnika
-  "autotuning.uz": { name: "Autotuning", badge: "Avto tovarlar", domain: "autotuning.uz" },
-  "shina.uz": { name: "Shina.uz", badge: "Original shinalar", domain: "shina.uz" },
-  "avtoelon.uz": { name: "Avtoelon", badge: "Yangi ehtiyot qismlar", domain: "avtoelon.uz" },
+  "autotuning.uz": { name: "Autotuning", badge: "Avto tovarlar", domain: "autotuning.uz", location: "O‘zbekiston" },
+  "shina.uz": { name: "Shina.uz", badge: "Original shinalar", domain: "shina.uz", location: "O‘zbekiston" },
+  "avtoelon.uz": { name: "Avtoelon", badge: "Yangi ehtiyot qismlar", domain: "avtoelon.uz", location: "O‘zbekiston" },
+
+  // 6. MDH va Qo'shni davlat gigantlari
+  "ozon.ru": { name: "Ozon", badge: "Rossiya bozori", domain: "ozon.ru", location: "Rossiya" },
+  "market.yandex.ru": { name: "Yandex Market RU", badge: "Rossiya bozori", domain: "market.yandex.ru", location: "Rossiya" },
+  "kaspi.kz": { name: "Kaspi.kz", badge: "Qozog‘iston bozori", domain: "kaspi.kz", location: "Qozog‘iston" },
+  "trendyol.com": { name: "Trendyol", badge: "Turkiya", domain: "trendyol.com", location: "Turkiya" },
+  "hepsiburada.com": { name: "Hepsiburada", badge: "Turkiya", domain: "hepsiburada.com", location: "Turkiya" },
+  "rozetka.com.ua": { name: "Rozetka", badge: "Ukraina", domain: "rozetka.com.ua", location: "Ukraina" },
+  "prom.ua": { name: "Prom.ua", badge: "Ukraina", domain: "prom.ua", location: "Ukraina" },
+  "allegro.pl": { name: "Allegro", badge: "Yevropa", domain: "allegro.pl", location: "Polsha" },
+  "kaufland.de": { name: "Kaufland", badge: "Germaniya", domain: "kaufland.de", location: "Germaniya" },
+
+  // 7. Global marketpleyslar
+  "amazon.com": { name: "Amazon", badge: "Global gigant", domain: "amazon.com", location: "Global (AQSh)" },
+  "ebay.com": { name: "eBay", badge: "Global bozor", domain: "ebay.com", location: "Global" },
+  "walmart.com": { name: "Walmart", badge: "AQSh chakana", domain: "walmart.com", location: "AQSh" },
+  "aliexpress.com": { name: "AliExpress", badge: "Xitoy chakana", domain: "aliexpress.com", location: "Xitoy / Global" },
+  "alibaba.com": { name: "Alibaba", badge: "Ulgurji B2B", domain: "alibaba.com", location: "Xitoy B2B" },
+  "temu.com": { name: "Temu", badge: "Arzon trendlar", domain: "temu.com", location: "Global" },
+  "shein.com": { name: "SHEIN", badge: "Moda va kiyim", domain: "shein.com", location: "Global" },
+  "etsy.com": { name: "Etsy", badge: "Handmade", domain: "etsy.com", location: "Global" },
 };
 
 /**

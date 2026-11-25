@@ -108,9 +108,41 @@ async function handleMessage(msg) {
 
   const session = sessions.get(chatId) || { step: 'IDLE' };
 
+  // 0. /admin komandasi — tadbirkor adminni bildirishnomalar uchun ro'yxatdan o'tkazish
+  if (text.startsWith('/admin')) {
+    const db = getDatabase();
+    if (!Array.isArray(db.adminChatIds)) db.adminChatIds = [];
+    if (!db.adminChatIds.includes(String(chatId))) {
+      db.adminChatIds.push(String(chatId));
+      saveDatabase(db);
+    }
+    await sendTelegramApi('sendMessage', {
+      chat_id: chatId,
+      text: `👑 <b>Admin bildirishnomalari faollashtirildi!</b>\n\nEndi xaridorlar "Yanada arzonroq olish" orqali talab yuborganda sizga shu yerga darhol xabar keladi.\n\n👉 <a href="${WEBAPP_URL}/admin">Admin Panelni ochish</a>`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: '👑 Admin Panelni ochish', web_app: { url: `${WEBAPP_URL}/admin` } }]]
+      }
+    });
+    return;
+  }
+
   // 1. /start command
   if (text.startsWith('/start')) {
     sessions.set(chatId, { step: 'IDLE' });
+    // Foydalanuvchi Telegram ID sini saqlash
+    try {
+      const db = getDatabase();
+      if (!db.tgUsers) db.tgUsers = {};
+      db.tgUsers[String(chatId)] = {
+        ...(db.tgUsers[String(chatId)] || {}),
+        tgId: String(chatId),
+        username: msg.from?.username || '',
+        firstName: msg.from?.first_name || '',
+        updatedAt: new Date().toISOString()
+      };
+      saveDatabase(db);
+    } catch {}
 
     const welcomeText = 
       `👋 <b>Assalomu alaykum, ${msg.from.first_name || 'Hurmatli mijoz'}!</b>\n\n` +

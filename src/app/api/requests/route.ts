@@ -1,6 +1,66 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 import { getRequests, createRequest } from '@/lib/storage';
 import { notifySellersAboutNewRequest } from '@/lib/sms';
+
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '9148816120:AAFVvLOTnSHZMUTa9Y_F5aNl7p7DywHzb8k';
+const DB_PATH = path.join(process.cwd(), 'data', 'techbozor_db.json');
+
+async function notifyAdminsTelegram(req: any) {
+  try {
+    const db = fs.existsSync(DB_PATH)
+      ? JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'))
+      : {};
+    const adminIds: string[] = Array.isArray(db.adminChatIds) ? db.adminChatIds.map(String) : [];
+    if (process.env.ADMIN_TELEGRAM_ID && !adminIds.includes(String(process.env.ADMIN_TELEGRAM_ID))) {
+      adminIds.push(String(process.env.ADMIN_TELEGRAM_ID));
+    }
+
+    // Agar Telegram user telefon raqami bo'lsa, bazaga saqlab qo'yamiz (avtomatik to'ldirish uchun)
+    if (req.telegramUserId && req.buyerPhone) {
+      if (!db.tgUsers) db.tgUsers = {};
+      db.tgUsers[String(req.telegramUserId)] = {
+        ...(db.tgUsers[String(req.telegramUserId)] || {}),
+        tgId: String(req.telegramUserId),
+        phone: req.buyerPhone,
+        username: req.telegramUsername || '',
+        firstName: req.buyerName || '',
+        updatedAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
+    }
+
+    if (adminIds.length === 0) return;
+
+    const text =
+      `🔥 <b>YANGI ARZON NARX TALABI (${req.id})!</b>\n\n` +
+      `📦 <b>Tovar:</b> ${req.productTitle || req.description}\n` +
+      (req.currentStore ? `🏪 <b>Joriy do‘kon:</b> ${req.currentStore}\n` : '') +
+      (req.currentPrice ? `💰 <b>Joriy narx:</b> ${req.currentPrice}\n` : '') +
+      `📍 <b>Hudud:</b> ${req.region}\n` +
+      `👤 <b>Mijoz:</b> ${req.buyerName}${req.telegramUsername ? ` (@${req.telegramUsername})` : ''}\n` +
+      `📞 <b>Tel:</b> ${req.buyerPhone}\n\n` +
+      `👉 <a href="https://savdo.mcode.uz/admin">Admin panelda taklif yuborish</a>`;
+
+    await Promise.allSettled(
+      adminIds.map((chatId) =>
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+          }),
+        })
+      )
+    );
+  } catch (e) {
+    console.warn('[notifyAdminsTelegram error]:', e);
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -32,36 +92,45 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (!body.buyerName || !body.buyerPhone || !body.category || !body.description || !body.budget || !body.region) {
+    if (!body.buyerPhone || (!body.description && !body.productTitle)) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Majburiy maydonlar to‘liq to‘ldirilmadi' 
+        error: 'Telefon raqami va mahsulot nomi kiritilishi shart' 
       }, { status: 400 });
     }
 
     const newReq = createRequest({
-      buyerName: body.buyerName,
+      buyerName: body.buyerName || 'Telegram Mijoz',
       buyerPhone: body.buyerPhone,
-      category: body.category,
-      description: body.description,
-      budget: Number(body.budget),
-      region: body.region,
+      category: body.category || 'other',
+      description: body.description || `${body.productTitle} — eng arzon taklif so‘rovi`,
+      budget: Number(String(body.budget || body.currentPrice || '0').replace(/\D/g, '')) || 0,
+      region: body.region || 'Toshkent shahri',
       district: body.district || '',
       specifications: body.specifications || {},
       durationDays: Number(body.durationDays) || 7,
       smsConsent: body.smsConsent !== false,
+      telegramUserId: body.telegramUserId ? String(body.telegramUserId) : undefined,
+      telegramUsername: body.telegramUsername || undefined,
+      productTitle: body.productTitle || undefined,
+      currentPrice: body.currentPrice || undefined,
+      currentStore: body.currentStore || undefined,
+      productUrl: body.productUrl || undefined,
       aiExtracted: body.aiExtracted,
     });
 
-    // Mos sotuvchilarga SMS xabarnoma yuborish
-    const notificationResult = await notifySellersAboutNewRequest(newReq);
+    // Adminlarga Telegram orqali xabar berish va sotuvchilarga SMS yuborish
+    const [notificationResult] = await Promise.all([
+      notifySellersAboutNewRequest(newReq),
+      notifyAdminsTelegram(newReq),
+    ]);
 
     return NextResponse.json({ 
       success: true, 
       data: newReq,
       notifiedSellers: notificationResult.sellers,
       notifiedCount: notificationResult.notifiedCount,
-      message: 'Talab muvaffaqiyatli joylashtirildi va mos sotuvchilarga SMS yuborildi!'
+      message: 'Talabingiz adminga yuborildi! Tez orada Telegram bot orqali yoki qo‘ng‘iroq qilib eng arzon taklifni beramiz.'
     });
   } catch (error) {
     console.error('Error creating request:', error);

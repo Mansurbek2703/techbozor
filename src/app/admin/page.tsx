@@ -27,7 +27,44 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [smsData, setSmsData] = useState<{ logs: SMSLog[]; totalCount: number; totalSpentSoM: number; pricePerSms: number } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'categories' | 'stats' | 'sellers' | 'requests' | 'sms'>('categories');
+  const [activeTab, setActiveTab] = useState<'categories' | 'stats' | 'sellers' | 'requests' | 'sms'>('requests');
+  const [offerModalReq, setOfferModalReq] = useState<PurchaseRequest | null>(null);
+  const [adminOfferPrice, setAdminOfferPrice] = useState('');
+  const [adminOfferMsg, setAdminOfferMsg] = useState('');
+  const [adminPhoneInput, setAdminPhoneInput] = useState('+998901234567');
+  const [isSendingOffer, setIsSendingOffer] = useState(false);
+
+  const handleSendAdminOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!offerModalReq || !adminOfferPrice.trim()) return;
+    setIsSendingOffer(true);
+    try {
+      const res = await fetch('/api/admin/send-offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: offerModalReq.id,
+          offerPrice: adminOfferPrice,
+          message: adminOfferMsg,
+          adminPhone: adminPhoneInput,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        setOfferModalReq(null);
+        setAdminOfferPrice('');
+        setAdminOfferMsg('');
+        fetchAllData();
+      } else {
+        alert(data.error || 'Xatolik');
+      }
+    } catch {
+      alert('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsSendingOffer(false);
+    }
+  };
 
   // New Category modal states
   const [isNewCatModal, setIsNewCatModal] = useState(false);
@@ -376,37 +413,142 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TALABLAR */}
+      {/* TALABLAR (Mijozlarning arzon narx so'rovlari) */}
       {activeTab === 'requests' && (
         <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xl space-y-4">
-          <h2 className="text-lg font-black text-stone-900">Xaridor talablari</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-black text-stone-900">Xaridor talablari (Arzon narx so‘rovlari)</h2>
+              <p className="text-xs text-stone-500">Mijozlarga Telegram bot orqali maxsus arzon narx taklifi yuboring yoki to‘g‘ridan-to‘g‘ri qo‘ng‘iroq qiling.</p>
+            </div>
+            <button onClick={fetchAllData} className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-xs font-bold flex items-center gap-1.5">
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Yangilash</span>
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-stone-700">
               <thead className="bg-stone-50 uppercase text-[10px] text-stone-400 font-bold border-b border-stone-200">
                 <tr>
-                  <th className="py-3 px-4">ID</th>
-                  <th className="py-3 px-4">Tavsif</th>
-                  <th className="py-3 px-4">Budjet</th>
+                  <th className="py-3 px-4">ID / Vaqt</th>
+                  <th className="py-3 px-4">Tovar va Joriy narx</th>
                   <th className="py-3 px-4">Hudud</th>
-                  <th className="py-3 px-4">Xaridor</th>
-                  <th className="py-3 px-4 text-right">Havola</th>
+                  <th className="py-3 px-4">Mijoz va Telefon</th>
+                  <th className="py-3 px-4">Holat</th>
+                  <th className="py-3 px-4 text-right">Taklif / Aloqa</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {requests.map((r) => (
-                  <tr key={r.id}>
-                    <td className="py-3 px-4 font-bold">{r.id}</td>
-                    <td className="py-3 px-4 max-w-xs truncate">{r.description}</td>
-                    <td className="py-3 px-4 font-bold text-brand-600">{r.budget.toLocaleString('uz-UZ')} so‘m</td>
+                  <tr key={r.id} className="hover:bg-stone-50/70">
+                    <td className="py-3 px-4">
+                      <div className="font-bold text-stone-900">{r.id}</div>
+                      <div className="text-[10px] text-stone-400">{new Date(r.createdAt).toLocaleString('uz-UZ')}</div>
+                    </td>
+                    <td className="py-3 px-4 max-w-xs">
+                      <div className="font-bold text-stone-900 truncate">{r.productTitle || r.description}</div>
+                      {r.currentStore && (
+                        <div className="text-[11px] text-stone-500">{r.currentStore}: {r.currentPrice || `${r.budget.toLocaleString('uz-UZ')} so‘m`}</div>
+                      )}
+                      {r.adminOfferNote && (
+                        <div className="text-[11px] text-emerald-700 font-bold mt-0.5">Taklif: {r.adminOfferNote}</div>
+                      )}
+                    </td>
                     <td className="py-3 px-4">{r.region}</td>
-                    <td className="py-3 px-4">{r.buyerName} ({r.buyerPhone})</td>
-                    <td className="py-3 px-4 text-right">
-                      <Link href={`/request/${r.id}`} target="_blank" className="text-brand-600 font-bold">Ochish</Link>
+                    <td className="py-3 px-4">
+                      <div className="font-bold">{r.buyerName} {r.telegramUsername ? `(@${r.telegramUsername})` : ''}</div>
+                      <a href={`tel:${r.buyerPhone}`} className="text-brand-600 font-mono font-bold hover:underline">
+                        📞 {r.buyerPhone}
+                      </a>
+                    </td>
+                    <td className="py-3 px-4">
+                      {r.status === 'fulfilled' ? (
+                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Taklif yuborildi</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px]">Kutilmoqda</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOfferModalReq(r);
+                          setAdminOfferPrice('');
+                          setAdminOfferMsg('');
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-xs"
+                      >
+                        📲 Botda taklif yuborish
+                      </button>
+                      <a
+                        href={`tel:${r.buyerPhone}`}
+                        className="inline-block px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[11px]"
+                      >
+                        Qo‘ng‘iroq
+                      </a>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN TAKLIF YUBORISH MODALI */}
+      {offerModalReq && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 border border-stone-200 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <h3 className="text-base font-black text-stone-900">Mijozga arzonroq taklif yuborish</h3>
+              <button onClick={() => setOfferModalReq(null)} className="p-1 text-stone-400 hover:text-stone-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 rounded-2xl bg-stone-50 text-xs space-y-1">
+              <div className="font-bold text-stone-900">{offerModalReq.productTitle || offerModalReq.description}</div>
+              <div className="text-stone-500">Mijoz: {offerModalReq.buyerName} ({offerModalReq.buyerPhone})</div>
+              {offerModalReq.currentPrice && <div className="text-stone-500">Joriy narx: {offerModalReq.currentPrice} ({offerModalReq.currentStore})</div>}
+            </div>
+            <form onSubmit={handleSendAdminOffer} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Sizning arzon narxingiz (so‘m)</label>
+                <input
+                  type="text"
+                  required
+                  value={adminOfferPrice}
+                  onChange={(e) => setAdminOfferPrice(e.target.value)}
+                  placeholder="Masalan: 135 000"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-sm font-bold outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Izoh / Yetkazib berish sharti</label>
+                <textarea
+                  rows={2}
+                  value={adminOfferMsg}
+                  onChange={(e) => setAdminOfferMsg(e.target.value)}
+                  placeholder="Masalan: Toshkent bo‘ylab bugun bepul yetkazib beramiz, original."
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Admin aloqa raqami</label>
+                <input
+                  type="text"
+                  value={adminPhoneInput}
+                  onChange={(e) => setAdminPhoneInput(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs font-mono outline-none focus:border-indigo-500"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSendingOffer}
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm shadow-lg"
+              >
+                {isSendingOffer ? 'Yuborilmoqda...' : '📲 Telegram bot orqali yuborish'}
+              </button>
+            </form>
           </div>
         </div>
       )}
