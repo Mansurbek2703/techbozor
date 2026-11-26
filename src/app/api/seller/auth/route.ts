@@ -6,6 +6,27 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action } = body;
 
+    if (action === 'telegram_login') {
+      const tgId = String(body.telegramId || '').trim();
+      if (!tgId) {
+        return NextResponse.json({ success: false, error: 'Telegram ID topilmadi' }, { status: 400 });
+      }
+      const sellers = getSellers();
+      const seller = sellers.find((s: any) => String(s.telegramId || '') === tgId);
+      if (!seller) {
+        return NextResponse.json({ success: false, error: 'Ushbu Telegram hisobi sotuvchi sifatida ro‘yxatdan o‘tmagan' }, { status: 404 });
+      }
+      if (seller.isBlocked) {
+        return NextResponse.json({ success: false, error: 'Akkauntingiz administrator tomonidan bloklangan' }, { status: 403 });
+      }
+      const { password: _, ...sellerData } = seller;
+      return NextResponse.json({
+        success: true,
+        data: sellerData,
+        message: 'Telegram orqali avtomatik kirildi',
+      });
+    }
+
     if (action === 'login') {
       const { login, password } = body;
       if (!login || !password) {

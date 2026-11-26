@@ -83,22 +83,45 @@ export default function SellerDashboardPage() {
   const [productSuccessMsg, setProductSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const initSeller = async () => {
+      if (typeof window === 'undefined') return;
       const stored = localStorage.getItem('techbozor_seller');
-      if (!stored) {
-        router.push('/seller/login');
-        return;
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setCurrentSeller(parsed);
+          if (parsed.regions && parsed.regions[0]) setNewProdRegion(parsed.regions[0]);
+          return;
+        } catch {}
       }
-      try {
-        const parsed = JSON.parse(stored);
-        setCurrentSeller(parsed);
-        if (parsed.regions && parsed.regions[0]) {
-          setNewProdRegion(parsed.regions[0]);
-        }
-      } catch (e) {
-        router.push('/seller/login');
+
+      // Telegram Mini App orqali avtomatik kirish (login/parolsiz!)
+      const tg = (window as any).Telegram?.WebApp;
+      tg?.ready?.();
+      tg?.expand?.();
+      const urlTgId = new URLSearchParams(window.location.search).get('tgId') || '';
+      const tgId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : urlTgId;
+
+      if (tgId) {
+        try {
+          const res = await fetch('/api/seller/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'telegram_login', telegramId: tgId }),
+          });
+          const data = await res.json();
+          if (data.success && data.data) {
+            localStorage.setItem('techbozor_seller', JSON.stringify(data.data));
+            setCurrentSeller(data.data);
+            if (data.data.regions && data.data.regions[0]) setNewProdRegion(data.data.regions[0]);
+            return;
+          }
+        } catch {}
       }
-    }
+
+      router.push('/seller/login');
+    };
+    initSeller();
   }, [router]);
 
   const loadData = async (seller: Seller) => {

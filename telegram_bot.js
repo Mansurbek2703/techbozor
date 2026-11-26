@@ -240,14 +240,15 @@ async function handleMessage(msg) {
 
     await sendTelegramApi('sendMessage', {
       chat_id: chatId,
-      text: `3️⃣ Telefon raqamingizni tasdiqlash uchun pastdagi <b>«📱 Telefon raqamni yuborish»</b> tugmasini bosing:`,
+      text: `3️⃣ Telefon raqamingizni tasdiqlash uchun pastdagi katta <b>«📱 TELEFON RAQAMNI YUBORISH»</b> tugmasini bosing!\n\n<i>(Agar tugma ko‘rinmasa, yozish maydoni yonidagi to‘rtburchak 🎛️ tugmachani bosing)</i>`,
       parse_mode: 'HTML',
       reply_markup: {
         keyboard: [
-          [{ text: '📱 Telefon raqamni yuborish', request_contact: true }]
+          [{ text: '📱 TELEFON RAQAMNI YUBORISH', request_contact: true }]
         ],
         resize_keyboard: true,
-        one_time_keyboard: true
+        one_time_keyboard: false,
+        is_persistent: true
       }
     });
     return;
@@ -439,8 +440,8 @@ async function handleCallback(cb) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '➕ Mahsulotlar qo‘shish / Boshqarish', web_app: { url: `${WEBAPP_URL}/seller/products` } }],
-          [{ text: '📦 Sotuvchi Kabinetiga Kirish', web_app: { url: `${WEBAPP_URL}/seller/dashboard` } }],
+          [{ text: '➕ Mahsulotlar qo‘shish / Boshqarish', web_app: { url: `${WEBAPP_URL}/seller/products?tgId=${cb.from.id}` } }],
+          [{ text: '📦 Sotuvchi Kabinetiga Kirish', web_app: { url: `${WEBAPP_URL}/seller/dashboard?tgId=${cb.from.id}` } }],
           [{ text: '🛍️ Umumiy Bozorga Kirish', web_app: { url: WEBAPP_URL } }]
         ]
       }

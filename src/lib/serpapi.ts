@@ -1062,6 +1062,49 @@ export async function fetchAndEnrichStores(
   // 🛡️ The Absolute Gatekeeper: Agregator API ma'lumotlarini qat'iy sanitizatsiya qilish
   const sanitized = sanitizeAggregatedResults(rawResults, categoryKey, region || 'Toshkent');
   const strictlyValid = sanitized.filter(item => isStrictValidProduct(item, categoryKey));
+
+  // Agar 10 tadan kam bo'lsa, ruxsat etilgan do'konlardan (Uzum, Yandex, Wildberries, Olcha, Texnomart) qo'shimcha mos natijalarni ham qo'shamiz
+  if (strictlyValid.length < 10 && rawResults.length > 0) {
+    const seen = new Set(strictlyValid.map(i => i.title.toLowerCase()));
+    for (const item of rawResults) {
+      if (strictlyValid.length >= 12) break;
+      const title = (item.title || '').trim();
+      const link = (item.link || item.product_link || '').trim();
+      if (!title || !link || seen.has(title.toLowerCase())) continue;
+      if (BLOG_AND_ARTICLE_KEYWORDS.some(kw => title.toLowerCase().includes(kw))) continue;
+      if (STOP_WORDS.some(sw => title.toLowerCase().includes(sw) || link.toLowerCase().includes(sw))) continue;
+
+      let matchedStore: { name: string; badge: string; domain: string } | null = null;
+      for (const [domain, meta] of Object.entries(ALLOWED_ECOMMERCE_STORES)) {
+        if (link.toLowerCase().includes(domain) || (item.source || '').toLowerCase().includes(meta.name.toLowerCase())) {
+          matchedStore = meta;
+          break;
+        }
+      }
+      if (!matchedStore) continue;
+
+      const parsedPrice = parseUzbekPrice(item.price || item.snippet);
+      const img = item.thumbnail || item.serpapi_thumbnail || item.pagemap?.cse_image?.[0]?.src || '';
+      seen.add(title.toLowerCase());
+      strictlyValid.push({
+        id: generateUniqueId(),
+        title: title.slice(0, 95),
+        price: parsedPrice ? `${parsedPrice.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m` : 'Do‘kondan ko‘ring',
+        priceNumber: parsedPrice || 0,
+        source: matchedStore.name,
+        storeBadge: matchedStore.badge,
+        link,
+        directUrl: link,
+        thumbnail: img,
+        images: img ? [img] : [],
+        snippet: (item.snippet || `${matchedStore.name} do‘konidagi taklif`).slice(0, 120),
+        region: region || 'Toshkent',
+        keySpecs: extractKeySpecs(title, item.snippet, categoryKey),
+        warranty: '12 oy rasmiy kafolat',
+        deliveryInfo: `${region || 'Toshkent'} bo‘ylab yetkazish`,
+      });
+    }
+  }
   return strictlyValid;
 }
 
@@ -1672,10 +1715,9 @@ export async function searchLocalProducts(
   addItems(olchaItems);
   addItems(asaxiyItems);
 
-  // 2-QADAM: Agar tezkor parallel manbalardan 4 tadan kam topilsa YOKI 3 tadan kam do'kon bo'lsa,
-  // Uzum Market, Yandex Market, Wildberries, Texnomart, MediaPark, Alif Shop kabi yirik e-commerce'lardan ham tortamiz
+  // 2-QADAM: Har bir qidiruvda kamida 10 ta mahsulot va turli do'konlar bo'lishini ta'minlash
   const uniqueStores = new Set(combined.map(i => i.source)).size;
-  if (combined.length < 4 || uniqueStores < 3) {
+  if (combined.length < 10 || uniqueStores < 3) {
     const isDish = isDishwareQuery(cleanSearchTerm, category) || catKey === 'chinni_idishlar' || catKey === 'oshxona_anjomlari';
     let expandedQuery = cleanSearchTerm;
     if (!expandedQuery.toLowerCase().includes('.uz') && !expandedQuery.toLowerCase().includes('site:')) {

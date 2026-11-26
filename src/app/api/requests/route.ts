@@ -129,10 +129,23 @@ export async function POST(request: Request) {
       aiExtracted: body.aiExtracted,
     });
 
-    // Adminlarga Telegram orqali xabar berish va sotuvchilarga SMS yuborish
+    // Adminlarga Telegram orqali xabar berish, sotuvchilarga SMS va xaridorga 24 soatlik bildirishnoma
+    const buyerNotifyPromise = newReq.telegramUserId
+      ? fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: newReq.telegramUserId,
+            text: `✅ <b>Talabingiz (${newReq.id}) qabul qilindi!</b>\n\n📦 <b>Mahsulot:</b> ${newReq.productTitle || newReq.description}\n⏳ <b>24 soat davomida sizga javob yoziladi!</b>`,
+            parse_mode: 'HTML',
+          }),
+        }).catch(() => null)
+      : Promise.resolve(null);
+
     const [notificationResult] = await Promise.all([
       notifySellersAboutNewRequest(newReq),
       notifyAdminsTelegram(newReq),
+      buyerNotifyPromise,
     ]);
 
     return NextResponse.json({ 
@@ -140,7 +153,7 @@ export async function POST(request: Request) {
       data: newReq,
       notifiedSellers: notificationResult.sellers,
       notifiedCount: notificationResult.notifiedCount,
-      message: 'Talabingiz adminga yuborildi! Tez orada Telegram bot orqali yoki qo‘ng‘iroq qilib eng arzon taklifni beramiz.'
+      message: 'Talabingiz qabul qilindi! 24 soat davomida sizga Telegram bot orqali yoki qo‘ng‘iroq qilib javob yoziladi.'
     });
   } catch (error) {
     console.error('Error creating request:', error);

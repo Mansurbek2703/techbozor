@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Store, Lock, User, ArrowRight, AlertCircle } from 'lucide-react';
@@ -11,6 +11,29 @@ export default function SellerLoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const tryTelegramAutoLogin = async () => {
+      if (typeof window === 'undefined') return;
+      const tg = (window as any).Telegram?.WebApp;
+      tg?.ready?.();
+      const tgId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : '';
+      if (!tgId) return;
+      try {
+        const res = await fetch('/api/seller/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'telegram_login', telegramId: tgId }),
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          localStorage.setItem('techbozor_seller', JSON.stringify(data.data));
+          router.push('/seller/dashboard');
+        }
+      } catch {}
+    };
+    tryTelegramAutoLogin();
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,31 +139,9 @@ export default function SellerLoginPage() {
           </button>
         </form>
 
-        <div className="pt-2 border-t border-stone-100 space-y-2">
-          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block text-center">
-            Test hisoblar (bosing va kiring):
-          </span>
-          <div className="flex flex-wrap gap-1.5 justify-center">
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('texnomart_toshkent')}
-              className="text-xs bg-stone-100 hover:bg-orange-50 text-stone-700 hover:text-brand-700 px-2.5 py-1 rounded-lg font-bold transition"
-            >
-              Texnomart Toshkent
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('smart_samarqand')}
-              className="text-xs bg-stone-100 hover:bg-orange-50 text-stone-700 hover:text-brand-700 px-2.5 py-1 rounded-lg font-bold transition"
-            >
-              Smart Samarqand
-            </button>
-          </div>
-        </div>
-
-        <div className="text-center text-xs text-stone-500 pt-1">
-          Hali hisobingiz yo‘qmi?{' '}
-          <Link href="/seller/register" className="font-bold text-brand-600 hover:underline">
+        <div className="text-center text-xs text-stone-500 pt-2 border-t border-stone-100">
+          Bot orqali ro‘yxatdan o‘tgan bo‘lsangiz, @arzonoling_bot ichidan kabinetga kirsangiz login/parol so‘ralmaydi.{' '}
+          <Link href="/seller/register" className="font-bold text-brand-600 hover:underline block mt-1">
             Sotuvchi bo‘lib ro‘yxatdan o‘tish
           </Link>
         </div>

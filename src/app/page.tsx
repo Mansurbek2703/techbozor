@@ -2616,8 +2616,11 @@ export default function IqtisodchiSearchPage() {
                   🔥 Bundan ham arzonroq narx topib berish uchun talab yuboring!
                 </div>
                 <p className="text-[11px] text-[#475569] leading-relaxed">
-                  Admin tadbirkorlarimiz barcha ulgurji va hamkor omborlardan tekshirib, sizga Telegram bot orqali yoki qo‘ng‘iroq qilib eng yaxshi narxni yuboradi.
+                  Admin tadbirkorlarimiz barcha ulgurji va hamkor omborlardan tekshirib, sizga eng yaxshi narxni topib beradi.
                 </p>
+                <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900">
+                  ⏳ Talab yuborilganidan so‘ng 24 soat davomida sizga Telegram bot orqali yoki qo‘ng‘iroq qilib javob yoziladi.
+                </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
