@@ -1564,29 +1564,46 @@ async function searchLocalSellerDb(query: string, catKey: string, targetRegion: 
 
     const results: SerpProductItem[] = [];
     for (const p of products) {
-      const text = `${p.name || p.title || ''} ${p.category || ''} ${p.description || ''}`.toLowerCase();
+      const seller = sellers.find(s => s.id === p.sellerId);
+      if (seller?.isBlocked) continue;
+      if (seller?.regions && Array.isArray(seller.regions) && seller.regions.length > 0) {
+        const regLow = targetRegion.toLowerCase();
+        const servesRegion = seller.regions.some((r: string) =>
+          r.toLowerCase().includes(regLow) || regLow.includes(r.toLowerCase()) || r.toLowerCase().includes('barchasi')
+        );
+        if (!servesRegion) continue;
+      }
+
+      const specValues = p.specifications ? Object.values(p.specifications).join(' ') : '';
+      const attrValues = p.customAttributes ? Object.values(p.customAttributes).join(' ') : '';
+      const text = `${p.name || p.title || ''} ${p.brand || ''} ${p.model || ''} ${p.category || ''} ${p.categoryName || ''} ${specValues} ${attrValues} ${p.description || ''}`.toLowerCase();
       if (!tokens.some(t => text.includes(t))) continue;
 
-      const seller = sellers.find(s => s.id === p.sellerId);
       const priceNum = Number(p.price || 0);
       if (!priceNum || priceNum < 1000) continue;
+
+      const img = p.imageUrl || p.image || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=400&q=80';
+      const specList = [
+        ...(p.specifications ? Object.entries(p.specifications).map(([k, v]) => `${k}: ${v}`) : []),
+        ...(p.customAttributes ? Object.entries(p.customAttributes).map(([k, v]) => `${k}: ${v}`) : []),
+      ].slice(0, 3);
 
       results.push({
         id: p.id || generateUniqueId(),
         title: (p.name || p.title || '').slice(0, 95),
         price: `${priceNum.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m`,
         priceNumber: priceNum,
-        source: seller?.shopName || seller?.name || 'Hamkor Sotuvchi',
-        storeBadge: 'Hamkor do‘kon',
+        source: seller?.shopName || seller?.ownerName || 'Hamkor Sotuvchi',
+        storeBadge: 'Hamkor (Uygacha yetkazish)',
         link: seller?.phone ? `tel:${seller.phone}` : '#seller',
-        thumbnail: p.image || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=400&q=80',
-        images: p.image ? [p.image] : [],
-        snippet: p.description || `${seller?.region || targetRegion} bo‘ylab tezkor yetkazib berish.`,
-        region: seller?.region || targetRegion,
-        keySpecs: extractKeySpecs(p.name || p.title || '', p.description, catKey),
-        warranty: 'Sotuvchi kafolati',
-        deliveryInfo: `${seller?.region || targetRegion} bo‘ylab yetkazish`,
-        badges: ['Hamkor sotuvchi', 'Tezkor yetkazish'],
+        thumbnail: img,
+        images: [img],
+        snippet: p.description || `${targetRegion} bo‘ylab uygacha yetkazib berish.`,
+        region: targetRegion,
+        keySpecs: specList.length > 0 ? specList : extractKeySpecs(p.name || p.title || '', p.description, catKey),
+        warranty: p.warranty || 'Rasmiy sotuvchi kafolati',
+        deliveryInfo: `${targetRegion} bo‘ylab uygacha yetkazib berish`,
+        badges: ['Hamkor sotuvchi', 'Uygacha yetkazish'],
       });
     }
     return results;
@@ -1655,24 +1672,24 @@ export async function searchLocalProducts(
   addItems(olchaItems);
   addItems(asaxiyItems);
 
-  // 2-QADAM: Agar tezkor parallel manbalardan 3 tadan kam topilsa YOKI faqat 1 ta do'kondan chiqsa,
-  // boshqa do'konlarni ham qo'shish uchun SerpAPI (Uzum, Yandex Market, Texnomart, Olcha, ...) ni ishga tushiramiz
+  // 2-QADAM: Agar tezkor parallel manbalardan 4 tadan kam topilsa YOKI 3 tadan kam do'kon bo'lsa,
+  // Uzum Market, Yandex Market, Wildberries, Texnomart, MediaPark, Alif Shop kabi yirik e-commerce'lardan ham tortamiz
   const uniqueStores = new Set(combined.map(i => i.source)).size;
-  if (combined.length < 3 || uniqueStores < 2) {
+  if (combined.length < 4 || uniqueStores < 3) {
     const isDish = isDishwareQuery(cleanSearchTerm, category) || catKey === 'chinni_idishlar' || catKey === 'oshxona_anjomlari';
     let expandedQuery = cleanSearchTerm;
     if (!expandedQuery.toLowerCase().includes('.uz') && !expandedQuery.toLowerCase().includes('site:')) {
       let domains: string[] = [];
       if (isDish || catKey === 'oshxona_anjomlari') {
-        domains = ['uzum.uz', 'olcha.uz', 'asaxiy.uz', 'texnomart.uz', 'home24.uz'];
+        domains = ['uzum.uz', 'wildberries.uz', 'market.yandex.uz', 'texnomart.uz', 'home24.uz', 'olcha.uz'];
       } else if (catKey === 'apparel' || catKey === 'kurtka') {
-        domains = ['uzum.uz', 'market.yandex.uz', 'terrapro.uz', 'sportmaster.uz', 'extremal-shop.uz', 'olcha.uz'];
+        domains = ['uzum.uz', 'wildberries.uz', 'market.yandex.uz', 'terrapro.uz', 'sportmaster.uz', 'extremal-shop.uz'];
       } else if (catKey === 'materials') {
         domains = ['uzum.uz', 'stroycenter.uz', 'dombrabotnik.uz', 'mebel.uz', 'home24.uz', 'karcher.uz'];
       } else if (catKey === 'auto') {
         domains = ['uzum.uz', 'autotuning.uz', 'shina.uz', 'avtoelon.uz'];
       } else {
-        domains = ['uzum.uz', 'market.yandex.uz', 'texnomart.uz', 'mediapark.uz', 'ishonch.uz', 'olcha.uz', 'asaxiy.uz', 'alifshop.uz'];
+        domains = ['uzum.uz', 'market.yandex.uz', 'wildberries.uz', 'texnomart.uz', 'mediapark.uz', 'alifshop.uz', 'zoodmall.uz', 'ishonch.uz'];
       }
       const sitesPart = domains.join(' OR ');
       expandedQuery = `${cleanSearchTerm} (${sitesPart})`;

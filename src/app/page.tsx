@@ -681,6 +681,11 @@ export default function IqtisodchiSearchPage() {
         const savedPhone = localStorage.getItem('iqtisodchi_user_phone');
         if (savedPhone) setUserPhone(savedPhone);
 
+        const savedRegion = localStorage.getItem('iqtisodchi_user_region');
+        if (savedRegion) {
+          setSelectedRegion(savedRegion);
+        }
+
         const tg = (window as any).Telegram?.WebApp;
         if (tg) {
           tg.ready?.();
@@ -700,13 +705,45 @@ export default function IqtisodchiSearchPage() {
                   setUserPhone(d.phone);
                   localStorage.setItem('iqtisodchi_user_phone', d.phone);
                 }
+                if (d?.region) {
+                  setSelectedRegion(d.region);
+                  localStorage.setItem('iqtisodchi_user_region', d.region);
+                } else if (!savedRegion) {
+                  setIsRegionModalOpen(true);
+                }
               })
-              .catch(() => {});
+              .catch(() => {
+                if (!savedRegion) setIsRegionModalOpen(true);
+              });
+          } else if (!savedRegion) {
+            setIsRegionModalOpen(true);
           }
+        } else if (!savedRegion) {
+          setIsRegionModalOpen(true);
         }
       } catch {}
     }
   }, []);
+
+  const handleSelectRegion = (reg: string) => {
+    setSelectedRegion(reg);
+    setIsRegionModalOpen(false);
+    try {
+      localStorage.setItem('iqtisodchi_user_region', reg);
+    } catch {}
+    if (tgUser.id) {
+      fetch('/api/user/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tgId: tgUser.id,
+          region: reg,
+          username: tgUser.username,
+          firstName: tgUser.firstName,
+        }),
+      }).catch(() => {});
+    }
+  };
 
   const handleRequestTelegramPhone = () => {
     const tg = (window as any).Telegram?.WebApp;
@@ -2504,10 +2541,7 @@ export default function IqtisodchiSearchPage() {
                 <button
                   key={reg}
                   type="button"
-                  onClick={() => {
-                    setSelectedRegion(reg);
-                    setIsRegionModalOpen(false);
-                  }}
+                  onClick={() => handleSelectRegion(reg)}
                   className={`p-3 rounded-2xl border text-xs font-bold text-left transition flex items-center justify-between cursor-pointer ${
                     selectedRegion === reg
                       ? 'border-[#6366F1] bg-[#EEF0FF] text-[#4338CA]'

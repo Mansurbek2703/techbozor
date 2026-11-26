@@ -48,6 +48,12 @@ export default function AdminPage() {
   const [adminPhoneInput, setAdminPhoneInput] = useState('+998901234567');
   const [isSendingOffer, setIsSendingOffer] = useState(false);
 
+  // Assign Seller modal
+  const [assignModalReq, setAssignModalReq] = useState<PurchaseRequest | null>(null);
+  const [selectedSellerId, setSelectedSellerId] = useState('');
+  const [assignNote, setAssignNote] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
+
   // New Category modal
   const [isNewCatModal, setIsNewCatModal] = useState(false);
   const [newCatId, setNewCatId] = useState('');
@@ -72,7 +78,7 @@ export default function AdminPage() {
       const [statsRes, sellersRes, requestsRes, smsRes, catRes] = await Promise.all([
         fetch('/api/admin/stats', { headers }),
         fetch('/api/admin/sellers', { headers }),
-        fetch('/api/requests'),
+        fetch('/api/requests', { headers }),
         fetch('/api/admin/sms', { headers }),
         fetch('/api/categories'),
       ]);
@@ -163,6 +169,40 @@ export default function AdminPage() {
       showToast('Server bilan bog‘lanishda xatolik');
     } finally {
       setIsSendingOffer(false);
+    }
+  };
+
+  const handleAssignSeller = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignModalReq || !selectedSellerId) return;
+    setIsAssigning(true);
+    try {
+      const res = await fetch('/api/admin/assign-seller', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-telegram-init-data': tgInitData,
+        },
+        body: JSON.stringify({
+          requestId: assignModalReq.id,
+          sellerId: selectedSellerId,
+          note: assignNote,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message);
+        setAssignModalReq(null);
+        setSelectedSellerId('');
+        setAssignNote('');
+        fetchAllData();
+      } else {
+        showToast(data.error || 'Biriktirishda xatolik');
+      }
+    } catch {
+      showToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -513,7 +553,19 @@ export default function AdminPage() {
                           className="flex-1 py-2.5 px-3 rounded-xl bg-[#6366F1] hover:bg-[#4F46E5] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs"
                         >
                           <Send className="w-3.5 h-3.5" />
-                          <span>Botda taklif yuborish</span>
+                          <span>Taklif</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAssignModalReq(r);
+                            setSelectedSellerId(sellers[0]?.id || '');
+                            setAssignNote('');
+                          }}
+                          className="flex-1 py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-extrabold text-xs flex items-center justify-center gap-1"
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          <span>Sotuvchiga</span>
                         </button>
                         <a
                           href={`tel:${r.buyerPhone}`}
@@ -589,6 +641,17 @@ export default function AdminPage() {
                               className="px-3 py-1.5 rounded-xl bg-[#6366F1] hover:bg-[#4F46E5] text-white font-bold text-[11px]"
                             >
                               📲 Taklif yuborish
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAssignModalReq(r);
+                                setSelectedSellerId(sellers[0]?.id || '');
+                                setAssignNote('');
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[11px]"
+                            >
+                              🤝 Sotuvchiga
                             </button>
                             <a
                               href={`tel:${r.buyerPhone}`}
@@ -773,6 +836,64 @@ export default function AdminPage() {
                 {isSendingOffer ? 'Yuborilmoqda...' : '📲 Telegram bot orqali yuborish'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* SOTUVCHIGA BIRIKTIRISH MODALI */}
+      {assignModalReq && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 border border-[#E7E9F2] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#EEF0FF] pb-3">
+              <h3 className="text-base font-black text-[#0F172A]">Talabni sotuvchiga biriktirish</h3>
+              <button onClick={() => setAssignModalReq(null)} className="p-1.5 rounded-xl text-[#64748B] hover:bg-[#EEF0FF]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 rounded-2xl bg-[#F7F8FC] border border-[#E7E9F2] text-xs space-y-1">
+              <div className="font-extrabold text-[#0F172A]">{assignModalReq.productTitle || assignModalReq.description}</div>
+              <div className="text-[#475569]">Hudud: {assignModalReq.region} · Mijoz: {assignModalReq.buyerPhone}</div>
+            </div>
+            {sellers.length === 0 ? (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-800 font-bold text-center">
+                Hozircha ro‘yxatdan o‘tgan sotuvchilar yo‘q. Sotuvchilar avval @arzonoling_bot orqali ro‘yxatdan o‘tishi kerak.
+              </div>
+            ) : (
+              <form onSubmit={handleAssignSeller} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Sotuvchini tanlang</label>
+                  <select
+                    required
+                    value={selectedSellerId}
+                    onChange={(e) => setSelectedSellerId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#DDE2FB] text-xs font-bold outline-none focus:border-[#6366F1] bg-white"
+                  >
+                    {sellers.filter(s => !s.isBlocked).map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.shopName} ({s.ownerName} · {s.regions.join(', ')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Sotuvchiga izoh (ixtiyoriy)</label>
+                  <input
+                    type="text"
+                    value={assignNote}
+                    onChange={(e) => setAssignNote(e.target.value)}
+                    placeholder="Masalan: Mijozga bugun uygacha yetkazib bering"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#DDE2FB] text-xs outline-none focus:border-[#6366F1]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isAssigning}
+                  className="w-full py-3 rounded-2xl bg-[#6366F1] hover:bg-[#4F46E5] text-white font-extrabold text-sm shadow-lg"
+                >
+                  {isAssigning ? 'Biriktirilmoqda...' : '🤝 Sotuvchiga yuborish'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

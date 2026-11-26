@@ -69,6 +69,11 @@ async function notifyAdminsTelegram(req: any) {
 
 export async function GET(request: Request) {
   try {
+    // Faqat Adminlar xaridorlarning "Yanada arzonroq" talablarini ko'ra oladi
+    const auth = verifyAdminRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: 403 });
+    }
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const region = searchParams.get('region');

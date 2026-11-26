@@ -245,29 +245,30 @@ async function handleMessage(msg) {
     return;
   }
 
-  // 4. Registration Step 3: Phone Number
+  // 4. Registration Step 3: Phone Number (FAQAT joriy Telegram raqami qabul qilinadi!)
   if (session.step === 'AWAITING_PHONE') {
-    let phone = '';
-    if (contact && contact.phone_number) {
-      phone = contact.phone_number.startsWith('+') ? contact.phone_number : `+${contact.phone_number}`;
-    } else if (text && /^\+?998\d{9}$/.test(text.replace(/\s+/g, ''))) {
-      phone = text.replace(/\s+/g, '');
-      if (!phone.startsWith('+')) phone = `+${phone}`;
-    }
-
-    if (!phone) {
+    if (!contact || !contact.phone_number || String(contact.user_id) !== String(msg.from.id)) {
       await sendTelegramApi('sendMessage', {
         chat_id: chatId,
-        text: '⚠️ Iltimos, pastdagi «📱 Telefon raqamni yuborish» tugmasini bosing yoki telefon raqamingizni +998901234567 formatida yozing.'
+        text: '⚠️ <b>Xavfsizlik qoidasi:</b> Qo‘lda raqam yozish yoki boshqa raqam yuborish taqiqlanadi!\n\nFaqat o‘zingizning joriy Telegram raqamingizni pastdagi <b>«📱 Telegram raqamni ulash»</b> tugmasi orqali tasdiqlang:',
+        parse_mode: 'HTML',
+        reply_markup: {
+          keyboard: [
+            [{ text: '📱 Telegram raqamni ulash', request_contact: true }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: true
+        }
       });
       return;
     }
 
+    const phone = contact.phone_number.startsWith('+') ? contact.phone_number : `+${contact.phone_number}`;
     session.phone = phone;
+    session.regions = [];
     session.step = 'AWAITING_REGION';
     sessions.set(chatId, session);
 
-    // Remove phone keyboard and present regions inline
     const regionButtons = [];
     for (let i = 0; i < UZ_REGIONS.length; i += 2) {
       const row = [{ text: `📍 ${UZ_REGIONS[i]}`, callback_data: `reg_reg_${i}` }];
@@ -279,19 +280,15 @@ async function handleMessage(msg) {
 
     await sendTelegramApi('sendMessage', {
       chat_id: chatId,
-      text: `✅ Telefon raqamingiz tasdiqlandi: <b>${session.phone}</b>\n\n4️⃣ Asosiy xizmat ko‘rsatish hududingizni (viloyatni) tanlang:`,
+      text: `✅ Joriy Telegram raqamingiz tasdiqlandi: <b>${session.phone}</b>`,
       parse_mode: 'HTML',
-      reply_markup: {
-        remove_keyboard: true
-      }
+      reply_markup: { remove_keyboard: true }
     });
 
     await sendTelegramApi('sendMessage', {
       chat_id: chatId,
-      text: 'Hududingizni tanlang:',
-      reply_markup: {
-        inline_keyboard: regionButtons
-      }
+      text: '4️⃣ Xizmat ko‘rsata oladigan viloyatlaringizni tanlang (bir nechta tanlashingiz mumkin):',
+      reply_markup: { inline_keyboard: regionButtons }
     });
     return;
   }
@@ -322,14 +319,50 @@ async function handleCallback(cb) {
 
   if (data.startsWith('reg_reg_')) {
     const idx = parseInt(data.replace('reg_reg_', ''), 10);
-    const chosenRegion = UZ_REGIONS[idx] || 'Toshkent shahri';
-    session.region = chosenRegion;
+    const chosenRegion = UZ_REGIONS[idx];
+    if (!chosenRegion) return;
+
+    if (!Array.isArray(session.regions)) session.regions = [];
+    if (session.regions.includes(chosenRegion)) {
+      session.regions = session.regions.filter(r => r !== chosenRegion);
+    } else {
+      session.regions.push(chosenRegion);
+    }
+    sessions.set(chatId, session);
+
+    const regionButtons = [];
+    for (let i = 0; i < UZ_REGIONS.length; i += 2) {
+      const r1 = UZ_REGIONS[i];
+      const row = [{ text: `${session.regions.includes(r1) ? '✅' : '📍'} ${r1}`, callback_data: `reg_reg_${i}` }];
+      if (i + 1 < UZ_REGIONS.length) {
+        const r2 = UZ_REGIONS[i + 1];
+        row.push({ text: `${session.regions.includes(r2) ? '✅' : '📍'} ${r2}`, callback_data: `reg_reg_${i + 1}` });
+      }
+      regionButtons.push(row);
+    }
+    if (session.regions.length > 0) {
+      regionButtons.push([{ text: `➡️ Davom etish (${session.regions.length} ta viloyat)`, callback_data: 'reg_regions_done' }]);
+    }
+
+    await sendTelegramApi('editMessageReplyMarkup', {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: { inline_keyboard: regionButtons }
+    });
+    return;
+  }
+
+  if (data === 'reg_regions_done') {
+    if (!Array.isArray(session.regions) || session.regions.length === 0) {
+      session.regions = ['Toshkent shahri'];
+    }
     session.step = 'AWAITING_DELIVERY';
     sessions.set(chatId, session);
 
     const confirmText = 
-      `5️⃣ <b>Yetkazib berish va kafolat majburiyati:</b>\n\n` +
-      `Siz xarid qilingan tovarlarni <b>${chosenRegion}</b> bo‘yicha o‘z vaqtida (24-48 soat ichida) xaridorga yetkazib berishni hamda ishlab chiqaruvchining rasmiy kafolatini ta’minlashni o‘z zimmangizga olasizmi?`;
+      `5️⃣ <b>Uygacha yetkazib berish sharti:</b>\n\n` +
+      `Tanlangan hududlar: <b>${session.regions.join(', ')}</b>\n\n` +
+      `Tizimdan ro‘yxatdan o‘tgan har bir sotuvchi mijoz buyurtmalarini ko‘rsatilgan viloyatlar bo‘ylab <b>UYGACHA YETKAZIB BERISH</b> hamda sifat/kafolatni ta’minlash majburiyatini oladi.\n\nUshbu shartlarni qabul qilasizmi?`;
 
     await sendTelegramApi('sendMessage', {
       chat_id: chatId,
@@ -337,7 +370,7 @@ async function handleCallback(cb) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '✅ Ha, barcha majburiyatni olaman', callback_data: 'reg_confirm_final' }],
+          [{ text: '✅ Ha, shartlarni qabul qilaman (Uygacha yetkazish)', callback_data: 'reg_confirm_final' }],
           [{ text: '❌ Bekor qilish', callback_data: 'reg_cancel' }]
         ]
       }
@@ -368,7 +401,7 @@ async function handleCallback(cb) {
       ownerName: session.ownerName || cb.from.first_name || 'Sotuvchi',
       phone: session.phone || '',
       sellerType: 'business',
-      regions: [session.region || 'Toshkent shahri'],
+      regions: Array.isArray(session.regions) && session.regions.length > 0 ? session.regions : [session.region || 'Toshkent shahri'],
       categories: ['tv', 'fridge', 'washing', 'ac', 'phone', 'laptop'],
       deliveryAgreed: true,
       isVerified: true,
@@ -386,11 +419,11 @@ async function handleCallback(cb) {
       `🎉 <b>TABRIKLAYMIZ! RO‘YXATDAN O‘TDINGIZ!</b>\n\n` +
       `Do‘koningiz nomi: <b>${newSeller.shopName}</b>\n` +
       `Mas’ul shaxs: <b>${newSeller.ownerName}</b>\n` +
-      `Telefon: <b>${newSeller.phone}</b>\n` +
-      `Xizmat hududi: <b>${newSeller.regions[0]}</b>\n` +
-      `Yetkazib berish: <b>✅ Tasdiqlangan</b>\n` +
+      `Tasdiqlangan Telegram raqam: <b>${newSeller.phone}</b>\n` +
+      `Xizmat hududlari: <b>${newSeller.regions.join(', ')}</b>\n` +
+      `Yetkazib berish: <b>✅ Uygacha yetkazib berish (Tasdiqlangan)</b>\n` +
       `Sotuvchi ID: <code>${newSeller.id}</code>\n\n` +
-      `Siz tizimda to‘liq faollashtirildingiz! Endi Iqtisodchi Mini App orqali mijozlar buyurtmalarini qabul qilishingiz va do‘koningizni boshqarishingiz mumkin:`;
+      `Endi mahsulotlaringizni toifalar bo‘yicha xususiyatlari, rasmi va narxi bilan yuklab qo‘yishingiz mumkin:`;
 
     await sendTelegramApi('sendMessage', {
       chat_id: chatId,
@@ -398,6 +431,7 @@ async function handleCallback(cb) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
+          [{ text: '➕ Mahsulotlar qo‘shish / Boshqarish', web_app: { url: `${WEBAPP_URL}/seller/products` } }],
           [{ text: '📦 Sotuvchi Kabinetiga Kirish', web_app: { url: `${WEBAPP_URL}/seller/dashboard` } }],
           [{ text: '🛍️ Umumiy Bozorga Kirish', web_app: { url: WEBAPP_URL } }]
         ]

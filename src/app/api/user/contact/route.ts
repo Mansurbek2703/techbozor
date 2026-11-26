@@ -23,13 +23,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const tgId = searchParams.get('tgId');
   if (!tgId) {
-    return NextResponse.json({ success: false, phone: null });
+    return NextResponse.json({ success: false, phone: null, region: null });
   }
   const db = readDb();
   const user = db.tgUsers?.[String(tgId)];
   return NextResponse.json({
     success: true,
     phone: user?.phone || null,
+    region: user?.region || null,
     username: user?.username || null,
     firstName: user?.firstName || null,
   });
@@ -39,22 +40,29 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const tgId = String(body.tgId || '').trim();
-    const phone = String(body.phone || '').trim();
-    if (!tgId || !phone) {
-      return NextResponse.json({ success: false, error: 'tgId va phone talab qilinadi' }, { status: 400 });
+    const phone = body.phone ? String(body.phone).trim() : undefined;
+    const region = body.region ? String(body.region).trim() : undefined;
+
+    if (!tgId || (!phone && !region)) {
+      return NextResponse.json({ success: false, error: 'tgId va phone yoki region talab qilinadi' }, { status: 400 });
     }
     const db = readDb();
     if (!db.tgUsers) db.tgUsers = {};
     db.tgUsers[tgId] = {
       ...(db.tgUsers[tgId] || {}),
       tgId,
-      phone,
+      ...(phone ? { phone } : {}),
+      ...(region ? { region } : {}),
       username: body.username || db.tgUsers[tgId]?.username || '',
       firstName: body.firstName || db.tgUsers[tgId]?.firstName || '',
       updatedAt: new Date().toISOString(),
     };
     writeDb(db);
-    return NextResponse.json({ success: true, phone });
+    return NextResponse.json({
+      success: true,
+      phone: db.tgUsers[tgId].phone || null,
+      region: db.tgUsers[tgId].region || null,
+    });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e?.message || 'Server error' }, { status: 500 });
   }
