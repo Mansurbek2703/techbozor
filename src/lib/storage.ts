@@ -28,102 +28,13 @@ interface DatabaseSchema {
 const DB_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DB_DIR, 'techbozor_db.json');
 
-const INITIAL_SELLERS: Seller[] = [
-  {
-    id: 'SEL-001',
-    login: 'texnomart_toshkent',
-    password: 'password123',
-    shopName: 'Texnomart Toshkent',
-    ownerName: 'Alisher Karimov',
-    phone: '+998901234567',
-    sellerType: 'business',
-    regions: ['Toshkent shahri', 'Toshkent viloyati', 'Sirdaryo'],
-    categories: ['tv', 'fridge', 'washing', 'ac', 'vacuum', 'stove', 'microwave'],
-    isVerified: true,
-    isBlocked: false,
-    rating: 4.9,
-    createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-  },
-  {
-    id: 'SEL-002',
-    login: 'smart_samarqand',
-    password: 'password123',
-    shopName: 'SmartTex Samarqand',
-    ownerName: 'Sherzod Boboyev',
-    phone: '+998935552233',
-    sellerType: 'business',
-    regions: ['Samarqand', 'Buxoro', 'Jizzax'],
-    categories: ['tv', 'fridge', 'washing', 'ac'],
-    isVerified: true,
-    isBlocked: false,
-    rating: 4.8,
-    createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
-  },
-];
+const INITIAL_SELLERS: Seller[] = [];
 
-const INITIAL_PRODUCTS: ProductItem[] = [
-  {
-    id: 'PRD-101',
-    sellerId: 'SEL-001',
-    category: 'tv',
-    name: 'Samsung 55 Crystal 4K UHD Smart TV (CU7100)',
-    brand: 'Samsung',
-    model: 'UE55CU7100UXUZ',
-    price: 4950000,
-    condition: 'new',
-    specifications: {
-      'Diagonali': '55"',
-      'Smart TV': 'Tizen',
-    },
-    imageUrl: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&auto=format&fit=crop&q=80',
-    region: 'Toshkent shahri',
-    inStock: true,
-    createdAt: new Date().toISOString(),
-  },
-];
+const INITIAL_PRODUCTS: ProductItem[] = [];
 
-const INITIAL_REQUESTS: PurchaseRequest[] = [
-  {
-    id: 'REQ-78219',
-    buyerName: 'Jamshid Oripov',
-    buyerPhone: '+998909876543',
-    category: 'tv',
-    description: '5 million so‘mgacha 55 talik Smart televizor kerak. Tiniq tasvir bo‘lsin.',
-    budget: 5000000,
-    region: 'Toshkent shahri',
-    district: 'Yunusobod',
-    specifications: {
-      diagonal: '55"',
-      smartTv: 'Android / Google TV',
-    },
-    durationDays: 7,
-    createdAt: new Date(Date.now() - 4 * 3600000).toISOString(),
-    expiresAt: new Date(Date.now() + 6 * 86400000).toISOString(),
-    status: 'active',
-    smsConsent: true,
-  },
-];
+const INITIAL_REQUESTS: PurchaseRequest[] = [];
 
-const INITIAL_OFFERS: Offer[] = [
-  {
-    id: 'OFF-1092',
-    requestId: 'REQ-78219',
-    sellerId: 'SEL-001',
-    sellerName: 'Alisher Karimov',
-    sellerShopName: 'Texnomart Toshkent',
-    sellerPhone: '+998901234567',
-    sellerRegion: 'Toshkent shahri',
-    productName: 'Samsung 55 Crystal 4K UHD Smart TV (CU7100)',
-    brand: 'Samsung',
-    model: 'UE55CU7100UXUZ',
-    price: 4850000,
-    condition: 'new',
-    description: '1 yil kafolat, Toshkent bo‘ylab bepul yetkazib beramiz.',
-    imageUrl: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=600&auto=format&fit=crop&q=80',
-    status: 'sent',
-    createdAt: new Date(Date.now() - 3 * 3600000).toISOString(),
-  },
-];
+const INITIAL_OFFERS: Offer[] = [];
 
 function getDatabase(): DatabaseSchema {
   try {
@@ -138,7 +49,7 @@ function getDatabase(): DatabaseSchema {
         sellers: INITIAL_SELLERS,
         products: INITIAL_PRODUCTS,
         smsLogs: [],
-        adminStats: { totalAiQueries: 48, totalSmsSpentSoM: 130 },
+        adminStats: { totalAiQueries: 0, totalSmsSpentSoM: 0 },
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(initialDb, null, 2), 'utf-8');
       return initialDb;
@@ -250,6 +161,14 @@ export function updateRequestStatus(id: string, status: PurchaseRequest['status'
   req.status = status;
   saveDatabase(db);
   return true;
+}
+
+export function deleteRequestById(id: string): boolean {
+  const db = getDatabase();
+  const initialLen = (db.requests || []).length;
+  db.requests = (db.requests || []).filter(r => r.id !== id);
+  saveDatabase(db);
+  return db.requests.length < initialLen;
 }
 
 // OFFERS
