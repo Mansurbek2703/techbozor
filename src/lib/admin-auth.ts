@@ -12,6 +12,45 @@ export interface AdminAuthResult {
   error?: string;
 }
 
+export function verifySignedAdminToken(token: string): AdminAuthResult {
+  if (!token || typeof token !== 'string') {
+    return { ok: false, error: 'Admin token mavjud emas.' };
+  }
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return { ok: false, error: 'Admin token formati noto‘g‘ri.' };
+    }
+    const [adminId, expStr, sig] = parts;
+    if (!ADMIN_TELEGRAM_IDS.includes(String(adminId))) {
+      return { ok: false, error: `Kirish taqiqlangan! Sizning ID (${adminId}) adminlar ro‘yxatida yo‘q.` };
+    }
+    const exp = Number(expStr);
+    if (!exp || Date.now() > exp) {
+      return { ok: false, error: 'Admin sessiyasi muddati tugagan. Botda /start bosing.' };
+    }
+    const expectedSig = crypto
+      .createHmac('sha256', BOT_TOKEN)
+      .update(`${adminId}.${expStr}`)
+      .digest('hex');
+
+    const sigBuf = Buffer.from(sig, 'hex');
+    const expBuf = Buffer.from(expectedSig, 'hex');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return { ok: false, error: 'Admin token imzosi haqiqiy emas!' };
+    }
+
+    return {
+      ok: true,
+      adminId: String(adminId),
+      firstName: 'Admin',
+      username: '',
+    };
+  } catch {
+    return { ok: false, error: 'Admin token tekshiruvida xatolik.' };
+  }
+}
+
 export function verifyTelegramWebAppInitData(initData: string): AdminAuthResult {
   if (!initData || typeof initData !== 'string') {
     return { ok: false, error: 'Telegram autentifikatsiyasi topilmadi. Faqat @arzonoling_bot orqali kiring.' };
@@ -66,5 +105,12 @@ export function verifyTelegramWebAppInitData(initData: string): AdminAuthResult 
 
 export function verifyAdminRequest(request: Request): AdminAuthResult {
   const initData = request.headers.get('x-telegram-init-data') || '';
-  return verifyTelegramWebAppInitData(initData);
+  if (initData) {
+    return verifyTelegramWebAppInitData(initData);
+  }
+  const adminToken = request.headers.get('x-admin-token') || '';
+  if (adminToken) {
+    return verifySignedAdminToken(adminToken);
+  }
+  return { ok: false, error: 'Telegram autentifikatsiyasi topilmadi. Faqat @arzonoling_bot orqali kiring.' };
 }

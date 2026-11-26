@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
-import { verifyTelegramWebAppInitData } from '@/lib/admin-auth';
+import { verifyTelegramWebAppInitData, verifySignedAdminToken } from '@/lib/admin-auth';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const initData = body.initData || request.headers.get('x-telegram-init-data') || '';
-    const check = verifyTelegramWebAppInitData(initData);
+    const tgAuth = body.tgAuth || request.headers.get('x-admin-token') || '';
+
+    const check = initData
+      ? verifyTelegramWebAppInitData(initData)
+      : verifySignedAdminToken(tgAuth);
 
     if (!check.ok) {
       return NextResponse.json({

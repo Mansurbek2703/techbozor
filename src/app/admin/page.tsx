@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState('');
   const [adminUser, setAdminUser] = useState<{ id: string; firstName: string; username?: string } | null>(null);
   const [tgInitData, setTgInitData] = useState('');
+  const [tgAuthToken, setTgAuthToken] = useState('');
 
   const [stats, setStats] = useState<any>(null);
   const [sellers, setSellers] = useState<Seller[]>([]);
@@ -69,12 +70,20 @@ export default function AdminPage() {
     setTimeout(() => setToastMsg(''), 3500);
   };
 
-  const fetchAllData = async (initDataParam?: string) => {
-    const authHeader = initDataParam ?? tgInitData;
-    if (!authHeader) return;
+  const getAuthHeaders = (initOverride?: string, tokenOverride?: string): Record<string, string> => {
+    const h: Record<string, string> = {};
+    const idata = initOverride ?? tgInitData;
+    const tok = tokenOverride ?? tgAuthToken;
+    if (idata) h['x-telegram-init-data'] = idata;
+    if (tok) h['x-admin-token'] = tok;
+    return h;
+  };
+
+  const fetchAllData = async (initDataParam?: string, tokenParam?: string) => {
+    const headers = getAuthHeaders(initDataParam, tokenParam);
+    if (!headers['x-telegram-init-data'] && !headers['x-admin-token']) return;
     try {
       setLoading(true);
-      const headers = { 'x-telegram-init-data': authHeader };
       const [statsRes, sellersRes, requestsRes, smsRes, catRes] = await Promise.all([
         fetch('/api/admin/stats', { headers }),
         fetch('/api/admin/sellers', { headers }),
@@ -106,7 +115,15 @@ export default function AdminPage() {
   useEffect(() => {
     const checkAdminAuth = async () => {
       try {
-        const tg = (window as any).Telegram?.WebApp;
+        const params = new URLSearchParams(window.location.search);
+        const urlToken = params.get('tgAuth') || '';
+
+        // Wait briefly for Telegram WebApp script if it is still initializing
+        let tg = (window as any).Telegram?.WebApp;
+        if (!tg?.initData && !urlToken) {
+          await new Promise(r => setTimeout(r, 350));
+          tg = (window as any).Telegram?.WebApp;
+        }
         if (tg) {
           tg.ready?.();
           tg.expand?.();
@@ -115,14 +132,15 @@ export default function AdminPage() {
         const res = await fetch('/api/admin/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ initData }),
+          body: JSON.stringify({ initData, tgAuth: urlToken }),
         });
         const data = await res.json();
         if (res.ok && data.authorized) {
           setTgInitData(initData);
+          setTgAuthToken(urlToken);
           setAdminUser(data.admin);
           setAuthState('authorized');
-          await fetchAllData(initData);
+          await fetchAllData(initData, urlToken);
         } else {
           setAuthError(data.error || 'Kirish taqiqlangan! Faqat ruxsat etilgan Adminlar kira oladi.');
           setAuthState('denied');
@@ -146,7 +164,7 @@ export default function AdminPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-telegram-init-data': tgInitData,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           requestId: offerModalReq.id,
@@ -181,7 +199,7 @@ export default function AdminPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-telegram-init-data': tgInitData,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           requestId: assignModalReq.id,
@@ -211,7 +229,7 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/requests?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: { 'x-telegram-init-data': tgInitData },
+        headers: getAuthHeaders(),
       });
       const data = await res.json();
       if (data.success) {
@@ -231,7 +249,7 @@ export default function AdminPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-telegram-init-data': tgInitData,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({ sellerId }),
       });

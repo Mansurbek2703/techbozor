@@ -9,10 +9,18 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
+const crypto = require('crypto');
 const BOT_TOKEN = '9148816120:AAFVvLOTnSHZMUTa9Y_F5aNl7p7DywHzb8k';
 const WEBAPP_URL = 'https://savdo.mcode.uz';
 const DB_PATH = path.join(__dirname, 'data', 'techbozor_db.json');
 const ADMIN_TELEGRAM_IDS = ['7937766765', '1202082857'];
+
+function makeAdminWebAppUrl(chatId) {
+  const exp = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  const payload = `${chatId}.${exp}`;
+  const sig = crypto.createHmac('sha256', BOT_TOKEN).update(payload).digest('hex');
+  return `${WEBAPP_URL}/admin?tgAuth=${encodeURIComponent(`${payload}.${sig}`)}`;
+}
 
 // Sessions for FSM registration
 const sessions = new Map();
@@ -127,7 +135,7 @@ async function handleMessage(msg) {
       text: `👑 <b>Xush kelibsiz, Admin (ID: ${chatId})!</b>\n\nBarcha xaridor talablari avtomatik ravishda sizga shu botga yuboriladi. Quyidagi tugma orqali Admin Panelni oching:`,
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: [[{ text: '👑 Admin Panelni ochish', web_app: { url: `${WEBAPP_URL}/admin` } }]]
+        inline_keyboard: [[{ text: '👑 Admin Panelni ochish', web_app: { url: makeAdminWebAppUrl(chatId) } }]]
       }
     });
     return;
@@ -166,7 +174,7 @@ async function handleMessage(msg) {
       [{ text: '👔 Sotuvchi sifatida ro‘yxatdan o‘tish', callback_data: 'reg_seller_start' }]
     ];
     if (isAdmin) {
-      inlineKeyboard.push([{ text: '👑 Admin boshqaruv paneli', web_app: { url: `${WEBAPP_URL}/admin` } }]);
+      inlineKeyboard.push([{ text: '👑 Admin boshqaruv paneli', web_app: { url: makeAdminWebAppUrl(chatId) } }]);
     }
 
     await sendTelegramApi('sendMessage', {
@@ -185,7 +193,7 @@ async function handleMessage(msg) {
           keyboard: [
             [
               { text: '🛍️ Iqtisodchi Bozor', web_app: { url: WEBAPP_URL } },
-              { text: '👑 Admin Panel', web_app: { url: `${WEBAPP_URL}/admin` } }
+              { text: '👑 Admin Panel', web_app: { url: makeAdminWebAppUrl(chatId) } }
             ]
           ],
           resize_keyboard: true,
