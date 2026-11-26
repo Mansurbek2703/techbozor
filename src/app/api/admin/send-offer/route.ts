@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { verifyAdminRequest } from '@/lib/admin-auth';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '9148816120:AAFVvLOTnSHZMUTa9Y_F5aNl7p7DywHzb8k';
 const DB_PATH = path.join(process.cwd(), 'data', 'techbozor_db.json');
 
 export async function POST(request: Request) {
   try {
+    const auth = verifyAdminRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: 403 });
+    }
     const body = await request.json();
     const { requestId, offerPrice, message, productUrl, adminPhone } = body;
 

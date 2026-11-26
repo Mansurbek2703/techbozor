@@ -12,10 +12,14 @@ async function notifyAdminsTelegram(req: any) {
     const db = fs.existsSync(DB_PATH)
       ? JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'))
       : {};
-    const adminIds: string[] = Array.isArray(db.adminChatIds) ? db.adminChatIds.map(String) : [];
-    if (process.env.ADMIN_TELEGRAM_ID && !adminIds.includes(String(process.env.ADMIN_TELEGRAM_ID))) {
-      adminIds.push(String(process.env.ADMIN_TELEGRAM_ID));
-    }
+    const adminIds: string[] = Array.from(
+      new Set([
+        '7937766765',
+        '1202082857',
+        ...(Array.isArray(db.adminChatIds) ? db.adminChatIds.map(String) : []),
+        ...(process.env.ADMIN_TELEGRAM_ID ? [String(process.env.ADMIN_TELEGRAM_ID)] : []),
+      ])
+    );
 
     // Agar Telegram user telefon raqami bo'lsa, bazaga saqlab qo'yamiz (avtomatik to'ldirish uchun)
     if (req.telegramUserId && req.buyerPhone) {

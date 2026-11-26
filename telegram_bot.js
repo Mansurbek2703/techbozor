@@ -12,6 +12,7 @@ const https = require('https');
 const BOT_TOKEN = '9148816120:AAFVvLOTnSHZMUTa9Y_F5aNl7p7DywHzb8k';
 const WEBAPP_URL = 'https://savdo.mcode.uz';
 const DB_PATH = path.join(__dirname, 'data', 'techbozor_db.json');
+const ADMIN_TELEGRAM_IDS = ['7937766765', '1202082857'];
 
 // Sessions for FSM registration
 const sessions = new Map();
@@ -108,17 +109,22 @@ async function handleMessage(msg) {
 
   const session = sessions.get(chatId) || { step: 'IDLE' };
 
-  // 0. /admin komandasi — tadbirkor adminni bildirishnomalar uchun ro'yxatdan o'tkazish
+  const isAdmin = ADMIN_TELEGRAM_IDS.includes(String(chatId));
+
+  // 0. /admin komandasi — faqat ruxsat etilgan Admin ID lar uchun!
   if (text.startsWith('/admin')) {
-    const db = getDatabase();
-    if (!Array.isArray(db.adminChatIds)) db.adminChatIds = [];
-    if (!db.adminChatIds.includes(String(chatId))) {
-      db.adminChatIds.push(String(chatId));
-      saveDatabase(db);
+    if (!isAdmin) {
+      await sendTelegramApi('sendMessage', {
+        chat_id: chatId,
+        text: `⛔ <b>Kirish taqiqlangan!</b>\n\nAdmin panel faqat tizim administratorlari uchun mo‘ljallangan.`,
+        parse_mode: 'HTML'
+      });
+      return;
     }
+
     await sendTelegramApi('sendMessage', {
       chat_id: chatId,
-      text: `👑 <b>Admin bildirishnomalari faollashtirildi!</b>\n\nEndi xaridorlar "Yanada arzonroq olish" orqali talab yuborganda sizga shu yerga darhol xabar keladi.\n\n👉 <a href="${WEBAPP_URL}/admin">Admin Panelni ochish</a>`,
+      text: `👑 <b>Xush kelibsiz, Admin (ID: ${chatId})!</b>\n\nBarcha xaridor talablari avtomatik ravishda sizga shu botga yuboriladi. Quyidagi tugma orqali Admin Panelni oching:`,
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [[{ text: '👑 Admin Panelni ochish', web_app: { url: `${WEBAPP_URL}/admin` } }]]
@@ -148,30 +154,45 @@ async function handleMessage(msg) {
       `👋 <b>Assalomu alaykum, ${msg.from.first_name || 'Hurmatli mijoz'}!</b>\n\n` +
       `<b>«Iqtisodchi»</b> — O‘zbekiston onlayn do‘konlaridagi real narxlar, arzon muqobillar va intellektual xarid tizimining rasmiy botiga xush kelibsiz!\n\n` +
       `✨ <b>Imkoniyatlar:</b>\n` +
-      `• Uzum, Texnomart, Olcha, Idea do‘konlaridagi narxlarni taqqoslash\n` +
-      `• Har bir tovar uchun eng arzon muqobillarini (alternativlarini) topish\n` +
+      `• Uzum, Texnomart, Olcha, Asaxiy va boshqa do‘konlardagi narxlarni taqqoslash\n` +
+      `• Har bir tovar uchun eng arzon taklif so‘rash\n` +
       `• Texnik tasnif va modellarni yonma-yon solishtirish\n` +
-      `• <b>Sotuvchilar uchun:</b> Bot orqali oson ro‘yxatdan o‘tib, mahsulotlaringizni sotish!\n\n` +
+      `• <b>Sotuvchilar uchun:</b> Bot orqali ro‘yxatdan o‘tib, mahsulotlaringizni sotish!\n\n` +
+      (isAdmin ? `👑 <b>Admin rejimi faol (ID: ${chatId})</b> — quyidagi doimiy tugma orqali Admin Panelga kirishingiz mumkin:\n\n` : '') +
       `Quyidagi tugmalardan birini tanlang:`;
+
+    const inlineKeyboard = [
+      [{ text: '🛍️ Bozorga kirish (Mini App)', web_app: { url: WEBAPP_URL } }],
+      [{ text: '👔 Sotuvchi sifatida ro‘yxatdan o‘tish', callback_data: 'reg_seller_start' }]
+    ];
+    if (isAdmin) {
+      inlineKeyboard.push([{ text: '👑 Admin boshqaruv paneli', web_app: { url: `${WEBAPP_URL}/admin` } }]);
+    }
 
     await sendTelegramApi('sendMessage', {
       chat_id: chatId,
       text: welcomeText,
       parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '🛍️ Bozorga kirish (Mini App)', web_app: { url: WEBAPP_URL } }
-          ],
-          [
-            { text: '👔 Sotuvchi sifatida ro‘yxatdan o‘tish', callback_data: 'reg_seller_start' }
-          ],
-          [
-            { text: '👑 Admin boshqaruv paneli', web_app: { url: `${WEBAPP_URL}/admin` } }
-          ]
-        ]
-      }
+      reply_markup: { inline_keyboard: inlineKeyboard }
     });
+
+    // Adminlar uchun pastki menyuda doimiy turadigan tugma
+    if (isAdmin) {
+      await sendTelegramApi('sendMessage', {
+        chat_id: chatId,
+        text: '📌 Admin tezkor menyusi doimiy biriktirildi:',
+        reply_markup: {
+          keyboard: [
+            [
+              { text: '🛍️ Iqtisodchi Bozor', web_app: { url: WEBAPP_URL } },
+              { text: '👑 Admin Panel', web_app: { url: `${WEBAPP_URL}/admin` } }
+            ]
+          ],
+          resize_keyboard: true,
+          is_persistent: true
+        }
+      });
+    }
     return;
   }
 

@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getSellers, toggleSellerBlock } from '@/lib/storage';
+import { verifyAdminRequest } from '@/lib/admin-auth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const auth = verifyAdminRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: 403 });
+    }
     const sellers = getSellers().map(s => {
       const { password, ...safeSeller } = s;
       return safeSeller;
@@ -16,6 +21,10 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    const auth = verifyAdminRequest(request);
+    if (!auth.ok) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: 403 });
+    }
     const body = await request.json();
     const { sellerId } = body;
 

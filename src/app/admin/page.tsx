@@ -21,6 +21,13 @@ import {
 import { Seller, PurchaseRequest, SMSLog, CategoryInfo } from '@/types';
 
 export default function AdminPage() {
+  const [authState, setAuthState] = useState<'checking' | 'authorized' | 'denied'>('checking');
+  const [authError, setAuthError] = useState('');
+  const [adminUser, setAdminUser] = useState<{ id: string; firstName: string; username?: string } | null>(null);
+  const [tgInitData, setTgInitData] = useState('');
+  const [reqFilter, setReqFilter] = useState<'all' | 'active' | 'fulfilled'>('all');
+  const [reqSearch, setReqSearch] = useState('');
+
   const [stats, setStats] = useState<any>(null);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
@@ -41,7 +48,10 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/send-offer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-telegram-init-data': tgInitData,
+        },
         body: JSON.stringify({
           requestId: offerModalReq.id,
           offerPrice: adminOfferPrice,
@@ -55,7 +65,7 @@ export default function AdminPage() {
         setOfferModalReq(null);
         setAdminOfferPrice('');
         setAdminOfferMsg('');
-        fetchAllData();
+        fetchAllData(tgInitData);
       } else {
         alert(data.error || 'Xatolik');
       }
@@ -76,14 +86,17 @@ export default function AdminPage() {
     { id: 'spec1', label: 'Asosiy parametr', optionsStr: 'Hammasi, Standart, Pro, Ultra' },
   ]);
 
-  const fetchAllData = async () => {
+  const fetchAllData = async (initDataParam?: string) => {
+    const authHeader = initDataParam ?? tgInitData;
+    if (!authHeader) return;
     try {
       setLoading(true);
+      const headers = { 'x-telegram-init-data': authHeader };
       const [statsRes, sellersRes, requestsRes, smsRes, catRes] = await Promise.all([
-        fetch('/api/admin/stats'),
-        fetch('/api/admin/sellers'),
+        fetch('/api/admin/stats', { headers }),
+        fetch('/api/admin/sellers', { headers }),
         fetch('/api/requests'),
-        fetch('/api/admin/sms'),
+        fetch('/api/admin/sms', { headers }),
         fetch('/api/categories'),
       ]);
 
@@ -108,14 +121,47 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    fetchAllData();
+    const checkAdminAuth = async () => {
+      try {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg) {
+          tg.ready?.();
+          tg.expand?.();
+        }
+        const initData = tg?.initData || '';
+        const res = await fetch('/api/admin/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ initData }),
+        });
+        const data = await res.json();
+        if (res.ok && data.authorized) {
+          setTgInitData(initData);
+          setAdminUser(data.admin);
+          setAuthState('authorized');
+          await fetchAllData(initData);
+        } else {
+          setAuthError(data.error || 'Kirish taqiqlangan! Faqat ruxsat etilgan Adminlar kira oladi.');
+          setAuthState('denied');
+          setLoading(false);
+        }
+      } catch {
+        setAuthError('Admin autentifikatsiyasini tekshirishda xatolik.');
+        setAuthState('denied');
+        setLoading(false);
+      }
+    };
+    checkAdminAuth();
   }, []);
 
   const handleToggleBlock = async (sellerId: string) => {
     try {
       const res = await fetch('/api/admin/sellers', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-telegram-init-data': tgInitData,
+        },
         body: JSON.stringify({ sellerId }),
       });
       const data = await res.json();
@@ -186,29 +232,89 @@ export default function AdminPage() {
     }
   };
 
+  if (authState === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] p-6">
+        <div className="bg-white rounded-3xl p-8 border border-[#E7E9F2] shadow-xl text-center space-y-3 max-w-sm w-full">
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <h2 className="text-base font-extrabold text-[#0F172A]">Admin huquqi tekshirilmoqda...</h2>
+          <p className="text-xs text-[#64748B]">Telegram ID autentifikatsiyasi</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'denied') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F8FC] p-6">
+        <div className="bg-white rounded-3xl p-8 border border-rose-200 shadow-2xl text-center space-y-4 max-w-md w-full">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-9 h-9" />
+          </div>
+          <h1 className="text-xl font-black text-[#0F172A]">⛔ Kirish taqiqlangan</h1>
+          <p className="text-xs sm:text-sm text-[#475569] leading-relaxed">
+            {authError || 'Admin panelga faqat oldindan belgilangan administrator Telegram ID lari (@arzonoling_bot orqali) kira oladi.'}
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center w-full py-3 rounded-2xl bg-[#6366F1] hover:bg-[#4F46E5] text-white font-extrabold text-sm transition"
+          >
+            Bozorga qaytish
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredRequests = requests.filter((r) => {
+    if (reqFilter === 'active' && r.status === 'fulfilled') return false;
+    if (reqFilter === 'fulfilled' && r.status !== 'fulfilled') return false;
+    if (reqSearch.trim()) {
+      const s = reqSearch.toLowerCase();
+      const hay = `${r.productTitle || ''} ${r.description || ''} ${r.buyerName || ''} ${r.buyerPhone || ''} ${r.region || ''}`.toLowerCase();
+      if (!hay.includes(s)) return false;
+    }
+    return true;
+  });
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 animate-fade-in">
       {/* Sarlavha paneli */}
-      <div className="bg-stone-900 text-white rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#312E81] text-white rounded-3xl p-5 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl gradient-copper-header flex items-center justify-center text-white shadow-lg shadow-brand-500/25">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#6366F1] to-[#8B5CF6] flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 shrink-0">
             <ShieldCheck className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-black">Platforma Boshqaruv Markazi (Admin)</h1>
-            <p className="text-xs text-stone-400">
-              Texnikalar toifalari, sotuvchilar, talablar va SMS xarajatlari nazorati
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg sm:text-2xl font-black">Iqtisodchi Admin Markazi</h1>
+              {adminUser && (
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[10px] font-bold">
+                  ✓ {adminUser.firstName} (ID: {adminUser.id})
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-indigo-200 mt-0.5">
+              Xaridor talablari, Telegram bot takliflari, sotuvchilar va platforma nazorati
             </p>
           </div>
         </div>
 
-        <button
-          onClick={fetchAllData}
-          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Yangilash</span>
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => fetchAllData()}
+            className="flex-1 sm:flex-initial px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Yangilash</span>
+          </button>
+          <Link
+            href="/"
+            className="flex-1 sm:flex-initial px-4 py-2 bg-white text-[#0F172A] hover:bg-indigo-50 text-xs font-extrabold rounded-xl transition text-center"
+          >
+            Bozor ↗
+          </Link>
+        </div>
       </div>
 
       {/* KPI METRIKALAR */}
@@ -259,24 +365,34 @@ export default function AdminPage() {
       {/* TABLAR */}
       <div className="flex items-center gap-2 border-b border-stone-200 pb-2 overflow-x-auto">
         <button
-          onClick={() => setActiveTab('categories')}
+          onClick={() => setActiveTab('requests')}
           className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
-            activeTab === 'categories'
-              ? 'gradient-copper-header text-white shadow-md shadow-brand-500/20'
+            activeTab === 'requests'
+              ? 'bg-[#6366F1] text-white shadow-md shadow-indigo-500/20'
               : 'text-stone-600 hover:bg-stone-100'
           }`}
         >
-          Texnikalar va Parametrlar ({categories.length})
+          🔥 Xaridor Talablari ({requests.length})
         </button>
         <button
           onClick={() => setActiveTab('sellers')}
           className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
             activeTab === 'sellers'
-              ? 'gradient-copper-header text-white shadow-md shadow-brand-500/20'
+              ? 'bg-[#6366F1] text-white shadow-md shadow-indigo-500/20'
               : 'text-stone-600 hover:bg-stone-100'
           }`}
         >
           Sotuvchilar ({sellers.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('categories')}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+            activeTab === 'categories'
+              ? 'bg-[#6366F1] text-white shadow-md shadow-indigo-500/20'
+              : 'text-stone-600 hover:bg-stone-100'
+          }`}
+        >
+          Toifalar ({categories.length})
         </button>
         <button
           onClick={() => setActiveTab('requests')}
@@ -415,16 +531,33 @@ export default function AdminPage() {
 
       {/* TALABLAR (Mijozlarning arzon narx so'rovlari) */}
       {activeTab === 'requests' && (
-        <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-3xl p-4 sm:p-6 border border-stone-200 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black text-stone-900">Xaridor talablari (Arzon narx so‘rovlari)</h2>
+              <h2 className="text-base sm:text-lg font-black text-stone-900">Xaridor talablari (Arzon narx so‘rovlari)</h2>
               <p className="text-xs text-stone-500">Mijozlarga Telegram bot orqali maxsus arzon narx taklifi yuboring yoki to‘g‘ridan-to‘g‘ri qo‘ng‘iroq qiling.</p>
             </div>
-            <button onClick={fetchAllData} className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-xs font-bold flex items-center gap-1.5">
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Yangilash</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {(['all', 'active', 'fulfilled'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setReqFilter(f)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    reqFilter === f ? 'bg-[#6366F1] text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  {f === 'all' ? 'Barchasi' : f === 'active' ? 'Kutilmoqda' : 'Yuborilgan'}
+                </button>
+              ))}
+              <input
+                type="text"
+                value={reqSearch}
+                onChange={(e) => setReqSearch(e.target.value)}
+                placeholder="Qidirish (tovar, tel)..."
+                className="px-3 py-1.5 rounded-xl border border-stone-200 text-xs outline-none focus:border-indigo-500"
+              />
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-stone-700">
@@ -439,7 +572,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {requests.map((r) => (
+                {filteredRequests.map((r) => (
                   <tr key={r.id} className="hover:bg-stone-50/70">
                     <td className="py-3 px-4">
                       <div className="font-bold text-stone-900">{r.id}</div>
